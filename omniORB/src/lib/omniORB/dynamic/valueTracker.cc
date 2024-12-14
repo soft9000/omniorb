@@ -8,34 +8,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Position trackers for indirections in valuetypes.
 //
-
-/*
-  $Log$
-  Revision 1.1.2.2  2005/01/17 14:44:47  dgrisby
-  Surprisingly few changes to compile on Windows.
-
-  Revision 1.1.2.1  2003/09/26 16:12:54  dgrisby
-  Start of valuetype support.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/valueType.h>
@@ -44,8 +32,29 @@
 
 OMNI_NAMESPACE_BEGIN(omni)
 
-// Hash table size
-static CORBA::ULong tableSize = 131;
+// Hash table sizes
+static int tableSizes[] = {
+  128 + 3,              // 2^7
+  1024 + 9,             // 2^10
+  8192 + 27,            // 2^13
+  32768 + 3,            // 2^15
+  65536 + 45,           // 2^16
+  131072 + 9,
+  262144 + 39,
+  524288 + 39,
+  1048576 + 9,          // 2^20
+  2097152 + 5,
+  4194304 + 3,
+  8388608 + 33,
+  16777216 + 27,
+  33554432 + 9,         // 2^25
+  67108864 + 71,
+  134217728 + 39,
+  268435456 + 9,
+  536870912 + 5,
+  1073741824 + 83,      // 2^30 -- I'd be suprised if this is exceeded!
+  -1                    // Sentinel to detect the end, just to be paranoid.
+};
 
 const CORBA::ULong OutputValueTracker::PD_MAGIC = 0x432b4f56; // "C+OV"
 const CORBA::ULong InputValueTracker::PD_MAGIC  = 0x432b4956; // "C+IV"
@@ -56,14 +65,23 @@ enum OTKind { OT_VALUE, OT_REPOID, OT_REPOIDS };
 
 struct OutputTableEntry {
 
-  OutputTableEntry(const CORBA::ValueBase* v,CORBA::Long p,OutputTableEntry* n)
-    : kind(OT_VALUE), value(v), position(p), next(n) {}
+  OutputTableEntry(const CORBA::ValueBase* v,
+                   omni::ptr_arith_t       h,
+                   CORBA::Long             p,
+                   OutputTableEntry*       n)
+    : kind(OT_VALUE), value(v), position(p), hashbase(h), next(n) {}
 
-  OutputTableEntry(const char* r, CORBA::Long p, OutputTableEntry* n)
-    : kind(OT_REPOID), repoId(r), position(p), next(n) {}
+  OutputTableEntry(const char*       r,
+                   omni::ptr_arith_t h,
+                   CORBA::Long       p,
+                   OutputTableEntry* n)
+    : kind(OT_REPOID), repoId(r), position(p), hashbase(h), next(n) {}
 
-  OutputTableEntry(const _omni_ValueIds* r,CORBA::Long p,OutputTableEntry* n)
-    : kind(OT_REPOIDS), repoIds(r), position(p), next(n) {}
+  OutputTableEntry(const _omni_ValueIds* r,
+                   omni::ptr_arith_t     h,
+                   CORBA::Long           p,
+                   OutputTableEntry*     n)
+    : kind(OT_REPOIDS), repoIds(r), position(p), hashbase(h), next(n) {}
 
   OTKind kind;
   union {
@@ -71,7 +89,8 @@ struct OutputTableEntry {
     const char*        	    repoId;
     const _omni_ValueIds*   repoIds;
   };
-  CORBA::Long          	    position;
+  omni::s_size_t       	    position;
+  omni::ptr_arith_t         hashbase;
   OutputTableEntry*    	    next;
 };
 
@@ -98,7 +117,7 @@ struct InputTableEntry {
     _omni_ValueIds*   repoIds;
     InputTableEntry*  indirect;
   };
-  CORBA::Long         position;
+  omni::s_size_t      position;
   InputTableEntry*    next;
 };
 
@@ -124,13 +143,12 @@ listsMatch(const _omni_ValueIds* l1, const _omni_ValueIds* l2)
 
 OutputValueTracker::
 OutputValueTracker()
-  : pd_magic(PD_MAGIC), pd_in_truncatable(0), pd_table_size(tableSize)
+  : pd_magic(PD_MAGIC), pd_in_truncatable(0), pd_table(0),
+    pd_table_count(0), pd_table_size(0), pd_table_limit(0), pd_table_next_idx(0)
+
 {
   omniORB::logs(25, "Create output value indirection tracker");
-
-  pd_table = new OutputTableEntry*[tableSize];
-  for (CORBA::ULong i=0; i < pd_table_size; i++)
-    pd_table[i] = 0;
+  resizeTable();
 }
 
 OutputValueTracker::
@@ -148,72 +166,115 @@ OutputValueTracker::
     }
   }
   delete [] pd_table;
-  pd_magic = 0;
+}
+
+void
+OutputValueTracker::
+resizeTable()
+{
+  int isize = tableSizes[pd_table_next_idx];
+  if (isize == -1)
+    return;
+
+  CORBA::ULong size = isize;
+  CORBA::ULong idx;
+
+  ++pd_table_next_idx;
+
+  OutputTableEntry** table = new OutputTableEntry*[size];
+  for (idx=0; idx != size; ++idx)
+    table[idx] = 0;
+
+  if (pd_table) {
+    if (omniORB::trace(25)) {
+      omniORB::logger log;
+      log << "Resize output value tracker table to " << size << " entries.\n";
+    }
+    OutputTableEntry *e, *n;
+    CORBA::ULong     h;
+
+    for (idx=0; idx != pd_table_size; ++idx) {
+      for (e = pd_table[idx]; e; e = n) {
+        n        = e->next;
+        h        = e->hashbase % size;
+        e->next  = table[h];
+        table[h] = e;
+      }
+    }
+
+    delete [] pd_table;
+  }
+
+  pd_table_size  = size;
+  pd_table_limit = size * 2 / 3;
+  pd_table       = table;
 }
 
 
-CORBA::Long
+omni::s_size_t
 OutputValueTracker::
-addValue(const CORBA::ValueBase* val, CORBA::Long current)
+addValue(const CORBA::ValueBase* val, omni::s_size_t current)
 {
   OutputTableEntry* e;
 
-  CORBA::ULong hashval = ((omni::ptr_arith_t)val % pd_table_size);
+  CORBA::ULong h = ((omni::ptr_arith_t)val % pd_table_size);
 
-  for (e = pd_table[hashval]; e; e = e->next) {
+  for (e = pd_table[h]; e; e = e->next) {
     if (e->kind == OT_VALUE && e->value == val)
       return e->position;
   }
-  e = new OutputTableEntry(val, current, pd_table[hashval]);
-  pd_table[hashval] = e;
+  add();
+  e = new OutputTableEntry(val, (omni::ptr_arith_t)val,
+                           current, pd_table[h]);
+  pd_table[h] = e;
   return -1;
 }
 
-CORBA::Long
+omni::s_size_t
 OutputValueTracker::
-addRepoId(const char* repoId, CORBA::ULong hashval, CORBA::Long current)
+addRepoId(const char* repoId, CORBA::ULong hashval, omni::s_size_t current)
 {
   OutputTableEntry* e;
 
-  hashval %= pd_table_size;
+  CORBA::ULong h = hashval % pd_table_size;
 
-  for (e = pd_table[hashval]; e; e = e->next) {
+  for (e = pd_table[h]; e; e = e->next) {
     if (e->kind == OT_REPOID && omni::ptrStrMatch(repoId, e->repoId))
       return e->position;
   }
-  e = new OutputTableEntry(repoId, current, pd_table[hashval]);
-  pd_table[hashval] = e;
+  add();
+  e = new OutputTableEntry(repoId, hashval, current, pd_table[h]);
+  pd_table[h] = e;
   return -1;
 }
 
 
-CORBA::Long
+omni::s_size_t
 OutputValueTracker::
-addRepoIds(const _omni_ValueIds* repoIds, CORBA::Long current)
+addRepoIds(const _omni_ValueIds* repoIds, omni::s_size_t current)
 {
   OutputTableEntry* e;
 
-  CORBA::ULong hashval = repoIds->hashval % pd_table_size;
+  CORBA::ULong h = repoIds->hashval % pd_table_size;
 
-  for (e = pd_table[hashval]; e; e = e->next) {
+  for (e = pd_table[h]; e; e = e->next) {
     if (e->kind == OT_REPOIDS && listsMatch(e->repoIds, repoIds))
       return e->position;
   }
-  e = new OutputTableEntry(repoIds, current, pd_table[hashval]);
-  pd_table[hashval] = e;
+  add();
+  e = new OutputTableEntry(repoIds, repoIds->hashval, current, pd_table[h]);
+  pd_table[h] = e;
   return -1;
 }
 
 
 InputValueTracker::
 InputValueTracker()
-  : pd_magic(PD_MAGIC), pd_in_truncatable(0), pd_table_size(tableSize)
+  : pd_magic(PD_MAGIC), pd_in_truncatable(0), pd_table(0),
+    pd_table_count(0), pd_table_size(0), pd_table_limit(0), pd_table_next_idx(0)
 {
   omniORB::logs(25, "Create input value indirection tracker");
-
-  pd_table = new InputTableEntry*[tableSize];
-  for (CORBA::ULong i=0; i < pd_table_size; i++)
-    pd_table[i] = 0;
+  resizeTable();
 }
 
 InputValueTracker::
@@ -249,37 +310,84 @@ InputValueTracker::
     }
   }
   delete [] pd_table;
-  pd_magic = 0;
 }
+
 
 void
 InputValueTracker::
-addValue(CORBA::ValueBase* val, CORBA::Long current)
+resizeTable()
 {
+  int isize = tableSizes[pd_table_next_idx];
+  if (isize == -1)
+    return;
+
+  CORBA::ULong size = isize;
+  CORBA::ULong idx;
+
+  ++pd_table_next_idx;
+
+  InputTableEntry** table = new InputTableEntry*[size];
+  for (idx=0; idx != size; ++idx)
+    table[idx] = 0;
+
+  if (pd_table) {
+    if (omniORB::trace(25)) {
+      omniORB::logger log;
+      log << "Resize input value tracker table to " << size << " entries.\n";
+    }
+    InputTableEntry *e, *n;
+    CORBA::ULong     h;
+
+    for (idx=0; idx != pd_table_size; ++idx) {
+      for (e = pd_table[idx]; e; e = n) {
+        n        = e->next;
+        h        = e->position % size;
+        e->next  = table[h];
+        table[h] = e;
+      }
+    }
+
+    delete [] pd_table;
+  }
+
+  pd_table_size  = size;
+  pd_table_limit = size * 2 / 3;
+  pd_table       = table;
+}
+
+
+
+void
+InputValueTracker::
+addValue(CORBA::ValueBase* val, omni::s_size_t current)
+{
+  add();
   CORBA::ULong hashval = current % pd_table_size;
   pd_table[hashval] = new InputTableEntry(val, current, pd_table[hashval]);
 }
 
 void
 InputValueTracker::
-addRepoId(char* repoId, CORBA::Long current)
+addRepoId(char* repoId, omni::s_size_t current)
 {
+  add();
   CORBA::ULong hashval = current % pd_table_size;
   pd_table[hashval] = new InputTableEntry(repoId, current, pd_table[hashval]);
 }
 
 void
 InputValueTracker::
-addRepoIds(_omni_ValueIds* repoIds, CORBA::Long current)
+addRepoIds(_omni_ValueIds* repoIds, omni::s_size_t current)
 {
+  add();
   CORBA::ULong hashval = current % pd_table_size;
   pd_table[hashval] = new InputTableEntry(repoIds,current,pd_table[hashval]);
 }
 
 CORBA::ValueBase*
 InputValueTracker::
-lookupValue(CORBA::Long pos,
-	    CORBA::Long current,
+lookupValue(omni::s_size_t pos,
+	    omni::s_size_t current,
 	    CORBA::CompletionStatus comp)
 {
   CORBA::ULong hashval = pos % pd_table_size;
@@ -303,8 +411,8 @@ lookupValue(CORBA::Long pos,
 
 const char*
 InputValueTracker::
-lookupRepoId(CORBA::Long pos,
-	     CORBA::Long current,
+lookupRepoId(omni::s_size_t pos,
+	     omni::s_size_t current,
 	     CORBA::CompletionStatus comp)
 {
   CORBA::ULong hashval = pos % pd_table_size;
@@ -328,8 +436,8 @@ lookupRepoId(CORBA::Long pos,
 
 const _omni_ValueIds*
 InputValueTracker::
-lookupRepoIds(CORBA::Long pos,
-	      CORBA::Long current,
+lookupRepoIds(omni::s_size_t pos,
+	      omni::s_size_t current,
 	      CORBA::CompletionStatus comp)
 {
   CORBA::ULong hashval = pos % pd_table_size;

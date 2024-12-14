@@ -3,127 +3,28 @@
 // giopImpl10.cc              Created on: 14/02/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2002-2008 Apasphere Ltd
+//    Copyright (C) 2002-2013 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories, Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //	
-
-/*
-  $Log$
-  Revision 1.1.6.9  2008/12/29 17:31:16  dgrisby
-  Properly handle message size being exceeded in request header.
-
-  Revision 1.1.6.8  2008/08/08 16:52:56  dgrisby
-  Option to validate untransformed UTF-8; correct data conversion minor
-  codes; better logging for MessageErrors.
-
-  Revision 1.1.6.7  2006/09/20 13:36:31  dgrisby
-  Descriptive logging for connection and GIOP errors.
-
-  Revision 1.1.6.6  2006/06/05 11:28:04  dgrisby
-  Change clientSendRequest interceptor members to a single GIOP_C.
-
-  Revision 1.1.6.5  2005/12/08 14:22:31  dgrisby
-  Better string marshalling performance; other minor optimisations.
-
-  Revision 1.1.6.4  2005/04/11 12:09:42  dgrisby
-  Another merge.
-
-  Revision 1.1.6.3  2005/01/06 23:10:15  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.6.2  2003/07/10 21:55:56  dgrisby
-  Use re-entrant GIOP 1.0 size calc.
-
-  Revision 1.1.6.1  2003/03/23 21:02:16  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.4.19  2003/01/22 11:40:12  dgrisby
-  Correct serverSendException interceptor use.
-
-  Revision 1.1.4.18  2002/11/26 16:54:34  dgrisby
-  Fix exception interception.
-
-  Revision 1.1.4.17  2002/11/26 14:51:50  dgrisby
-  Implement missing interceptors.
-
-  Revision 1.1.4.16  2002/07/04 15:14:40  dgrisby
-  Correct usage of MessageErrors, fix log messages.
-
-  Revision 1.1.4.15  2002/03/27 11:44:51  dpg1
-  Check in interceptors things left over from last week.
-
-  Revision 1.1.4.14  2002/03/18 12:38:25  dpg1
-  Lower trace(0) to trace(1), propagate fatalException.
-
-  Revision 1.1.4.13  2001/10/19 11:06:45  dpg1
-  Principal support for GIOP 1.0. Correct some spelling mistakes.
-
-  Revision 1.1.4.12  2001/09/12 19:43:19  sll
-  Enforce GIOP message size limit.
-
-  Revision 1.1.4.11  2001/09/10 17:46:09  sll
-  When a connection is broken, check if it has been shutdown orderly. If so,
-  do a retry.
-
-  Revision 1.1.4.10  2001/09/04 14:38:51  sll
-  Added the boolean argument to notifyCommFailure to indicate if
-  omniTransportLock is held by the caller.
-
-  Revision 1.1.4.9  2001/09/03 16:55:41  sll
-  Modified to match the new signature of the giopStream member functions that
-  previously accept explicit deadline parameters. The deadline is now
-  implicit in the giopStream.
-
-  Revision 1.1.4.8  2001/08/17 17:12:36  sll
-  Modularise ORB configuration parameters.
-
-  Revision 1.1.4.7  2001/07/31 16:20:30  sll
-  New primitives to acquire read lock on a connection.
-
-  Revision 1.1.4.6  2001/06/20 18:35:18  sll
-  Upper case send,recv,connect,shutdown to avoid silly substutition by
-  macros defined in socket.h to rename these socket functions
-  to something else.
-
-  Revision 1.1.4.5  2001/05/11 14:30:12  sll
-  Message size limit is now enforced.
-
-  Revision 1.1.4.4  2001/05/04 13:55:58  sll
-  Silly mistake that causes non-copy marshalling to do the wrong thing
-  in GIOP 1.0.
-
-  Revision 1.1.4.3  2001/05/01 17:56:29  sll
-  Remove user exception check in sendUserException. This has been done by
-  the caller.
-
-  Revision 1.1.4.2  2001/05/01 17:15:18  sll
-  Non-copy input now works correctly.
-
-  Revision 1.1.4.1  2001/04/18 18:10:51  sll
-  Big checkin with the brand new internal APIs.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <giopStream.h>
@@ -184,8 +85,8 @@ public:
   static size_t outputRemaining(const giopStream*);
   static void getReserveSpace(giopStream*,omni::alignment_t,size_t);
   static void copyOutputData(giopStream*,void*, size_t,omni::alignment_t);
-  static CORBA::ULong currentInputPtr(const giopStream*);
-  static CORBA::ULong currentOutputPtr(const giopStream*);
+  static size_t currentInputPtr(const giopStream*);
+  static size_t currentOutputPtr(const giopStream*);
 
   friend class nonexistence;  // Just to make gcc shut up.
 
@@ -206,7 +107,7 @@ public:
 
   static void outputFlush(giopStream* g);
 
-  static void outputSetMessageSize(giopStream*,CORBA::ULong);
+  static void outputSetMessageSize(giopStream*, size_t);
 
 private:
   giopImpl10();
@@ -864,7 +765,7 @@ giopImpl10::copyInputData(giopStream* g,void* b, size_t sz,
 
 	  if ( b && sz >= giopStream::directReceiveCutOff ) {
 	  
-	    CORBA::ULong transz = g->inputFragmentToCome();
+	    size_t transz = g->inputFragmentToCome();
 	    if (transz > sz) transz = sz;
 	    transz = (transz >> 3) << 3;
 	    g->inputCopyChunk(b,transz);
@@ -904,13 +805,11 @@ giopImpl10::copyInputData(giopStream* g,void* b, size_t sz,
 }
 
 ////////////////////////////////////////////////////////////////////////
-CORBA::ULong
+size_t
 giopImpl10::currentInputPtr(const giopStream* g) {
 
-  return  g->inputMessageSize() - 
-          g->inputFragmentToCome() -
-         ((omni::ptr_arith_t) g->pd_inb_end - 
-	  (omni::ptr_arith_t) g->pd_inb_mkr);
+  return (g->inputMessageSize() - g->inputFragmentToCome() -
+          (g->inEnd() - g->inMkr()));
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -922,13 +821,11 @@ giopImpl10::inputTerminalProtocolError(giopStream* g,
   if (omniORB::trace(1)) {
     omniORB::logger l;
     l << "From endpoint: " << g->pd_strand->connection->peeraddress()
-      << ". Detected GIOP 1.0 protocol error in input message. "
-      << omniExHelper::strip(file) << ":" << line
+      << ". Detected GIOP 1.0 protocol error in input message: "
+      << message << ". " << omniExHelper::strip(file) << ":" << line
       << ". Connection is closed.\n";
   }
-
   sendMsgErrorMessage(g, 0);
-
   inputRaiseCommFailure(g, message);
 }
 
@@ -1063,7 +960,7 @@ giopImpl10::sendMsgErrorMessage(giopStream* g,
   hdr[7] = (char)GIOP::MessageError;
   hdr[8] = hdr[9] = hdr[10] = hdr[11] = 0;
 
-  (void)  g->pd_strand->connection->Send(hdr,12);
+  (void)  g->pd_strand->connection->Send(hdr, 12, g->getDeadline());
 
   g->pd_strand->state(giopStrand::DYING);
 
@@ -1467,7 +1364,7 @@ giopImpl10::sendLocateReply(giopStream* g,GIOP::LocateStatusType rc,
 ////////////////////////////////////////////////////////////////////////
 size_t
 giopImpl10::outputRemaining(const giopStream* g) {
-  CORBA::ULong total = g->outputMessageSize();
+  size_t total = g->outputMessageSize();
   if (!total) {
     return orbParameters::giopMaxMsgSize - currentOutputPtr(g);
   }
@@ -1581,43 +1478,64 @@ void
 giopImpl10::copyOutputData(giopStream* g,void* b, size_t sz,
 			   omni::alignment_t align) {
 
-  omni::ptr_arith_t newmkr = omni::align_to((omni::ptr_arith_t)g->pd_outb_mkr,
-					    align);
-  OMNIORB_ASSERT(newmkr <= (omni::ptr_arith_t)g->pd_outb_end);
+  omni::ptr_arith_t newmkr = g->outMkr(align);
+  OMNIORB_ASSERT(newmkr <= g->outEnd());
+
+  g->pd_outb_mkr = (void*)newmkr;
 
   if (sz >= giopStream::directSendCutOff) {
 
-    g->pd_outb_mkr = (void*)newmkr;
-    if (  (omni::ptr_arith_t)g->pd_outb_mkr !=
-	 ((omni::ptr_arith_t)g->pd_currentOutputBuffer + 
-	                     g->pd_currentOutputBuffer->start) ) {
+    omni::ptr_arith_t outbuf_begin = g->outputBufferStart();
+
+    if (g->outMkr() != outbuf_begin) {
+
+      if (newmkr - outbuf_begin < giopStream::minChunkBeforeDirectSend) {
+        // Copy some of the data into the buffer, to prevent
+        // transmission of a small chunk.
+        size_t current = newmkr - outbuf_begin;
+        size_t avail   = g->outEnd() - newmkr;
+        size_t filler  = giopStream::minChunkBeforeDirectSend - current;
+        if (filler > avail)
+          filler = avail;
+
+        memcpy(g->pd_outb_mkr, b, filler);
+        sz -= filler;
+        g->pd_outb_mkr = (void*)(g->outMkr() + filler);
+        b = (void*)((omni::ptr_arith_t)b + filler);
+        newmkr = g->outMkr();
+      }
+
       outputFlush(g);
     }
+
+    g->sendCopyChunk(b,sz);
+
     // After this vector of bytes is sent, the stream may or may not be
     // 8 bytes aligned. But our output buffer is now emptied and hence
-    // is 8 bytes aligned. Since we send the whole vector out, we have
+    // is 8 bytes aligned. Since we sent the whole vector out, we have
     // to make sure that the next byte will be marshalled at the correct
     // alignment by adjusting the start of the currentOutputBuffer.
-    g->sendCopyChunk(b,sz);
 
     size_t leftover = (newmkr + sz) & 0x7;
     if (leftover) {
       g->pd_currentOutputBuffer->start += leftover;
-      g->pd_outb_mkr = (void*) ((omni::ptr_arith_t) 
-				g->pd_currentOutputBuffer + 
-				g->pd_currentOutputBuffer->start);
+      g->pd_outb_mkr = (void*) g->outputBufferStart();
     }
   }
   else {
-    g->pd_outb_mkr = (void*)newmkr;
     while (sz) {
-      size_t avail = (omni::ptr_arith_t) g->pd_outb_end	- 
-	             (omni::ptr_arith_t) g->pd_outb_mkr;
-      if (avail > sz) avail = sz;
+      size_t avail = g->outEnd() - g->outMkr();
+
+      if (avail > sz)
+        avail = sz;
+
       memcpy(g->pd_outb_mkr,b,avail);
       sz -= avail;
-      g->pd_outb_mkr = (void*)((omni::ptr_arith_t) g->pd_outb_mkr + avail);
+
+      g->pd_outb_mkr = (void*)(g->outMkr() + avail);
+
       b = (void*)((omni::ptr_arith_t) b + avail);
+
       if (g->pd_outb_mkr == g->pd_outb_end)
 	outputFlush(g);
     }
@@ -1625,12 +1543,10 @@ giopImpl10::copyOutputData(giopStream* g,void* b, size_t sz,
 }
 
 ////////////////////////////////////////////////////////////////////////
-CORBA::ULong
+size_t
 giopImpl10::currentOutputPtr(const giopStream* g) {
 
-  CORBA::ULong fsz = (omni::ptr_arith_t) g->pd_outb_mkr - 
-                     ((omni::ptr_arith_t) g->pd_currentOutputBuffer + 
-		      g->pd_currentOutputBuffer->start);
+  size_t fsz = g->outMkr() - g->outputBufferStart();
 
   if (g->outputFragmentSize()) {
     return fsz + g->outputFragmentSize();
@@ -1643,7 +1559,7 @@ giopImpl10::currentOutputPtr(const giopStream* g) {
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl10::outputSetMessageSize(giopStream* g,CORBA::ULong msz) {
+giopImpl10::outputSetMessageSize(giopStream* g, size_t msz) {
 
   if (msz > orbParameters::giopMaxMsgSize) {
     char* hdr = (char*)((omni::ptr_arith_t) g->pd_currentOutputBuffer + 

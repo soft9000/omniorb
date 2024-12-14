@@ -8,47 +8,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Implementation of the WString interface.
 //	
-
-/*
-  $Log$
-  Revision 1.1.2.6  2001/10/17 16:47:08  dpg1
-  New minor codes
-
-  Revision 1.1.2.5  2001/08/03 17:41:19  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.1.2.4  2000/11/17 19:11:16  dpg1
-  Rename _CORBA_Sequence__WString to _CORBA_Sequence_WString.
-
-  Revision 1.1.2.3  2000/11/16 12:33:44  dpg1
-  Minor fixes to permit use of UShort as WChar.
-
-  Revision 1.1.2.2  2000/11/15 17:20:23  sll
-  Removed obsoluted marshalling functions.
-
-  Revision 1.1.2.1  2000/10/27 15:42:07  dpg1
-  Initial code set conversion support. Not yet enabled or fully tested.
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -80,7 +55,7 @@ CORBA::wstring_alloc(CORBA::ULong len)
 void
 CORBA::wstring_free(_CORBA_WChar* p)
 {
-  _CORBA_WString_helper::free(p);
+  _CORBA_WString_helper::dealloc(p);
 }
 
 
@@ -99,7 +74,7 @@ void
 _CORBA_WString_member::operator <<= (cdrStream& s)
 {
   if( _ptr && _ptr != _CORBA_WString_helper::empty_wstring )
-    _CORBA_WString_helper::free(_ptr);
+    _CORBA_WString_helper::dealloc(_ptr);
   _ptr = 0;
 
   _ptr = s.unmarshalWString();
@@ -151,7 +126,7 @@ _CORBA_Sequence_WString::operator <<= (cdrStream& s)
   for( _CORBA_ULong i = 0; i < slen; i++ ) {
     _CORBA_WChar*& p = (_CORBA_WChar*&) pd_data[i];
 
-    if( p ) { _CORBA_WString_helper::free(p); p = 0; }
+    if( p ) { _CORBA_WString_helper::dealloc(p); p = 0; }
 
     p = s.unmarshalWString();
   }

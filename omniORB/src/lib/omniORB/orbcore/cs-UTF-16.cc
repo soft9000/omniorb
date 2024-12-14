@@ -3,91 +3,27 @@
 // cs-UTF-16.cc               Created on: 25/10/2000
 //                            Author    : Duncan Grisby (dpg1)
 //
-//    Copyright (C) 2003-2006 Apasphere Ltd
+//    Copyright (C) 2003-2012 Apasphere Ltd
 //    Copyright (C) 2000 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Unicode / ISO 10646 UTF-16
-
-/*
-  $Log$
-  Revision 1.1.4.5  2006/05/22 15:44:51  dgrisby
-  Make sure string length and body are never split across a chunk
-  boundary.
-
-  Revision 1.1.4.4  2006/01/19 16:05:02  dgrisby
-  Windows build fixes.
-
-  Revision 1.1.4.3  2005/12/08 14:22:31  dgrisby
-  Better string marshalling performance; other minor optimisations.
-
-  Revision 1.1.4.2  2003/05/20 16:53:16  dgrisby
-  Valuetype marshalling support.
-
-  Revision 1.1.4.1  2003/03/23 21:02:20  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.12  2001/11/14 19:11:45  dpg1
-  Bug with empty UTF-16 wstring.
-
-  Revision 1.1.2.11  2001/10/17 16:47:09  dpg1
-  New minor codes
-
-  Revision 1.1.2.10  2001/08/03 17:41:20  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.1.2.9  2001/07/31 09:01:12  dpg1
-  Allocated one too few characters in WString unmarshal.
-
-  Revision 1.1.2.8  2001/07/26 16:37:20  dpg1
-  Make sure static initialisers always run.
-
-  Revision 1.1.2.7  2001/04/18 18:18:09  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.1.2.6  2000/12/05 17:43:30  dpg1
-  Check for input over-run in string and wstring unmarshalling.
-
-  Revision 1.1.2.5  2000/11/22 14:38:00  dpg1
-  Code set marshalling functions now take a string length argument.
-
-  Revision 1.1.2.4  2000/11/16 12:33:44  dpg1
-  Minor fixes to permit use of UShort as WChar.
-
-  Revision 1.1.2.3  2000/11/10 15:41:36  dpg1
-  Native code sets throw BAD_PARAM if they are given a null transmission
-  code set.
-
-  Revision 1.1.2.2  2000/11/03 18:49:17  sll
-  Separate out the marshalling of byte, octet and char into 3 set of distinct
-  marshalling functions.
-  Renamed put_char_array and get_char_array to put_octet_array and
-  get_octet_array.
-  New string marshal member functions.
-
-  Revision 1.1.2.1  2000/10/27 15:42:08  dpg1
-  Initial code set conversion support. Not yet enabled or fully tested.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/linkHacks.h>
@@ -181,7 +117,7 @@ NCS_W_UTF_16::marshalWChar(cdrStream& stream,
 
   if (tcs->fastMarshalWChar(stream, this, wc)) return;
 
-#if (SIZEOF_WCHAR == 4)
+#if (OMNI_SIZEOF_WCHAR == 4)
   if (wc > 0xffff)
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WCharOutOfRange, 
 		  (CORBA::CompletionStatus)stream.completion());
@@ -206,7 +142,7 @@ NCS_W_UTF_16::marshalWString(cdrStream&          stream,
 		  (CORBA::CompletionStatus)stream.completion());
 
 
-#if (SIZEOF_WCHAR == 2)
+#if (OMNI_SIZEOF_WCHAR == 2)
   tcs->marshalWString(stream, bound, len, ws);
 #else
   omniCodeSet::UniChar*    us = omniCodeSetUtil::allocU(len+1);
@@ -252,7 +188,7 @@ NCS_W_UTF_16::unmarshalWString(cdrStream& stream,
   len = tcs->unmarshalWString(stream, bound, us);
   OMNIORB_ASSERT(us);
 
-#if (SIZEOF_WCHAR == 2)
+#if (OMNI_SIZEOF_WCHAR == 2)
   ws = us;
   return len;
 #else
@@ -367,7 +303,7 @@ TCS_W_UTF_16::unmarshalWChar(cdrStream& stream)
   }
   OMNIORB_THROW(MARSHAL, MARSHAL_InvalidWCharSize,
 		(CORBA::CompletionStatus)stream.completion());
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }

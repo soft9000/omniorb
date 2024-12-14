@@ -9,89 +9,22 @@
 //    This file is part of the omniORB library.
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Internal implementation of the PortableServer::POAManager.
 //
-
-/*
-  $Log$
-  Revision 1.4.2.2  2005/01/06 23:10:40  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.4.2.1  2003/03/23 21:02:07  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.2.2.9  2002/01/16 11:32:00  dpg1
-  Race condition in use of registerNilCorbaObject/registerTrackedObject.
-  (Reported by Teemu Torma).
-
-  Revision 1.2.2.8  2001/11/13 14:11:46  dpg1
-  Tweaks for CORBA 2.5 compliance.
-
-  Revision 1.2.2.7  2001/09/19 17:26:52  dpg1
-  Full clean-up after orb->destroy().
-
-  Revision 1.2.2.6  2001/06/07 16:24:11  dpg1
-  PortableServer::Current support.
-
-  Revision 1.2.2.5  2001/05/31 16:18:15  dpg1
-  inline string matching functions, re-ordered string matching in
-  _ptrToInterface/_ptrToObjRef
-
-  Revision 1.2.2.4  2001/04/18 18:18:05  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.2.2.3  2000/11/09 12:27:58  dpg1
-  Huge merge from omni3_develop, plus full long long from omni3_1_develop.
-
-  Revision 1.2.2.2  2000/09/27 17:41:41  sll
-  Updated include/omniORB3 to include/omniORB4
-
-  Revision 1.2.2.1  2000/07/17 10:35:57  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.3  2000/07/13 15:25:56  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.1.2.7  2000/06/22 10:40:17  dpg1
-  exception.h renamed to exceptiondefs.h to avoid name clash on some
-  platforms.
-
-  Revision 1.1.2.6  2000/02/04 18:11:03  djr
-  Minor mods for IRIX (casting pointers to ulong instead of int).
-
-  Revision 1.1.2.5  2000/01/20 11:51:37  djr
-  (Most) Pseudo objects now used omni::poRcLock for ref counting.
-  New assertion check OMNI_USER_CHECK.
-
-  Revision 1.1.2.4  1999/10/29 13:18:19  djr
-  Changes to ensure mutexes are constructed when accessed.
-
-  Revision 1.1.2.3  1999/10/14 16:22:15  djr
-  Implemented logging when system exceptions are thrown.
-
-  Revision 1.1.2.2  1999/09/30 11:52:33  djr
-  Implemented use of AdapterActivators in POAs.
-
-  Revision 1.1.2.1  1999/09/22 14:27:02  djr
-  Major rewrite of orbcore to support POA.
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -170,8 +103,8 @@ const char* PortableServer::POAManager::_PD_repoId =
   if( _NP_is_nil() )  _CORBA_invoked_nil_pseudo_ref()
 
 
-static omni_tracedmutex     pm_lock;
-static omni_tracedcondition pm_cond(&pm_lock);
+static omni_tracedmutex     pm_lock("pm_lock");
+static omni_tracedcondition pm_cond(&pm_lock, "pm_cond");
 // Condition variable used to signal deactivations
 
 omniOrbPOAManager::~omniOrbPOAManager() {}
@@ -292,7 +225,7 @@ deactivate_thread_fn(void* args)
 
   omniOrbPOAManager::POASeq* ppoas = (omniOrbPOAManager::POASeq*) targs[0];
   omniOrbPOAManager::POASeq& poas = *ppoas;
-  CORBA::Boolean etherealise = (CORBA::Boolean) (unsigned long) targs[1];
+  CORBA::Boolean etherealise = (CORBA::Boolean) (omni::ptr_arith_t) targs[1];
   int* deactivated = (int*)targs[2];
   delete[] targs;
 

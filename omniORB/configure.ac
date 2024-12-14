@@ -1,14 +1,14 @@
 dnl -*- M4 -*-
-AC_INIT(omniORB, 4.1.7, bugs@omniorb-support.com)
+AC_INIT([omniORB],[4.3.2],[bugs@omniorb-support.com])
 
-AC_PREREQ(2.52)
+AC_PREREQ([2.71])
 AC_CONFIG_SRCDIR(bin/scripts/omkdirhier)
 AC_CONFIG_AUX_DIR(bin/scripts)
 
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
 
-AC_CONFIG_HEADERS(include/omniORB4/acconfig.h)
+AC_CONFIG_HEADERS(include/omniORB4/acconfig_pre.h)
 
 dnl to prevent error from autoreconf while crosscompiling
 m4_pattern_allow(PKG_CONFIG_LIBDIR)
@@ -20,7 +20,7 @@ if test "${CFLAGS+set}" != set; then
 fi
 
 if test "${CXXFLAGS+set}" != set; then
-    CXXFLAGS="-O2"
+    CXXFLAGS="-O3"
 fi
 
 
@@ -34,8 +34,27 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 
 AM_PATH_PYTHON
+OMNI_FIX_PYTHONDIR
 
 AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
+
+
+dnl ** Cross compilation
+
+if test "$cross_compiling" = yes; then
+  AC_PATH_PROG(OMNIIDL, omniidl, no)
+  if test "x$ac_cv_path_OMNIIDL" = "xno"; then
+    AC_MSG_ERROR(cannot find omniidl on the path)
+  fi
+
+  AC_PATH_PROG(OMKDEPEND, omkdepend, no)
+  if test "x$ac_cv_path_OMKDEPEND" = "xno"; then
+    AC_MSG_ERROR(cannot find omkdepend on the path)
+  fi
+fi
+
+AC_SUBST(CROSS_COMPILING, $cross_compiling)
+
 
 AC_LANG(C++)
 
@@ -55,8 +74,7 @@ dnl ** Headers
 
 AC_CHECK_HEADERS(errno.h fcntl.h netdb.h signal.h stdlib.h string.h strings.h)
 AC_CHECK_HEADERS(unistd.h nan.h sys/if.h sys/ioctl.h sys/param.h sys/time.h)
-AC_CHECK_HEADERS(sys/poll.h ifaddrs.h)
-AC_HEADER_TIME
+AC_CHECK_HEADERS(sys/poll.h ifaddrs.h zlib.h zstd.h)
 
 
 dnl ** Integer representation
@@ -115,10 +133,11 @@ dnl ** Functions
 
 AC_LANG(C)
 AC_CHECK_FUNCS(getaddrinfo gethostname getopt getpid gettimeofday)
-AC_CHECK_FUNCS(getnameinfo inet_ntop)
-AC_CHECK_FUNCS(isinf insinff isinfl localtime nanosleep poll sigaction)
-AC_CHECK_FUNCS(sigvec snprintf strcasecmp strdup strerror strftime stricmp)
-AC_CHECK_FUNCS(strncasecmp strtoul strtoull strtouq uname vprintf vsnprintf)
+AC_CHECK_FUNCS(getnameinfo gmtime gmtime_r inet_ntop)
+AC_CHECK_FUNCS(isinf isinff isinfl isnan isnanf isnanl localtime localtime_r)
+AC_CHECK_FUNCS(nanosleep poll rand_r sigaction sigvec snprintf strcasecmp)
+AC_CHECK_FUNCS(strdup strerror strftime stricmp strncasecmp strtoul strtoull)
+AC_CHECK_FUNCS(strtouq uname vprintf vsnprintf)
 AC_FUNC_ALLOCA
 AC_LANG(C++)
 
@@ -126,7 +145,7 @@ OMNI_HAVE_ISNANORINF
 OMNI_HAVE_SIG_IGN
 OMNI_GETTIMEOFDAY_TIMEZONE
 OMNI_SOCKNAME_ARG
-
+OMNI_SYNC_ADD_SUB_FETCH
 
 dnl ** omniORB config
 
@@ -137,8 +156,10 @@ OMNI_DISABLE_THREAD_TRACING
 OMNI_DISABLE_IPV6_CHECK
 OMNI_DISABLE_ALLOCA
 OMNI_DISABLE_LONGDOUBLE
+OMNI_DISABLE_ATOMIC
 OMNI_ENABLE_ZIOP
-OMNI_ENABLE_CERT_ACCESS
+OMNI_ENABLE_CFNETWORK
+OMNI_ENABLE_HTTP_CRYPTO
 
 
 dnl ** Compiler name
@@ -184,30 +205,39 @@ plat_def="__unknown_platform__"
 os_v="0"
 
 case "$host" in
-  *-*-linux-*)   plat_name="Linux";    plat_def="__linux__";    os_v="2";;
-  *-*-cygwin*)   plat_name="Cygwin";   plat_def="__cygwin__";   os_v="1";;
-  *-*-solaris*)  plat_name="SunOS";    plat_def="__sunos__";    os_v="5";;
-  *-*-osf3*)     plat_name="OSF1";     plat_def="__osf1__";     os_v="3";;
-  *-*-osf4*)     plat_name="OSF1";     plat_def="__osf1__";     os_v="4";;
-  *-*-osf5*)     plat_name="OSF1";     plat_def="__osf1__";     os_v="5";;
-  *-*-hpux10*)   plat_name="HPUX";     plat_def="__hpux__";     os_v="10";;
-  *-*-hpux11*)   plat_name="HPUX";     plat_def="__hpux__";     os_v="11";;
-  *-*-nextstep*) plat_name="NextStep"; plat_def="__nextstep__"; os_v="3";;
-  *-*-openstep*) plat_name="NextStep"; plat_def="__nextstep__"; os_v="3";;
-  *-*-irix*)     plat_name="IRIX";     plat_def="__irix__";     os_v="6";;
-  *-*-aix*)      plat_name="AIX";      plat_def="__aix__";      os_v="4";;
-  *-*-darwin*)   plat_name="Darwin";   plat_def="__darwin__";   os_v="1";;
-  *-*-freebsd3*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="3";;
-  *-*-freebsd4*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="4";;
-  *-*-freebsd5*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="5";;
-  *-*-freebsd6*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="6";;
-  *-*-freebsd7*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="7";;
-  *-*-freebsd8*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="8";;
-  *-*-kfreebsd*) plat_name="kFreeBSD";  plat_def="__FreeBSD_kernel__";  os_v="6";;
-  *-*-netbsd*)   plat_name="NetBSD";   plat_def="__netbsd__";   os_v="1";;
-  *-*-openbsd*)  plat_name="OpenBSD";  plat_def="__openbsd__";  os_v="3";;
-  *-*-sco*)      plat_name="OSR5";     plat_def="__osr5__";     os_v="5";;
-  *-*-gnu*)      plat_name="GNU";      plat_def="__hurd__" ;    os_v="0";;
+  *-*-linux-*)     plat_name="Linux";    plat_def="__linux__";    os_v="2";;
+  *-*-uclinux-*)   plat_name="Linux";    plat_def="__linux__";    os_v="2";;
+  *-*-cygwin*)     plat_name="Cygwin";   plat_def="__cygwin__";   os_v="1";;
+  *-*-solaris*)    plat_name="SunOS";    plat_def="__sunos__";    os_v="5";;
+  *-*-osf3*)       plat_name="OSF1";     plat_def="__osf1__";     os_v="3";;
+  *-*-osf4*)       plat_name="OSF1";     plat_def="__osf1__";     os_v="4";;
+  *-*-osf5*)       plat_name="OSF1";     plat_def="__osf1__";     os_v="5";;
+  *-*-hpux10*)     plat_name="HPUX";     plat_def="__hpux__";     os_v="10";;
+  *-*-hpux11*)     plat_name="HPUX";     plat_def="__hpux__";     os_v="11";;
+  *-*-nextstep*)   plat_name="NextStep"; plat_def="__nextstep__"; os_v="3";;
+  *-*-openstep*)   plat_name="NextStep"; plat_def="__nextstep__"; os_v="3";;
+  *-*-irix*)       plat_name="IRIX";     plat_def="__irix__";     os_v="6";;
+  *-*-aix*)        plat_name="AIX";      plat_def="__aix__";      os_v="4";;
+  *-*-darwin*)     plat_name="Darwin";   plat_def="__darwin__";   os_v="1";;
+  *-*-dragonfly*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="9";;
+  *-*-freebsd3.*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="3";;
+  *-*-freebsd4.*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="4";;
+  *-*-freebsd5.*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="5";;
+  *-*-freebsd6.*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="6";;
+  *-*-freebsd7.*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="7";;
+  *-*-freebsd8.*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="8";;
+  *-*-freebsd9.*)  plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="9";;
+  *-*-freebsd10.*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="10";;
+  *-*-freebsd11.*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="11";;
+  *-*-freebsd12.*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="12";;
+  *-*-freebsd13.*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="13";;
+  *-*-freebsd14.*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="14";;
+  *-*-freebsd15.*) plat_name="FreeBSD";  plat_def="__freebsd__";  os_v="15";;
+  *-*-kfreebsd*)   plat_name="kFreeBSD"; plat_def="__FreeBSD_kernel__"; os_v="6";;
+  *-*-netbsd*)     plat_name="NetBSD";   plat_def="__netbsd__";   os_v="1";;
+  *-*-openbsd*)    plat_name="OpenBSD";  plat_def="__openbsd__";  os_v="3";;
+  *-*-sco*)        plat_name="OSR5";     plat_def="__osr5__";     os_v="5";;
+  *-*-gnu*)        plat_name="GNU";      plat_def="__hurd__" ;    os_v="0";;
 esac
 
 AC_SUBST(PLATFORM_NAME, $plat_name)
@@ -227,6 +257,7 @@ case "$host" in
   alpha*)   proc_name="AlphaProcessor";   proc_def="__alpha__";;
   m68k-*)   proc_name="m68kProcessor";    proc_def="__m68k__";;
   mips*)    proc_name="IndigoProcessor";  proc_def="__mips__";;
+  arm64-*)  proc_name="Arm64Processor";   proc_def="__arm64__";;
   arm-*)    proc_name="ArmProcessor";     proc_def="__arm__";;
   s390-*)   proc_name="s390Processor";    proc_def="__s390__";;
   ia64-*)   proc_name="ia64Processor";    proc_def="__ia64__";;
@@ -239,8 +270,14 @@ AC_SUBST(PROCESSOR_DEFINE, $proc_def)
 
 dnl ** Output
 
+dnl Rewrite the config header to prefix definitions with OMNI, to avoid clashes
+
+AC_CONFIG_COMMANDS([acconfig.h],
+                   [sed -e 's/#\( *define\) \([A-Z]\)/#\1 OMNI_\2/g' -e 's/#\( *undef\) \([A-Z]\)/#\1 OMNI_\2/g' include/omniORB4/acconfig_pre.h >include/omniORB4/acconfig.h])
+
 AC_CONFIG_FILES(mk/beforeauto.mk mk/afterauto.mk GNUmakefile)
-AC_CONFIG_FILES(src/tool/omniidl/python/scripts/omniidl)
+AC_CONFIG_FILES(src/tool/omniidl/python2/scripts/omniidl)
+AC_CONFIG_FILES(src/tool/omniidl/python3/scripts/omniidl)
 AC_CONFIG_FILES(src/appl/GNUmakefile
                 src/appl/omniMapper/GNUmakefile
                 src/appl/omniNames/GNUmakefile
@@ -250,6 +287,7 @@ AC_CONFIG_FILES(src/appl/GNUmakefile
                 src/appl/utils/genior/GNUmakefile
                 src/appl/utils/nameclt/GNUmakefile
                 src/GNUmakefile
+                src/examples/ami/GNUmakefile
                 src/examples/anyExample/GNUmakefile
                 src/examples/bidir/GNUmakefile
                 src/examples/boa/GNUmakefile
@@ -258,11 +296,13 @@ AC_CONFIG_FILES(src/appl/GNUmakefile
                 src/examples/GNUmakefile
                 src/examples/dsi/GNUmakefile
                 src/examples/echo/GNUmakefile
+                src/examples/http_echo/GNUmakefile
                 src/examples/poa/GNUmakefile
                 src/examples/poa/implicit_activation/GNUmakefile
                 src/examples/poa/persistent_objref/GNUmakefile
                 src/examples/poa/servant_manager/GNUmakefile
                 src/examples/poa/threading/GNUmakefile
+                src/examples/poa/shortcut/GNUmakefile
                 src/examples/ssl_echo/GNUmakefile
                 src/examples/thread/GNUmakefile
                 src/examples/valuetype/GNUmakefile
@@ -272,16 +312,27 @@ AC_CONFIG_FILES(src/appl/GNUmakefile
                 src/lib/omniORB/codesets/GNUmakefile
                 src/lib/omniORB/GNUmakefile
                 src/lib/omniORB/dynamic/GNUmakefile
-                src/lib/omniORB/omniidl_be/cxx/GNUmakefile
-                src/lib/omniORB/omniidl_be/cxx/dynskel/GNUmakefile
-                src/lib/omniORB/omniidl_be/cxx/header/GNUmakefile
-                src/lib/omniORB/omniidl_be/cxx/impl/GNUmakefile
-                src/lib/omniORB/omniidl_be/cxx/skel/GNUmakefile
-                src/lib/omniORB/omniidl_be/GNUmakefile
+                src/lib/omniORB/python2/omniidl_be/cxx/GNUmakefile
+                src/lib/omniORB/python2/omniidl_be/cxx/dynskel/GNUmakefile
+                src/lib/omniORB/python2/omniidl_be/cxx/header/GNUmakefile
+                src/lib/omniORB/python2/omniidl_be/cxx/impl/GNUmakefile
+                src/lib/omniORB/python2/omniidl_be/cxx/skel/GNUmakefile
+                src/lib/omniORB/python2/omniidl_be/GNUmakefile
+                src/lib/omniORB/python2/GNUmakefile
+                src/lib/omniORB/python3/omniidl_be/cxx/GNUmakefile
+                src/lib/omniORB/python3/omniidl_be/cxx/dynskel/GNUmakefile
+                src/lib/omniORB/python3/omniidl_be/cxx/header/GNUmakefile
+                src/lib/omniORB/python3/omniidl_be/cxx/impl/GNUmakefile
+                src/lib/omniORB/python3/omniidl_be/cxx/skel/GNUmakefile
+                src/lib/omniORB/python3/omniidl_be/GNUmakefile
+                src/lib/omniORB/python3/GNUmakefile
                 src/lib/omniORB/orbcore/GNUmakefile
                 src/lib/omniORB/orbcore/ssl/GNUmakefile
+                src/lib/omniORB/orbcore/http/GNUmakefile
                 src/lib/omniORB/connections/GNUmakefile
                 src/lib/omniORB/ziop/GNUmakefile
+                src/lib/omniORB/ziopdynamic/GNUmakefile
+                src/lib/omniORB/httpcrypto/GNUmakefile
                 src/lib/omnithread/GNUmakefile
                 src/services/GNUmakefile
                 src/services/mklib/GNUmakefile
@@ -293,10 +344,14 @@ AC_CONFIG_FILES(src/appl/GNUmakefile
                 src/tool/omniidl/cxx/cccp/GNUmakefile
                 src/tool/omniidl/cxx/GNUmakefile
                 src/tool/omniidl/GNUmakefile
-                src/tool/omniidl/python/GNUmakefile
-                src/tool/omniidl/python/omniidl_be/GNUmakefile
-                src/tool/omniidl/python/omniidl/GNUmakefile
-                src/tool/omniidl/python/scripts/GNUmakefile
+                src/tool/omniidl/python2/GNUmakefile
+                src/tool/omniidl/python2/omniidl_be/GNUmakefile
+                src/tool/omniidl/python2/omniidl/GNUmakefile
+                src/tool/omniidl/python2/scripts/GNUmakefile
+                src/tool/omniidl/python3/GNUmakefile
+                src/tool/omniidl/python3/omniidl_be/GNUmakefile
+                src/tool/omniidl/python3/omniidl/GNUmakefile
+                src/tool/omniidl/python3/scripts/GNUmakefile
                )
 
 AC_CONFIG_FILES(include/GNUmakefile
@@ -313,11 +368,14 @@ AC_CONFIG_FILES(etc/init.d/omniNames)
 AC_CONFIG_FILES(contrib/GNUmakefile
                 contrib/pkgconfig/GNUmakefile)
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
 contrib/pkgconfig/omnithread3.pc
 contrib/pkgconfig/omniORB4.pc
 contrib/pkgconfig/omniDynamic4.pc
 contrib/pkgconfig/omniCOS4.pc
 contrib/pkgconfig/omniCOSDynamic4.pc
 contrib/pkgconfig/omniConnectionMgmt4.pc
+contrib/pkgconfig/omniZIOP4.pc
+contrib/pkgconfig/omniZIOPDynamic4.pc
 ])
+AC_OUTPUT

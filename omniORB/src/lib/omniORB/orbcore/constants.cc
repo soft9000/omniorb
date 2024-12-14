@@ -9,126 +9,29 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //	
-
-/*
-  $Log$
-  Revision 1.17.2.6  2007/11/28 12:24:26  dgrisby
-  Implement a tiny subset of CSIv2 to permit multiple SSL endpoints in IORs.
-
-  Revision 1.17.2.5  2006/07/18 16:21:22  dgrisby
-  New experimental connection management extension; ORB core support
-  for it.
-
-  Revision 1.17.2.4  2005/01/06 23:10:12  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.17.2.3  2003/09/26 16:12:54  dgrisby
-  Start of valuetype support.
-
-  Revision 1.17.2.2  2003/05/20 16:53:16  dgrisby
-  Valuetype marshalling support.
-
-  Revision 1.17.2.1  2003/03/23 21:02:24  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.15.2.6  2001/08/06 15:49:17  sll
-  Added IOP component TAG_OMNIORB_UNIX_TRANS for omniORB specific local
-  transport using the unix domain socket.
-
-  Revision 1.15.2.5  2001/07/31 16:28:01  sll
-  Added GIOP BiDir support.
-
-  Revision 1.15.2.4  2001/04/18 18:18:11  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.15.2.3  2000/11/03 19:10:24  sll
-  Use OMNIORB_FOR_EACH_SYS_EXCEPTION to define repository IDs.
-
-  Revision 1.15.2.2  2000/09/27 17:51:58  sll
-  New constants defined in the GIOP and IIOP modules.
-
-  Revision 1.15.2.1  2000/07/17 10:35:51  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.16  2000/07/13 15:25:58  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.14.6.4  2000/07/12 13:07:17  dpg1
-  The default corbaloc port is 2809, not 2089 as specified in the
-  specification!
-
-  Revision 1.14.6.3  2000/05/24 17:18:10  dpg1
-  Rename IIOP::DEFAULT_PORT IIOP::DEFAULT_CORBALOC_PORT
-
-  Revision 1.14.6.2  2000/04/27 10:40:52  dpg1
-  Interoperable Naming Service
-
-  Add IIOP default port.
-
-  Revision 1.14.6.1  1999/09/22 14:26:43  djr
-  Major rewrite of orbcore to support POA.
-
-  Revision 1.14  1999/05/25 17:22:40  sll
-  Added magic number constants for all the pseudo objects.
-
-  Revision 1.13  1999/04/15 11:01:27  djr
-  Updated version variable to omniORB_2_8
-
-  Revision 1.12  1999/03/11 16:25:51  djr
-  Updated copyright notice
-
-  Revision 1.11  1999/01/07 15:16:15  djr
-  Changed version to 2.7
-
-  Revision 1.10  1998/08/05 18:05:05  sll
-  Version variable is changed to omniORB_2_6 (previously omniORB_2_5).
-
-  Revision 1.9  1998/04/07 19:31:18  sll
-  Updated to use namespace and bool type.
-
-// Revision 1.8  1998/01/27  16:17:45  ewc
-// Changed version to 2.5
-//
-// Revision 1.7  1997/12/12  20:00:00  sll
-// Defined new version variable omniORB_x_y.
-//
-  Revision 1.6  1997/12/09 18:31:47  sll
-  New constant CORBA::Object::repositoryID.
-  omni::myORBId and omni::myBOAId removed.
-
-  Revision 1.5  1997/08/21 21:55:23  sll
-  Added system exception TRANSACTION_REQUIRED, TRANSACTION_ROLLEDBACK,
-  INVALID_TRANSACTION, WRONG_TRANSACTION.
-
-// Revision 1.4  1997/05/06  15:07:47  sll
-// Public release.
-//
-*/
 
 #include <omniORB4/CORBA.h>
 
 OMNI_NAMESPACE_BEGIN(omni)
 
 // See the description of this variable in omniInternal.h
-const char* omniORB_4_1 = "omniORB version 4.1.x";
+const char* omniORB_4_3 = "omniORB version 4.3.x";
 
 const CORBA::ULong omniORB_TAG_ORB_TYPE = 0x41545400; // ATT\x00
 
@@ -187,6 +90,7 @@ const IOP::ComponentId IOP::TAG_OMNIORB_BIDIR         	      = 0x41545401;
 const IOP::ComponentId IOP::TAG_OMNIORB_UNIX_TRANS    	      = 0x41545402;
 const IOP::ComponentId IOP::TAG_OMNIORB_PERSISTENT_ID 	      = 0x41545403;
 const IOP::ComponentId IOP::TAG_OMNIORB_RESTRICTED_CONNECTION = 0x41545404;
+const IOP::ComponentId IOP::TAG_OMNIORB_HTTP_TRANS    	      = 0x41545405;
 
 
 static struct {
@@ -226,6 +130,7 @@ static struct {
   { IOP::TAG_OMNIORB_UNIX_TRANS, "TAG_OMNIORB_UNIX_TRANS" },
   { IOP::TAG_OMNIORB_PERSISTENT_ID, "TAG_OMNIORB_PERSISTENT_ID" },
   { IOP::TAG_OMNIORB_RESTRICTED_CONNECTION, "TAG_OMNIORB_RESTRICTED_CONNECTION" },
+  { IOP::TAG_OMNIORB_HTTP_TRANS, "TAG_OMNIORB_HTTP_TRANS" },
   { 0, 0 }
 };
 
@@ -341,7 +246,7 @@ const CORBA::ULong CORBA::Object::_PR_magic         = 0x434F424AU; // COBJ
 //             ValueType TypeCode related constants                       //
 ////////////////////////////////////////////////////////////////////////////
 
-#if defined(HAS_Cplusplus_Namespace) && defined(_MSC_VER)
+#if defined(OMNI_HAS_Cplusplus_Namespace) && defined(_MSC_VER)
 // MSVC++ does not give the variables external linkage otherwise. Its a bug.
 namespace CORBA {
 

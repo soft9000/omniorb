@@ -17,9 +17,7 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
-//  USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 
 #include <string.h>
@@ -27,12 +25,8 @@
 #include <omniORB4/Naming.hh>
 #include <omniORB4/omniURI.h>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
 OMNI_USING_NAMESPACE(omni)
 
@@ -604,27 +598,27 @@ main(int argc, char **argv)
       goto error_return;
     }
 
-    catch (CosNaming::NamingContext::InvalidName) {
+    catch (CosNaming::NamingContext::InvalidName&) {
       cerr << command << ": InvalidName exception" << endl;
       goto error_return;
     }
 
-    catch (CosNaming::NamingContext::AlreadyBound) {
+    catch (CosNaming::NamingContext::AlreadyBound&) {
       cerr << command << ": AlreadyBound exception" << endl;
       goto error_return;
     }
 
-    catch (CosNaming::NamingContext::NotEmpty) {
+    catch (CosNaming::NamingContext::NotEmpty&) {
       cerr << command << ": NotEmpty exception" << endl;
       goto error_return;
     }
 
-    catch (CosNaming::NamingContext::CannotProceed) {
+    catch (CosNaming::NamingContext::CannotProceed&) {
       cerr << command << ": CannotProceed exception" << endl;
       goto error_return;
     }
 
-    catch (CORBA::TRANSIENT) {
+    catch (CORBA::TRANSIENT&) {
       cerr << command 
 	   << ": Cannot contact the Naming Service because of "
 	   << "TRANSIENT exception." << endl

@@ -9,143 +9,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Implementation of the BOA interface.
 //	
-
-/*
-  $Log$
-  Revision 1.19.2.3  2006/07/18 16:21:21  dgrisby
-  New experimental connection management extension; ORB core support
-  for it.
-
-  Revision 1.19.2.2  2005/01/06 23:10:12  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.19.2.1  2003/03/23 21:02:23  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.16.2.17  2003/02/17 02:03:08  dgrisby
-  vxWorks port. (Thanks Michael Sturm / Acterna Eningen GmbH).
-
-  Revision 1.16.2.16  2002/05/29 14:28:45  dgrisby
-  Bug using identity after deletion in BOA. Reported by Tihomir Sokcevic.
-
-  Revision 1.16.2.15  2002/01/16 11:31:58  dpg1
-  Race condition in use of registerNilCorbaObject/registerTrackedObject.
-  (Reported by Teemu Torma).
-
-  Revision 1.16.2.14  2002/01/15 16:38:12  dpg1
-  On the road to autoconf. Dependencies refactored, configure.ac
-  written. No makefiles yet.
-
-  Revision 1.16.2.13  2001/10/19 11:06:44  dpg1
-  Principal support for GIOP 1.0. Correct some spelling mistakes.
-
-  Revision 1.16.2.12  2001/09/20 09:27:43  dpg1
-  Remove assertion failure on exit if not all POAs are deleted.
-
-  Revision 1.16.2.11  2001/09/19 17:26:47  dpg1
-  Full clean-up after orb->destroy().
-
-  Revision 1.16.2.10  2001/08/17 17:14:09  sll
-  Relocated old omniORB API implementation to this file.
-
-  Revision 1.16.2.9  2001/08/15 10:26:12  dpg1
-  New object table behaviour, correct POA semantics.
-
-  Revision 1.16.2.8  2001/08/03 17:41:18  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.16.2.7  2001/06/08 17:12:21  dpg1
-  Merge all the bug fixes from omni3_develop.
-
-  Revision 1.16.2.6  2001/05/31 16:18:12  dpg1
-  inline string matching functions, re-ordered string matching in
-  _ptrToInterface/_ptrToObjRef
-
-  Revision 1.16.2.5  2001/05/29 17:03:51  dpg1
-  In process identity.
-
-  Revision 1.16.2.4  2001/04/18 18:18:10  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.16.2.3  2000/11/09 12:27:56  dpg1
-  Huge merge from omni3_develop, plus full long long from omni3_1_develop.
-
-  Revision 1.16.2.2  2000/09/27 17:53:27  sll
-  Updated to identify the ORB as omniORB4.
-
-  Revision 1.16.2.1  2000/07/17 10:35:51  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.17  2000/07/13 15:25:58  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.13.6.14  2000/06/22 10:40:13  dpg1
-  exception.h renamed to exceptiondefs.h to avoid name clash on some
-  platforms.
-
-  Revision 1.13.6.13  2000/06/22 09:01:29  djr
-  Fixed assertion failure (locking bug).
-
-  Revision 1.13.6.12  2000/06/02 14:20:15  dpg1
-  Using boa_lock for the nil BOA's condition variable caused an
-  assertion failure on exit.
-
-  Revision 1.13.6.11  2000/04/27 10:42:08  dpg1
-  Interoperable Naming Service
-
-  omniInitialReferences::get() renamed to omniInitialReferences::resolve().
-
-  Revision 1.13.6.10  2000/01/27 10:55:45  djr
-  Mods needed for powerpc_aix.  New macro OMNIORB_BASE_CTOR to provide
-  fqname for base class constructor for some compilers.
-
-  Revision 1.13.6.9  1999/10/29 13:18:15  djr
-  Changes to ensure mutexes are constructed when accessed.
-
-  Revision 1.13.6.8  1999/10/27 17:32:10  djr
-  omni::internalLock and objref_rc_lock are now pointers.
-
-  Revision 1.13.6.7  1999/10/14 16:22:05  djr
-  Implemented logging when system exceptions are thrown.
-
-  Revision 1.13.6.6  1999/10/04 17:08:31  djr
-  Some more fixes/MSVC work-arounds.
-
-  Revision 1.13.6.5  1999/09/30 12:24:48  djr
-  Implemented the '_interface' operation for BOA servants.
-
-  Revision 1.13.6.4  1999/09/28 10:54:32  djr
-  Removed pretty-printing of object keys from object adapters.
-
-  Revision 1.13.6.3  1999/09/24 17:11:11  djr
-  New option -ORBtraceInvocations and omniORB::traceInvocations.
-
-  Revision 1.13.6.2  1999/09/24 10:27:30  djr
-  Improvements to ORB and BOA options.
-
-  Revision 1.13.6.1  1999/09/22 14:26:44  djr
-  Major rewrite of orbcore to support POA.
-
-*/
 
 #define ENABLE_CLIENT_IR_SUPPORT
 #include <omniORB4/CORBA.h>
@@ -183,7 +62,7 @@ static const char* boa_ids[] = { "omniORB4_BOA",
 				 0 };
 
 static omniOrbBOA*                       the_boa = 0;
-static omni_tracedmutex                  boa_lock;
+static omni_tracedmutex                  boa_lock("boa_lock");
 static omniORB::loader::mapKeyToObject_t MapKeyToObjectFunction = 0;
 
 
@@ -284,11 +163,12 @@ const char* CORBA::BOA::_PD_repoId = "IDL:omg.org/CORBA/BOA:1.0";
 //////////////////////////////////////////////////////////////////////
 
 #define CHECK_NOT_NIL_OR_DESTROYED()  \
-  if( _NP_is_nil() )  _CORBA_invoked_nil_pseudo_ref();  \
-  if( pd_state == DESTROYED )  \
-    OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_BOANotInitialised, \
-		  CORBA::COMPLETED_NO);  \
-
+  do { \
+    if( _NP_is_nil() )  _CORBA_invoked_nil_pseudo_ref(); \
+    if( pd_state == DESTROYED )  \
+      OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_BOANotInitialised, \
+                    CORBA::COMPLETED_NO); \
+  } while(0)
 
 omniOrbBOA::~omniOrbBOA()
 {
@@ -307,7 +187,8 @@ omniOrbBOA::omniOrbBOA(int nil)
     pd_state_signal(0)
 {
   if (!nil)
-    pd_state_signal = new omni_tracedcondition(omni::internalLock);
+    pd_state_signal = new omni_tracedcondition(omni::internalLock,
+					       "omniOrbBOA::pd_state_signal");
 
   // NB. If nil, then omni::internalLock may be zero, so we cannot use
   // it to initialise the condition variable. However, since the
@@ -719,8 +600,8 @@ omniOrbBOA::dispatch(omniCallHandle& handle, omniLocalIdentity* id)
 
   if( omniORB::traceInvocations ) {
     omniORB::logger l;
-    l << "Dispatching remote call \'" 
-      << handle.operation_name() << "\' to: "
+    l << "Dispatching remote call '" 
+      << handle.operation_name() << "' to: "
       << id << '\n';
   }
 
@@ -730,6 +611,12 @@ omniOrbBOA::dispatch(omniCallHandle& handle, omniLocalIdentity* id)
       OMNIORB_THROW(BAD_OPERATION,BAD_OPERATION_UnRecognisedOperationName,
 		    CORBA::COMPLETED_NO);
     }
+  }
+  if( omniORB::traceInvocationReturns ) {
+    omniORB::logger l;
+    l << "Return from remote call '"
+      << handle.operation_name() << "' to: "
+      << id << '\n';
   }
 }
 
@@ -1124,7 +1011,7 @@ parse_BOA_args(int& argc, char** argv, const char* boa_identifier)
     if( omniORB::trace(1) && strcmp(boa_identifier, myBoaId()) ) {
       if( omniORB::trace(1) ) {
 	omniORB::logger l;
-	l << "WARNING -- using BOAid " << boa_identifier 
+	l << "Warning: using BOAid " << boa_identifier 
 	  << " (should be " << myBoaId() << ")." << "\n";
       }
     }
@@ -1160,7 +1047,7 @@ parse_BOA_args(int& argc, char** argv, const char* boa_identifier)
 	if( strcmp(argv[idx + 1], myBoaId()) ) {
 	  if( omniORB::trace(1) ) {
 	    omniORB::logger l;
-	    l << "WARNING -- using BOAid " << boa_identifier 
+	    l << "Warning: using BOAid " << boa_identifier 
 	      << " (should be " << myBoaId() << ")." << "\n";
 	  }
 	}
@@ -1230,7 +1117,7 @@ omniORB::loader::set(omniORB::loader::mapKeyToObject_t NewMapKeyToObject)
 ///////////////////////// omniORB::objectKey /////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-static omni_tracedmutex key_lock;
+static omni_tracedmutex key_lock("key_lock");
 static omniORB::objectKey omniORB_seed;
 
 
@@ -1249,20 +1136,20 @@ omniORB::generateNewKey(omniORB::objectKey& k)
       // initialise the seed of the objectKey generator
       // Guarantee that no two keys generated on the same machine are the same
       // ever.
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef OMNI_HAVE_GETTIMEOFDAY
       // Use gettimeofday() to obtain the current time. Use this to
       // initialise the 32-bit field hi and med in the seed.
       // On unices, add the process id to med.
       // Initialise lo to 0.
       struct timeval v;
-#ifdef GETTIMEOFDAY_TIMEZONE
+#ifdef OMNI_GETTIMEOFDAY_TIMEZONE
       gettimeofday(&v,0);
 #else
       gettimeofday(&v);
 #endif
       omniORB_seed.hi = v.tv_sec;
       omniORB_seed.med = (v.tv_usec << 12);
-#ifdef HAVE_GETPID
+#ifdef OMNI_HAVE_GETPID
       omniORB_seed.med += getpid();
 #else
       // without the process id, there is no guarantee that the keys generated
@@ -1275,7 +1162,7 @@ omniORB::generateNewKey(omniORB::objectKey& k)
 #ifndef __BCPLUSPLUS__
       struct _timeb v;
       _ftime(&v);
-      omniORB_seed.hi = v.time;
+      omniORB_seed.hi = (CORBA::ULong)v.time;
       omniORB_seed.med = v.millitm + _getpid();
       omniORB_seed.lo = 0;
 #else
@@ -1327,16 +1214,7 @@ omniORB::generateNewKey(omniORB::objectKey& k)
 }
 
 
-omniORB::objectKey
-omniORB::nullkey()
-{
-  omniORB::objectKey n;
-  n.hi = n.med = n.lo = 0;
-  return n;
-}
-
-
-#if defined(HAS_Cplusplus_Namespace)
+#if defined(OMNI_HAS_Cplusplus_Namespace)
 namespace omniORB {
 #endif
 
@@ -1361,7 +1239,7 @@ operator!=(const omniORB::objectKey &k1,const omniORB::objectKey &k2)
 	  k1.lo != k2.lo) ? 1 : 0;
 }
 
-#if defined(HAS_Cplusplus_Namespace)
+#if defined(OMNI_HAS_Cplusplus_Namespace)
 }
 #endif
 

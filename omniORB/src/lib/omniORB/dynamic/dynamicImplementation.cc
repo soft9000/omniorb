@@ -8,19 +8,17 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -100,21 +98,9 @@ PortableServer::DynamicImplementation::_is_a(const char* logical_type_id)
 }
 
 
-#ifdef HAS_Cplusplus_Namespace
+#ifdef OMNI_HAS_Cplusplus_Namespace
 namespace {
 #endif
-  class DSIPostInvoker {
-  public:
-    inline DSIPostInvoker(omniCallHandle::PostInvokeHook* hook)
-      : pd_hook(hook) {}
-    inline ~DSIPostInvoker() {
-      if (pd_hook)
-	pd_hook->postinvoke();
-    }
-  private:
-    omniCallHandle::PostInvokeHook* pd_hook;
-  };
-
   class DSIMainThreadTask : public omniTask {
   public:
     inline DSIMainThreadTask(PortableServer::DynamicImplementation* servant,
@@ -152,11 +138,21 @@ namespace {
     int                                    pd_done;
   };
 
-#ifdef HAS_Cplusplus_Namespace
+#ifdef OMNI_HAS_Cplusplus_Namespace
 }
 #endif
 
 
+
+static inline void
+callPostInvokeHook(omniCallHandle::PostInvokeHook*& hook)
+{
+  if (hook) {
+    omniCallHandle::PostInvokeHook* h = hook;
+    hook = 0;
+    h->postinvoke();
+  }
+}
 
 _CORBA_Boolean
 PortableServer::DynamicImplementation::_dispatch(omniCallHandle& handle)
@@ -174,9 +170,9 @@ PortableServer::DynamicImplementation::_dispatch(omniCallHandle& handle)
   sreq.calldesc()->poa(handle.poa());
   sreq.calldesc()->localId(handle.localId());
 
-  {
-    DSIPostInvoker postinvoker(handle.postinvoke_hook());
+  omniCallHandle::PostInvokeHook* hook = handle.postinvoke_hook();
 
+  try {
     if (!handle.mainthread_mu()) {
       // Upcall into application
       poaCurrentStackInsert insert(sreq.calldesc());
@@ -189,6 +185,11 @@ PortableServer::DynamicImplementation::_dispatch(omniCallHandle& handle)
       int i = orbAsyncInvoker->insert(&mtt); OMNIORB_ASSERT(i);
       mtt.wait();
     }
+    callPostInvokeHook(hook);
+  }
+  catch (...) {
+    callPostInvokeHook(hook);
+    throw;
   }
 
   // It is legal for the caller to ask for no response even if the
@@ -197,18 +198,14 @@ PortableServer::DynamicImplementation::_dispatch(omniCallHandle& handle)
 
   switch( sreq.state() ){
   case omniServerRequest::SR_READY:
-    if( omniORB::trace(1) ){
-      omniORB::logger log;
-      log <<
-	"omniORB: WARNING -- A Dynamic Implementation Routine\n"
-	" (DynamicImplementation::invoke()) failed to call arguments()\n"
-	" on the ServerRequest object. BAD_INV_ORDER is thrown.\n";
-    }
+    omniORB::logs(1, "Warning: A Dynamic Implementation Routine "
+                  "(DynamicImplementation::invoke) failed to call arguments() "
+                  "on the ServerRequest object. BAD_INV_ORDER is thrown.");
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_ArgumentsNotCalled,
 		  CORBA::COMPLETED_NO);
 
-
+    
   case omniServerRequest::SR_GOT_PARAMS:
   case omniServerRequest::SR_GOT_CTX:
   case omniServerRequest::SR_GOT_RESULT:
@@ -217,27 +214,20 @@ PortableServer::DynamicImplementation::_dispatch(omniCallHandle& handle)
     break;
 
   case omniServerRequest::SR_DSI_ERROR:
-    if( omniORB::trace(1) ){
-      omniORB::logger log;
-      log <<
-	"omniORB: WARNING -- A Dynamic Implementation Routine\n"
-	" (DynamicImplementation::invoke()) did not properly implement\n"
-	" the Dynamic Skeleton Interface.\n";
-    }
+    omniORB::logs(1, "Warning: A Dynamic Implementation Routine "
+                  "(DynamicImplementation::invoke) did not properly implement "
+                  "the Dynamic Skeleton Interface.");
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_ErrorInDynamicImplementation,
 		  CORBA::COMPLETED_NO);
 
   case omniServerRequest::SR_ERROR:
-    if( omniORB::trace(1) ) {
-      omniORB::logger log;
-      log <<
-	"omniORB: WARNING -- A system exception was thrown when\n"
-	" unmarshalling arguments for a DSI servant.  However the Dynamic\n"
-	" Implementation Routine (DynamicImplementation::invoke()) did not\n"
-	" propagate the exception or pass it to the server request.\n"
-	" CORBA::MARSHAL is being passed back to the client anyway.\n";
-    }
+    omniORB::logs(1, "Warning: A system exception was thrown when "
+                  "unmarshalling arguments for a DSI servant. However the "
+                  "Dynamic Implementation Routine "
+                  "(DynamicImplementation::invoke) did not propagate the "
+                  "exception or pass it to the server request. "
+                  "CORBA::MARSHAL is being passed back to the client anyway.");
     OMNIORB_THROW(MARSHAL,
 		  MARSHAL_ExceptionInDSINotPropagated,
 		  CORBA::COMPLETED_MAYBE);
@@ -317,7 +307,7 @@ DSIMainThreadTask::execute()
     poaCurrentStackInsert insert(pd_sreq.calldesc());
     pd_servant->invoke(&pd_sreq);
   }
-#ifdef HAS_Cplusplus_catch_exception_by_base
+#ifdef OMNI_HAS_Cplusplus_catch_exception_by_base
   catch (CORBA::Exception& ex) {
     pd_except = CORBA::Exception::_duplicate(&ex);
   }

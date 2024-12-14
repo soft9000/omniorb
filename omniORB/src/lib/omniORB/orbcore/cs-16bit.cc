@@ -9,77 +9,21 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    16 bit code sets
-
-/*
-  $Log$
-  Revision 1.1.4.5  2008/08/08 16:52:56  dgrisby
-  Option to validate untransformed UTF-8; correct data conversion minor
-  codes; better logging for MessageErrors.
-
-  Revision 1.1.4.4  2006/05/22 15:44:51  dgrisby
-  Make sure string length and body are never split across a chunk
-  boundary.
-
-  Revision 1.1.4.3  2005/12/08 14:22:31  dgrisby
-  Better string marshalling performance; other minor optimisations.
-
-  Revision 1.1.4.2  2003/05/20 16:53:16  dgrisby
-  Valuetype marshalling support.
-
-  Revision 1.1.4.1  2003/03/23 21:02:21  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.9  2001/10/17 16:47:08  dpg1
-  New minor codes
-
-  Revision 1.1.2.8  2001/08/03 17:41:19  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.1.2.7  2001/04/18 18:18:09  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.1.2.6  2000/12/05 17:43:30  dpg1
-  Check for input over-run in string and wstring unmarshalling.
-
-  Revision 1.1.2.5  2000/11/22 14:37:59  dpg1
-  Code set marshalling functions now take a string length argument.
-
-  Revision 1.1.2.4  2000/11/16 12:34:40  dpg1
-  Clarify marshalling of non-UTF-16 wchar.
-
-  Revision 1.1.2.3  2000/11/10 15:41:35  dpg1
-  Native code sets throw BAD_PARAM if they are given a null transmission
-  code set.
-
-  Revision 1.1.2.2  2000/11/03 18:49:17  sll
-  Separate out the marshalling of byte, octet and char into 3 set of distinct
-  marshalling functions.
-  Renamed put_char_array and get_char_array to put_octet_array and
-  get_octet_array.
-  New string marshal member functions.
-
-  Revision 1.1.2.1  2000/10/27 15:42:07  dpg1
-  Initial code set conversion support. Not yet enabled or fully tested.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <codeSetUtil.h>
@@ -101,7 +45,7 @@ omniCodeSet::NCS_W_16bit::marshalWChar(cdrStream& stream,
 
   if (tcs->fastMarshalWChar(stream, this, wc)) return;
 
-#if (SIZEOF_WCHAR == 4)
+#if (OMNI_SIZEOF_WCHAR == 4)
   if (wc > 0xffff)
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WCharOutOfRange, 
 		  (CORBA::CompletionStatus)stream.completion());
@@ -137,7 +81,7 @@ omniCodeSet::NCS_W_16bit::marshalWString(cdrStream&          stream,
 
   for (_CORBA_ULong i=0; i<=len; i++) {
     wc = ws[i];
-#if (SIZEOF_WCHAR == 4)
+#if (OMNI_SIZEOF_WCHAR == 4)
     if (wc > 0xffff) 
       OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WCharOutOfRange, 
 		    (CORBA::CompletionStatus)stream.completion());
@@ -341,7 +285,7 @@ omniCodeSet::TCS_W_16bit::unmarshalWString(cdrStream& stream,
 
   for (i=0; i < len; i++) {
     tc <<= stream;
-    uc = pd_toU[(tc & 0xff00) >> 16][tc & 0x00ff];
+    uc = pd_toU[(tc & 0xff00) >> 8][tc & 0x00ff];
     if (tc && !uc) OMNIORB_THROW(DATA_CONVERSION, 
 				 DATA_CONVERSION_CannotMapChar,
 				 (CORBA::CompletionStatus)stream.completion());
@@ -360,7 +304,7 @@ omniCodeSet::TCS_W_16bit::fastMarshalWChar(cdrStream&          stream,
 					   _CORBA_WChar        wc)
 {
   if (ncs->id() == id()) { // Null transformation
-#if (SIZEOF_WCHAR == 4)
+#if (OMNI_SIZEOF_WCHAR == 4)
     if (wc > 0xffff)
       OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WCharOutOfRange, 
 		    (CORBA::CompletionStatus)stream.completion());
@@ -403,7 +347,7 @@ omniCodeSet::TCS_W_16bit::fastMarshalWString(cdrStream&          stream,
     stream.declareArrayLength(omni::ALIGN_4, mlen+4);
     mlen >>= stream;
 
-#if (SIZEOF_WCHAR == 2)
+#if (OMNI_SIZEOF_WCHAR == 2)
     if (stream.marshal_byte_swap()) {
       _CORBA_UShort tc;
       for (_CORBA_ULong i=0; i<len; i++) {
@@ -493,7 +437,7 @@ omniCodeSet::TCS_W_16bit::fastUnmarshalWString(cdrStream&          stream,
     ws = omniCodeSetUtil::allocW(len + 1);
     omniCodeSetUtil::HolderW wh(ws);
 
-#if (SIZEOF_WCHAR == 2)
+#if (OMNI_SIZEOF_WCHAR == 2)
     stream.unmarshalArrayUShort((_CORBA_UShort*)ws, len);
 #else
     _CORBA_UShort tc;

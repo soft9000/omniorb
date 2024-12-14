@@ -14,9 +14,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.
+along with this program.  If not, see http://www.gnu.org/licenses/
 
  In other words, you are welcome to use, share and improve this program.
  You are forbidden to forbid anyone else to use, share and improve
@@ -58,62 +56,57 @@ typedef unsigned char U_CHAR;
 #include <signal.h>
 
 /* The following symbols should be autoconfigured:
-	HAVE_FCNTL_H
-	HAVE_STDLIB_H
-	HAVE_SYS_TIME_H
-	HAVE_UNISTD_H
-	STDC_HEADERS
-	TIME_WITH_SYS_TIME
+	OMNI_HAVE_FCNTL_H
+	OMNI_HAVE_STDLIB_H
+	OMNI_HAVE_SYS_TIME_H
+	OMNI_HAVE_UNISTD_H
+	OMNI_STDC_HEADERS
+	OMNI_TIME_WITH_SYS_TIME
    In the mean time, we'll get by with approximations based
    on existing GCC configuration symbols.  */
 
 #ifdef POSIX
-# ifndef HAVE_STDLIB_H
-# define HAVE_STDLIB_H 1
+# ifndef OMNI_HAVE_STDLIB_H
+# define OMNI_HAVE_STDLIB_H 1
 # endif
-# ifndef HAVE_UNISTD_H
-# define HAVE_UNISTD_H 1
+# ifndef OMNI_HAVE_UNISTD_H
+# define OMNI_HAVE_UNISTD_H 1
 # endif
-# ifndef STDC_HEADERS
-# define STDC_HEADERS 1
+# ifndef OMNI_STDC_HEADERS
+# define OMNI_STDC_HEADERS 1
 # endif
 #endif /* defined (POSIX) */
 
 #if defined (POSIX) || (defined (USG) && !defined (VMS))
-# ifndef HAVE_FCNTL_H
-# define HAVE_FCNTL_H 1
+# ifndef OMNI_HAVE_FCNTL_H
+# define OMNI_HAVE_FCNTL_H 1
 # endif
 #endif
 
 #ifndef RLIMIT_STACK
 # include <time.h>
 #else
-# if TIME_WITH_SYS_TIME
+# if OMNI_HAVE_SYS_TIME_H
 #  include <sys/time.h>
-#  include <time.h>
 # else
-#  if HAVE_SYS_TIME_H
-#   include <sys/time.h>
-#  else
-#   include <time.h>
-#  endif
+#  include <time.h>
 # endif
 # include <sys/resource.h>
 #endif
 
-#if HAVE_FCNTL_H
+#if OMNI_HAVE_FCNTL_H
 # include <fcntl.h>
 #endif
 
 #include <errno.h>
 
-#if HAVE_STDLIB_H
+#if OMNI_HAVE_STDLIB_H
 # include <stdlib.h>
 #else
 char *getenv ();
 #endif
 
-#if STDC_HEADERS
+#if OMNI_STDC_HEADERS
 # include <string.h>
 # ifndef bcmp
 # define bcmp(a, b, n) memcmp (a, b, n)
@@ -124,7 +117,7 @@ char *getenv ();
 # ifndef bzero
 # define bzero(d, n) memset (d, 0, n)
 # endif
-#else /* !STDC_HEADERS */
+#else /* !OMNI_STDC_HEADERS */
 
 # if !defined (BSTRING) && (defined (USG) || defined (VMS))
 
@@ -170,7 +163,7 @@ my_bzero (b, length)
 #  endif /* !defined (bzero) */
 
 # endif /* !defined (BSTRING) && (defined (USG) || defined (VMS)) */
-#endif /* ! STDC_HEADERS */
+#endif /* ! OMNI_STDC_HEADERS */
 
 #if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 7)
 # define __attribute__(x)
@@ -184,7 +177,7 @@ my_bzero (b, length)
 # endif
 #endif
 
-#if defined (__STDC__) && defined (HAVE_VPRINTF)
+#if defined (__STDC__) && defined (OMNI_HAVE_VPRINTF)
 # include <stdarg.h>
 # define VA_START(va_list, var) va_start (va_list, var)
 # define PRINTF_ALIST(msg) char *msg, ...
@@ -210,7 +203,7 @@ my_bzero (b, length)
 #define PRINTF_PROTO_2(ARGS) PRINTF_PROTO(ARGS, 2, 3)
 #define PRINTF_PROTO_3(ARGS) PRINTF_PROTO(ARGS, 3, 4)
 
-#if HAVE_UNISTD_H
+#if OMNI_HAVE_UNISTD_H
 # include <unistd.h>
 #endif
 
@@ -302,12 +295,12 @@ static void hack_vms_include_specification ();
 
 extern char *version_string;
 #ifndef VMS
-#ifndef HAVE_STRERROR
+#ifndef OMNI_HAVE_STRERROR
 extern int sys_nerr;
 extern char *sys_errlist[];
-#else	/* HAVE_STRERROR */
+#else	/* OMNI_HAVE_STRERROR */
 #ifndef DONT_DECLARE_STRERROR
-char *strerror ();
+char *strerror (int);
 #endif
 #endif
 #else	/* VMS */
@@ -1223,10 +1216,7 @@ static char *savestring PROTO((char *));
    which must be LEN unless end-of-file was reached.  */
 
 static int
-safe_read (desc, ptr, len)
-     int desc;
-     char *ptr;
-     int len;
+safe_read (int desc, char *ptr, int len)
 {
   int left, rcount, nchars;
 
@@ -1259,10 +1249,7 @@ safe_read (desc, ptr, len)
    If MAX_WRITE_LEN is defined, write at most that many bytes at a time.  */
 
 static void
-safe_write (desc, ptr, len)
-     int desc;
-     char *ptr;
-     int len;
+safe_write (int desc, char *ptr, int len)
 {
   int wcount, written;
 
@@ -1287,9 +1274,7 @@ safe_write (desc, ptr, len)
 }
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   struct stat st;
   char *in_fname;
@@ -2303,8 +2288,7 @@ main (argc, argv)
    add all the names to the search path for include files.  */
 
 static void
-path_include (path)
-     char *path;
+path_include (char *path)
 {
   char *p;
 
@@ -2339,10 +2323,9 @@ path_include (path)
    but unfortunately memchr isn't autoconfigured yet.  */
 
 static U_CHAR *
-index0 (s, c, n)
-     U_CHAR *s;
-     int c;
-     size_t n;
+index0 (U_CHAR *s,
+        int c,
+        size_t n)
 {
   char *p = (char *) s;
   for (;;) {
@@ -2370,8 +2353,7 @@ index0 (s, c, n)
    only translated in the top level of processing.  */
 
 static void
-trigraph_pcp (buf)
-     FILE_BUF *buf;
+trigraph_pcp (FILE_BUF *buf)
 {
   register U_CHAR c, *fptr, *bptr, *sptr, *lptr;
   int len;
@@ -2444,8 +2426,7 @@ trigraph_pcp (buf)
    would cause it not to be recognized).  */
 
 static void
-newline_fix (bp)
-     U_CHAR *bp;
+newline_fix (U_CHAR *bp)
 {
   register U_CHAR *p = bp;
 
@@ -2477,8 +2458,7 @@ newline_fix (bp)
    Move any backslash-newlines up past any following symbol constituents.  */
 
 static void
-name_newline_fix (bp)
-     U_CHAR *bp;
+name_newline_fix (U_CHAR *bp)
 {
   register U_CHAR *p = bp;
 
@@ -2516,11 +2496,11 @@ name_newline_fix (bp)
    be printed out again.  */
 
 static char *
-get_lintcmd (ibp, limit, argstart, arglen, cmdlen)
-     register U_CHAR *ibp;
-     register U_CHAR *limit;
-     U_CHAR **argstart;		/* point to command arg */
-     int *arglen, *cmdlen;	/* how long they are */
+get_lintcmd (U_CHAR *ibp,
+             U_CHAR *limit,
+             U_CHAR **argstart,		/* point to command arg */
+             int *arglen,
+             int *cmdlen)	/* how long they are */
 {
   HOST_WIDE_INT linsize;
   register U_CHAR *numptr;	/* temp for arg parsing */
@@ -2597,9 +2577,7 @@ get_lintcmd (ibp, limit, argstart, arglen, cmdlen)
  */
 
 static void
-rescan (op, output_marks)
-     FILE_BUF *op;
-     int output_marks;
+rescan (FILE_BUF *op, int output_marks)
 {
   /* Character being scanned in main loop.  */
   register U_CHAR c;
@@ -3528,9 +3506,8 @@ hashcollision:
  * before substitution; it is 0 for other uses.
  */
 static FILE_BUF
-expand_to_temp_buffer (buf, limit, output_marks, assertions)
-     U_CHAR *buf, *limit;
-     int output_marks, assertions;
+expand_to_temp_buffer (U_CHAR *buf, U_CHAR *limit,
+                       int output_marks, int assertions)
 {
   register FILE_BUF *ip;
   FILE_BUF obuf;
@@ -3618,8 +3595,7 @@ expand_to_temp_buffer (buf, limit, output_marks, assertions)
  */
 
 static int
-handle_directive (ip, op)
-     FILE_BUF *ip, *op;
+handle_directive (FILE_BUF *ip, FILE_BUF *op)
 {
   register U_CHAR *bp, *cp;
   register struct directive *kt;
@@ -4037,9 +4013,7 @@ static char *monthnames[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
  */
 
 static void
-special_symbol (hp, op)
-     HASHNODE *hp;
-     FILE_BUF *op;
+special_symbol (HASHNODE *hp, FILE_BUF *op)
 {
   char *buf;
   int i, len;
@@ -4217,10 +4191,8 @@ oops:
    This function expects to see "fname" or <fname> on the input.  */
 
 static int
-do_include (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_include (U_CHAR *buf, U_CHAR *limit,
+            FILE_BUF *op, struct directive *keyword)
 {
   U_CHAR *importing = keyword->type == T_IMPORT ? (U_CHAR *) "" : (U_CHAR *) 0;
   int skip_dirs = (keyword->type == T_INCLUDE_NEXT);
@@ -4628,8 +4600,7 @@ get_filename:
    for which C++ should (on most systems) assume `extern "C"'.  */
 
 static int
-is_system_include (filename)
-    register char *filename;
+is_system_include (char *filename)
 {
   struct file_name_list *searchptr;
 
@@ -4643,8 +4614,7 @@ is_system_include (filename)
 /* Yield the non-directory suffix of a file name.  */
 
 static char *
-base_name (fname)
-     char *fname;
+base_name (char *fname)
 {
   char *s = fname;
   char *p;
@@ -4668,8 +4638,7 @@ base_name (fname)
 /* Yield nonzero if FILENAME is absolute (i.e. not relative).  */
 
 static int
-absolute_filename (filename)
-     char *filename;
+absolute_filename (char *filename)
 {
 #if defined (__MSDOS__) || (defined (_WIN32) && !defined (__CYGWIN32__))
   if (isalpha (filename[0]) && filename[1] == ':') filename += 2;
@@ -4694,8 +4663,7 @@ absolute_filename (filename)
    since this merely leads to suboptimial results.  */
 
 static size_t
-simplify_filename (filename)
-     char *filename;
+simplify_filename (char *filename)
 {
   register char *from = filename;
   register char *to = filename;
@@ -4773,9 +4741,7 @@ struct file_name_map
    file.  */
 
 static char *
-read_filename_string (ch, f)
-     int ch;
-     FILE *f;
+read_filename_string (int ch, FILE *f)
 {
   char *alloc, *set;
   int len;
@@ -4806,8 +4772,7 @@ read_filename_string (ch, f)
    otherwise DIRNAME must end in '/'.  */
 
 static struct file_name_map *
-read_name_map (dirname)
-     char *dirname;
+read_name_map (char *dirname)
 {
   /* This structure holds a linked list of file name maps, one per
      directory.  */
@@ -4902,12 +4867,11 @@ read_name_map (dirname)
    read_name_map.  */
 
 static int
-open_include_file (filename, include_filename, searchptr, importing, pinc)
-     char *filename;
-     char *include_filename;
-     struct file_name_list *searchptr;
-     U_CHAR *importing;
-     struct include_file **pinc;
+open_include_file (char *filename,
+                   char *include_filename,
+                   struct file_name_list *searchptr,
+                   U_CHAR *importing,
+                   struct include_file **pinc)
 {
   char *fname = remap_include_file (filename, searchptr);
   int fd = -2;
@@ -4980,9 +4944,8 @@ open_include_file (filename, include_filename, searchptr, importing, pinc)
    SEARCHPTR is the directory being tried from the include file path.  */
 
 static char *
-remap_include_file (filename, searchptr)
-     char *filename;
-     struct file_name_list *searchptr;
+remap_include_file (char *filename,
+                    struct file_name_list *searchptr)
 {
   register struct file_name_map *map;
   register char *from;
@@ -5028,8 +4991,7 @@ remap_include_file (filename, searchptr)
    return 1 and set INC's control macro to the already-known macro.  */
 
 static int
-lookup_ino_include (inc)
-     struct include_file *inc;
+lookup_ino_include (struct include_file *inc)
 {
   int hash = ((unsigned) (inc->st.st_dev + INO_T_HASH (inc->st.st_ino))
 	      % INCLUDE_HASHSIZE);
@@ -5056,12 +5018,11 @@ lookup_ino_include (inc)
    or 0 if the file name was absolute.  */
 
 static void
-finclude (f, inc, op, system_header_p, dirptr)
-     int f;
-     struct include_file *inc;
-     FILE_BUF *op;
-     int system_header_p;
-     struct file_name_list *dirptr;
+finclude (int f,
+          struct include_file *inc,
+          FILE_BUF *op,
+          int system_header_p,
+          struct file_name_list *dirptr)
 {
   char *fname = inc->fname;
   int i;
@@ -5166,9 +5127,8 @@ finclude (f, inc, op, system_header_p, dirptr)
    will do something if that macro is defined.  */
 
 static void
-record_control_macro (inc, macro_name)
-     struct include_file *inc;
-     U_CHAR *macro_name;
+record_control_macro (struct include_file *inc,
+                      U_CHAR *macro_name)
 {
   if (!inc->control_macro || inc->control_macro[0])
     inc->control_macro = macro_name;
@@ -5187,11 +5147,10 @@ record_control_macro (inc, macro_name)
    the run.  */
 
 static char *
-check_precompiled (pcf, st, fname, limit)
-     int pcf;
-     struct stat *st;
-     char *fname;
-     char **limit;
+check_precompiled (int pcf,
+                   struct stat *st,
+                   char *fname,
+                   char **limit)
 {
   int length = 0;
   char *buf;
@@ -5240,8 +5199,7 @@ check_precompiled (pcf, st, fname, limit)
    table.  */
 
 static int 
-check_preconditions (prec)
-     char *prec;
+check_preconditions (char *prec)
 {
   MACRODEF mdef;
   char *lineend;
@@ -5300,9 +5258,8 @@ check_preconditions (prec)
    in.  OP is the main output buffer.  */
 
 static void
-pcfinclude (buf, limit, name, op)
-     U_CHAR *buf, *limit, *name;
-     FILE_BUF *op;
+pcfinclude (U_CHAR *buf, U_CHAR *limit, U_CHAR *name,
+            FILE_BUF *op)
 {
   FILE_BUF tmpbuf;
   int nstrings;
@@ -5416,8 +5373,7 @@ pcfinclude (buf, limit, name, op)
    used and clean up.  */
 
 static void
-pcstring_used (hp)
-     HASHNODE *hp;
+pcstring_used (HASHNODE *hp)
 {
   KEYDEF *kp;
   
@@ -5482,10 +5438,9 @@ write_output ()
    KEYWORD is the keyword-table entry for the directive.  */
 
 static void
-pass_thru_directive (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+pass_thru_directive (U_CHAR *buf, U_CHAR *limit,
+                     FILE_BUF *op,
+                     struct directive *keyword)
 {
   register unsigned keyword_length = keyword->length;
 
@@ -5528,9 +5483,8 @@ struct arglist {
    as for do_define.  */
 
 static MACRODEF
-create_definition (buf, limit, op)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
+create_definition (U_CHAR *buf, U_CHAR *limit,
+                   FILE_BUF *op)
 {
   U_CHAR *bp;			/* temp ptr into input buffer */
   U_CHAR *symname;		/* remember where symbol name starts */
@@ -5704,10 +5658,9 @@ LIMIT points to the first character past the end of the definition.
 KEYWORD is the keyword-table entry for #define.  */
 
 static int
-do_define (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_define (U_CHAR *buf, U_CHAR *limit,
+           FILE_BUF *op,
+           struct directive *keyword)
 {
   int hashcode;
   MACRODEF mdef;
@@ -5771,9 +5724,7 @@ nope:
    USAGE is the kind of name this is intended for.  */
 
 static int
-check_macro_name (symname, usage)
-     U_CHAR *symname;
-     char *usage;
+check_macro_name (U_CHAR *symname, char *usage)
 {
   U_CHAR *p;
   int sym_length;
@@ -5793,8 +5744,7 @@ check_macro_name (symname, usage)
 /* Return zero if two DEFINITIONs are isomorphic.  */
      
 static int
-compare_defs (d1, d2)
-     DEFINITION *d1, *d2;
+compare_defs (DEFINITION *d1, DEFINITION *d2)
 {
   register struct reflist *a1, *a2;
   register U_CHAR *p1 = d1->expansion;
@@ -5836,11 +5786,10 @@ compare_defs (d1, d2)
     so ignore trailing whitespace entirely.  */
 
 static int
-comp_def_part (first, beg1, len1, beg2, len2, last)
-     int first;
-     U_CHAR *beg1, *beg2;
-     int len1, len2;
-     int last;
+comp_def_part (int first,
+               U_CHAR *beg1, int len1,
+               U_CHAR *beg2, int len2,
+               int last)
 {
   register U_CHAR *end1 = beg1 + len1;
   register U_CHAR *end2 = beg2 + len2;
@@ -5879,10 +5828,9 @@ have already been deleted from the argument.  */
    to prevent concatenation that would be contrary to the standard.  */
 
 static DEFINITION *
-collect_expansion (buf, end, nargs, arglist)
-     U_CHAR *buf, *end;
-     int nargs;
-     struct arglist *arglist;
+collect_expansion (U_CHAR *buf, U_CHAR *end,
+                   int nargs,
+                   struct arglist *arglist)
 {
   DEFINITION *defn;
   register U_CHAR *p, *limit, *lastp, *exp_p;
@@ -6173,10 +6121,9 @@ collect_expansion (buf, end, nargs, arglist)
 }
 
 static int
-do_assert (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_assert (U_CHAR *buf, U_CHAR *limit,
+           FILE_BUF *op,
+           struct directive *keyword)
 {
   U_CHAR *bp;			/* temp ptr into input buffer */
   U_CHAR *symname;		/* remember where symbol name starts */
@@ -6250,10 +6197,9 @@ do_assert (buf, limit, op, keyword)
 }
 
 static int
-do_unassert (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_unassert (U_CHAR *buf, U_CHAR *limit,
+             FILE_BUF *op,
+             struct directive *keyword)
 {
   U_CHAR *bp;			/* temp ptr into input buffer */
   U_CHAR *symname;		/* remember where symbol name starts */
@@ -6350,11 +6296,10 @@ do_unassert (buf, limit, op, keyword)
    If TOKENS_SPECIFIED is 0, then don't check for any token list.  */
 
 int
-check_assertion (name, sym_length, tokens_specified, tokens)
-     U_CHAR *name;
-     int sym_length;
-     int tokens_specified;
-     struct arglist *tokens;
+check_assertion (U_CHAR *name,
+                 int sym_length,
+                 int tokens_specified,
+                 struct arglist *tokens)
 {
   ASSERTION_HASHNODE *hp;
   int hashcode = hashf (name, sym_length, ASSERTION_HASHSIZE);
@@ -6393,8 +6338,7 @@ check_assertion (name, sym_length, tokens_specified, tokens)
 /* Compare two lists of tokens for equality including order of tokens.  */
 
 static int
-compare_token_lists (l1, l2)
-     struct arglist *l1, *l2;
+compare_token_lists (struct arglist *l1, struct arglist *l2)
 {
   while (l1 && l2) {
     if (l1->length != l2->length)
@@ -6416,10 +6360,9 @@ compare_token_lists (l1, l2)
    Don't parse beyond LIMIT.  */
 
 static struct arglist *
-read_token_list (bpp, limit, error_flag)
-     U_CHAR **bpp;
-     U_CHAR *limit;
-     int *error_flag;
+read_token_list (U_CHAR **bpp,
+                 U_CHAR *limit,
+                 int *error_flag)
 {
   struct arglist *token_ptrs = 0;
   U_CHAR *bp = *bpp;
@@ -6481,8 +6424,7 @@ read_token_list (bpp, limit, error_flag)
 }
 
 static void
-free_token_list (tokens)
-     struct arglist *tokens;
+free_token_list (struct arglist *tokens)
 {
   while (tokens) {
     struct arglist *next = tokens->next;
@@ -6501,10 +6443,9 @@ free_token_list (tokens)
    Otherwise, compute the hash code.  */
 
 static ASSERTION_HASHNODE *
-assertion_install (name, len, hash)
-     U_CHAR *name;
-     int len;
-     int hash;
+assertion_install (U_CHAR *name,
+                   int len,
+                   int hash)
 {
   register ASSERTION_HASHNODE *hp;
   register int i, bucket;
@@ -6540,10 +6481,9 @@ assertion_install (name, len, hash)
    Otherwise, compute the hash code.  */
 
 static ASSERTION_HASHNODE *
-assertion_lookup (name, len, hash)
-     U_CHAR *name;
-     int len;
-     int hash;
+assertion_lookup (U_CHAR *name,
+                  int len,
+                  int hash)
 {
   register ASSERTION_HASHNODE *bucket;
 
@@ -6557,8 +6497,7 @@ assertion_lookup (name, len, hash)
 }
 
 static void
-delete_assertion (hp)
-     ASSERTION_HASHNODE *hp;
+delete_assertion (ASSERTION_HASHNODE *hp)
 {
 
   if (hp->prev != NULL)
@@ -6581,10 +6520,9 @@ delete_assertion (hp)
 #define FNAME_HASHSIZE 37
 
 static int
-do_line (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_line (U_CHAR *buf, U_CHAR *limit,
+         FILE_BUF *op,
+         struct directive *keyword)
 {
   register U_CHAR *bp;
   FILE_BUF *ip = &instack[indepth];
@@ -6730,10 +6668,9 @@ do_line (buf, limit, op, keyword)
    something that has no definitions, so it isn't one here either.  */
 
 static int
-do_undef (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_undef (U_CHAR *buf, U_CHAR *limit,
+          FILE_BUF *op,
+          struct directive *keyword)
 {
   int sym_length;
   HASHNODE *hp;
@@ -6770,10 +6707,9 @@ do_undef (buf, limit, op, keyword)
    (We use error because it prints the filename & line#.)  */
 
 static int
-do_error (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_error (U_CHAR *buf, U_CHAR *limit,
+          FILE_BUF *op,
+          struct directive *keyword)
 {
   int length = limit - buf;
   U_CHAR *copy = (U_CHAR *) alloca (length + 1);
@@ -6789,10 +6725,9 @@ do_error (buf, limit, op, keyword)
    (We use error because it prints the filename & line#.)  */
 
 static int
-do_warning (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_warning (U_CHAR *buf, U_CHAR *limit,
+            FILE_BUF *op,
+            struct directive *keyword)
 {
   int length = limit - buf;
   U_CHAR *copy = (U_CHAR *) alloca (length + 1);
@@ -6823,10 +6758,9 @@ do_once ()
 /* #ident has already been copied to the output file, so just ignore it.  */
 
 static int
-do_ident (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_ident (U_CHAR *buf, U_CHAR *limit,
+          FILE_BUF *op,
+          struct directive *keyword)
 {
   FILE_BUF trybuf;
   int len;
@@ -6859,10 +6793,9 @@ do_ident (buf, limit, op, keyword)
    Just check for some recognized pragmas that need validation here.  */
 
 static int
-do_pragma (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_pragma (U_CHAR *buf, U_CHAR *limit,
+           FILE_BUF *op,
+           struct directive *keyword)
 {
   SKIP_WHITE_SPACE (buf);
   if (!strncmp ((char *) buf, "once", 4)) {
@@ -6930,10 +6863,9 @@ nope:
 /* Just ignore #sccs, on systems where we define it at all.  */
 
 static int
-do_sccs (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_sccs (U_CHAR *buf, U_CHAR *limit,
+         FILE_BUF *op,
+         struct directive *keyword)
 {
   if (pedantic)
     pedwarn ("ANSI C does not allow `#sccs'");
@@ -6954,10 +6886,9 @@ do_sccs (buf, limit, op, keyword)
         or not, depending on the value from step 3.  */
 
 static int
-do_if (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_if (U_CHAR *buf, U_CHAR *limit,
+       FILE_BUF *op,
+       struct directive *keyword)
 {
   HOST_WIDE_INT value;
   FILE_BUF *ip = &instack[indepth];
@@ -6971,10 +6902,9 @@ do_if (buf, limit, op, keyword)
    see the comment above do_else.  */
 
 static int
-do_elif (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_elif (U_CHAR *buf, U_CHAR *limit,
+         FILE_BUF *op,
+         struct directive *keyword)
 {
   HOST_WIDE_INT value;
   FILE_BUF *ip = &instack[indepth];
@@ -7012,9 +6942,8 @@ do_elif (buf, limit, op, keyword)
    result as a C expression and return the value as an int.  */
 
 static HOST_WIDE_INT
-eval_if_expression (buf, length)
-     U_CHAR *buf;
-     int length;
+eval_if_expression (U_CHAR *buf,
+                    int length)
 {
   FILE_BUF temp_obuf;
   HASHNODE *save_defined;
@@ -7040,10 +6969,9 @@ eval_if_expression (buf, length)
    is actually being processed.  */
 
 static int
-do_xifdef (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_xifdef (U_CHAR *buf, U_CHAR *limit,
+           FILE_BUF *op,
+           struct directive *keyword)
 {
   int skip;
   FILE_BUF *ip = &instack[indepth];
@@ -7136,12 +7064,11 @@ do_xifdef (buf, limit, op, keyword)
    Otherwise, CONTROL_MACRO is 0.  */
 
 static void
-conditional_skip (ip, skip, type, control_macro, op)
-     FILE_BUF *ip;
-     int skip;
-     enum node_type type;
-     U_CHAR *control_macro;
-     FILE_BUF *op;
+conditional_skip (FILE_BUF *ip,
+                  int skip,
+                  enum node_type type,
+                  U_CHAR *control_macro,
+                  FILE_BUF *op)
 {
   IF_STACK_FRAME *temp;
 
@@ -7168,10 +7095,9 @@ conditional_skip (ip, skip, type, control_macro, op)
    If ANY is nonzero, return at next directive of any sort.  */
      
 static void
-skip_if_group (ip, any, op)
-     FILE_BUF *ip;
-     int any;
-     FILE_BUF *op;
+skip_if_group (FILE_BUF *ip,
+               int any,
+               FILE_BUF *op)
 {
   register U_CHAR *bp = ip->bufp, *cp;
   register U_CHAR *endb = ip->buf + ip->length;
@@ -7460,10 +7386,9 @@ skip_if_group (ip, any, op)
    is possible that something different would be better.  */
 
 static int
-do_else (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_else (U_CHAR *buf, U_CHAR *limit,
+         FILE_BUF *op,
+         struct directive *keyword)
 {
   FILE_BUF *ip = &instack[indepth];
 
@@ -7503,10 +7428,9 @@ do_else (buf, limit, op, keyword)
 /* Unstack after #endif directive.  */
 
 static int
-do_endif (buf, limit, op, keyword)
-     U_CHAR *buf, *limit;
-     FILE_BUF *op;
-     struct directive *keyword;
+do_endif (U_CHAR *buf, U_CHAR *limit,
+          FILE_BUF *op,
+          struct directive *keyword)
 {
   if (pedantic) {
     SKIP_WHITE_SPACE (buf);
@@ -7566,9 +7490,8 @@ do_endif (buf, limit, op, keyword)
    name.  */
 
 static void
-validate_else (p, limit)
-     register U_CHAR *p;
-     register U_CHAR *limit;
+validate_else (U_CHAR *p,
+               U_CHAR *limit)
 {
   /* Advance P over whitespace and comments.  */
   while (1) {
@@ -7617,10 +7540,9 @@ validate_else (p, limit)
    errors.  */
 
 static U_CHAR *
-skip_to_end_of_comment (ip, line_counter, nowarn)
-     register FILE_BUF *ip;
-     int *line_counter;		/* place to remember newlines, or NULL */
-     int nowarn;
+skip_to_end_of_comment (FILE_BUF *ip,
+                        int *line_counter, /* place to remember newlines, or NULL */
+                        int nowarn)
 {
   register U_CHAR *limit = ip->buf + ip->length;
   register U_CHAR *bp = ip->bufp;
@@ -7708,13 +7630,12 @@ skip_to_end_of_comment (ip, line_counter, nowarn)
    If EOFP is nonzero, set *EOFP to 1 if the string is unterminated.  */
 
 static U_CHAR *
-skip_quoted_string (bp, limit, start_line, count_newlines, backslash_newlines_p, eofp)
-     register U_CHAR *bp;
-     register U_CHAR *limit;
-     int start_line;
-     int *count_newlines;
-     int *backslash_newlines_p;
-     int *eofp;
+skip_quoted_string (U_CHAR *bp,
+                    U_CHAR *limit,
+                    int start_line,
+                    int *count_newlines,
+                    int *backslash_newlines_p,
+                    int *eofp)
 {
   register U_CHAR c, match;
 
@@ -7780,8 +7701,7 @@ skip_quoted_string (bp, limit, start_line, count_newlines, backslash_newlines_p,
    Return the address of DST's terminating null.  */
 
 static char *
-quote_string (dst, src)
-     char *dst, *src;
+quote_string (char *dst, char *src)
 {
   U_CHAR c;
 
@@ -7819,8 +7739,7 @@ quote_string (dst, src)
    where there aren't any newlines.  Also, backslash-newline can't appear.  */
 
 static U_CHAR *
-skip_paren_group (ip)
-     register FILE_BUF *ip;
+skip_paren_group (FILE_BUF *ip)
 {
   U_CHAR *limit = ip->buf + ip->length;
   U_CHAR *p = ip->bufp;
@@ -7870,10 +7789,9 @@ skip_paren_group (ip)
    FILE_CHANGE says whether we are entering a file, leaving, or neither.  */
 
 static void
-output_line_directive (ip, op, conditional, file_change)
-     FILE_BUF *ip, *op;
-     int conditional;
-     enum file_change_code file_change;
+output_line_directive (FILE_BUF *ip, FILE_BUF *op,
+                       int conditional,
+                       enum file_change_code file_change)
 {
   int len;
   char *line_directive_buf, *line_end;
@@ -7971,9 +7889,8 @@ struct argdata {
    an argument list follows; arguments come from the input stack.  */
 
 static void
-macroexpand (hp, op)
-     HASHNODE *hp;
-     FILE_BUF *op;
+macroexpand (HASHNODE *hp,
+             FILE_BUF *op)
 {
   int nargs;
   DEFINITION *defn = hp->value.defn;
@@ -8034,7 +7951,7 @@ macroexpand (hp, op)
       else
 	parse_error = macarg (NULL_PTR, 0);
       if (parse_error) {
-	error_with_line (line_for_error (start_line), parse_error);
+	error_with_line (line_for_error (start_line), "%s", parse_error);
 	break;
       }
       i++;
@@ -8367,9 +8284,8 @@ macroexpand (hp, op)
    Return nonzero to indicate a syntax error.  */
 
 static char *
-macarg (argptr, rest_args)
-     register struct argdata *argptr;
-     int rest_args;
+macarg (struct argdata *argptr,
+        int rest_args)
 {
   FILE_BUF *ip = &instack[indepth];
   int paren = 0;
@@ -8502,11 +8418,10 @@ macarg (argptr, rest_args)
    Set *COMMENTS to 1 if a comment is seen.  */
 
 static U_CHAR *
-macarg1 (start, limit, depthptr, newlines, comments, rest_args)
-     U_CHAR *start;
-     register U_CHAR *limit;
-     int *depthptr, *newlines, *comments;
-     int rest_args;
+macarg1 (U_CHAR *start,
+         U_CHAR *limit,
+         int *depthptr, int *newlines, int *comments,
+         int rest_args)
 {
   register U_CHAR *bp = start;
 
@@ -8606,10 +8521,9 @@ macarg1 (start, limit, depthptr, newlines, comments, rest_args)
    of the string.  */
 
 static int
-discard_comments (start, length, newlines)
-     U_CHAR *start;
-     int length;
-     int newlines;
+discard_comments (U_CHAR *start,
+                  int length,
+                  int newlines)
 {
   register U_CHAR *ibp;
   register U_CHAR *obp;
@@ -8714,9 +8628,8 @@ discard_comments (start, length, newlines)
    The string is copied into itself with its beginning staying fixed.  */
 
 static int
-change_newlines (start, length)
-     U_CHAR *start;
-     int length;
+change_newlines (U_CHAR *start,
+                 int length)
 {
   register U_CHAR *ibp;
   register U_CHAR *obp;
@@ -8766,13 +8679,12 @@ change_newlines (start, length)
    `errno' code.  */
 
 char *
-my_strerror (errnum)
-     int errnum;
+my_strerror (int errnum)
 {
   char *result;
 
 #ifndef VMS
-#ifndef HAVE_STRERROR
+#ifndef OMNI_HAVE_STRERROR
   result = (char *) ((errnum < sys_nerr) ? sys_errlist[errnum] : 0);
 #else
   result = strerror (errnum);
@@ -8808,9 +8720,8 @@ error (PRINTF_ALIST (msg))
 }
 
 static void
-verror (msg, args)
-     char *msg;
-     va_list args;
+verror (char *msg,
+        va_list args)
 {
   int i;
   FILE_BUF *ip = NULL;
@@ -8833,8 +8744,7 @@ verror (msg, args)
 /* Error including a message from `errno'.  */
 
 static void
-error_from_errno (name)
-     char *name;
+error_from_errno (char *name)
 {
   int i;
   FILE_BUF *ip = NULL;
@@ -8869,9 +8779,8 @@ warning (PRINTF_ALIST (msg))
 }
 
 static void
-vwarning (msg, args)
-     char *msg;
-     va_list args;
+vwarning (char *msg,
+          va_list args)
 {
   int i;
   FILE_BUF *ip = NULL;
@@ -8898,7 +8807,7 @@ vwarning (msg, args)
 }
 
 static void
-#if defined (__STDC__) && defined (HAVE_VPRINTF)
+#if defined (__STDC__) && defined (OMNI_HAVE_VPRINTF)
 error_with_line (int line, PRINTF_ALIST (msg))
 #else
 error_with_line (line, PRINTF_ALIST (msg))
@@ -8914,10 +8823,9 @@ error_with_line (line, PRINTF_ALIST (msg))
 }
 
 static void
-verror_with_line (line, msg, args)
-     int line;
-     char *msg;
-     va_list args;
+verror_with_line (int line,
+                  char *msg,
+                  va_list args)
 {
   int i;
   FILE_BUF *ip = NULL;
@@ -8938,7 +8846,7 @@ verror_with_line (line, msg, args)
 }
 
 static void
-#if defined (__STDC__) && defined (HAVE_VPRINTF)
+#if defined (__STDC__) && defined (OMNI_HAVE_VPRINTF)
 warning_with_line (int line, PRINTF_ALIST (msg))
 #else
 warning_with_line (line, PRINTF_ALIST (msg))
@@ -8954,10 +8862,9 @@ warning_with_line (line, PRINTF_ALIST (msg))
 }
 
 static void
-vwarning_with_line (line, msg, args)
-     int line;
-     char *msg;
-     va_list args;
+vwarning_with_line (int line,
+                    char *msg,
+                    va_list args)
 {
   int i;
   FILE_BUF *ip = NULL;
@@ -8976,8 +8883,12 @@ vwarning_with_line (line, msg, args)
       break;
     }
 
-  if (ip != NULL)
-    fprintf (stderr, line ? "%s:%d: " : "%s: ", ip->nominal_fname, line);
+  if (ip != NULL) {
+    if (line)
+      fprintf (stderr, "%s:%d: ", ip->nominal_fname, line);
+    else
+      fprintf (stderr, "%s: ", ip->nominal_fname);
+  }
   fprintf (stderr, "warning: ");
   vfprintf (stderr, msg, args);
   fprintf (stderr, "\n");
@@ -9000,7 +8911,7 @@ pedwarn (PRINTF_ALIST (msg))
 }
 
 void
-#if defined (__STDC__) && defined (HAVE_VPRINTF)
+#if defined (__STDC__) && defined (OMNI_HAVE_VPRINTF)
 pedwarn_with_line (int line, PRINTF_ALIST (msg))
 #else
 pedwarn_with_line (line, PRINTF_ALIST (msg))
@@ -9022,7 +8933,7 @@ pedwarn_with_line (line, PRINTF_ALIST (msg))
    giving specified file name and line number, not current.  */
 
 static void
-#if defined (__STDC__) && defined (HAVE_VPRINTF)
+#if defined (__STDC__) && defined (OMNI_HAVE_VPRINTF)
 pedwarn_with_file_and_line (char *file, int line, PRINTF_ALIST (msg))
 #else
 pedwarn_with_file_and_line (file, line, PRINTF_ALIST (msg))
@@ -9101,8 +9012,7 @@ print_containing_files ()
    In that case, we return the lineno of the innermost file.  */
 
 static int
-line_for_error (line)
-     int line;
+line_for_error (int line)
 {
   int i;
   int line1 = line;
@@ -9133,9 +9043,8 @@ line_for_error (line)
    but that would get type mismatch in check_expand in strict ANSI.  */
 
 static int
-grow_outbuf (obuf, needed)
-     register FILE_BUF *obuf;
-     register int needed;
+grow_outbuf (FILE_BUF *obuf,
+             int needed)
 {
   register U_CHAR *p;
   int minsize;
@@ -9177,12 +9086,11 @@ grow_outbuf (obuf, needed)
  */
 
 static HASHNODE *
-install (name, len, type, value, hash)
-     U_CHAR *name;
-     int len;
-     enum node_type type;
-     char *value;
-     int hash;
+install (U_CHAR *name,
+         int len,
+         enum node_type type,
+         char *value,
+         int hash)
 {
   register HASHNODE *hp;
   register int i, bucket;
@@ -9231,10 +9139,9 @@ install (name, len, type, value, hash)
  */
 
 HASHNODE *
-lookup (name, len, hash)
-     U_CHAR *name;
-     int len;
-     int hash;
+lookup (U_CHAR *name,
+        int len,
+        int hash)
 {
   register U_CHAR *bp;
   register HASHNODE *bucket;
@@ -9271,8 +9178,7 @@ lookup (name, len, hash)
    If #undef freed the DEFINITION, that would crash.  */
 
 static void
-delete_macro (hp)
-     HASHNODE *hp;
+delete_macro (HASHNODE *hp)
 {
 
   if (hp->prev != NULL)
@@ -9306,10 +9212,9 @@ delete_macro (hp)
  */
 
 static int
-hashf (name, len, hashsize)
-     register U_CHAR *name;
-     register int len;
-     int hashsize;
+hashf (U_CHAR *name,
+       int len,
+       int hashsize)
 {
   register int r = 0;
 
@@ -9323,9 +9228,8 @@ hashf (name, len, hashsize)
 /* Dump the definition of a single macro HP to OF.  */
 
 static void
-dump_single_macro (hp, of)
-     register HASHNODE *hp;
-     FILE *of;
+dump_single_macro (HASHNODE *hp,
+                   FILE *of)
 {
   register DEFINITION *defn = hp->value.defn;
   struct reflist *ap;
@@ -9430,11 +9334,10 @@ dump_all_macros ()
    converting funny-space markers to ordinary spaces.  */
 
 static void
-dump_defn_1 (base, start, length, of)
-     U_CHAR *base;
-     int start;
-     int length;
-     FILE *of;
+dump_defn_1 (U_CHAR *base,
+             int start,
+             int length,
+             FILE *of)
 {
   U_CHAR *p = base + start;
   U_CHAR *limit = base + start + length;
@@ -9463,10 +9366,9 @@ dump_defn_1 (base, start, length, of)
    concatenated in reverse order with comma-space in between.  */
 
 static void
-dump_arg_n (defn, argnum, of)
-     DEFINITION *defn;
-     int argnum;
-     FILE *of;
+dump_arg_n (DEFINITION *defn,
+            int argnum,
+            FILE *of)
 {
   register U_CHAR *p = defn->args.argnames;
   while (argnum + 1 < defn->nargs) {
@@ -9528,9 +9430,8 @@ initialize_char_syntax ()
 /* Initialize the built-in macros.  */
 
 static void
-initialize_builtins (inp, outp)
-     FILE_BUF *inp;
-     FILE_BUF *outp;
+initialize_builtins (FILE_BUF *inp,
+                     FILE_BUF *outp)
 {
   install ((U_CHAR *) "__LINE__", -1, T_SPECLINE, NULL_PTR, -1);
   install ((U_CHAR *) "__DATE__", -1, T_DATE, NULL_PTR, -1);
@@ -9638,9 +9539,8 @@ initialize_builtins (inp, outp)
  */
 
 static void
-make_definition (str, op)
-     char *str;
-     FILE_BUF *op;
+make_definition (char *str,
+                 FILE_BUF *op)
 {
   FILE_BUF *ip;
   struct directive *kt;
@@ -9725,9 +9625,8 @@ make_definition (str, op)
 /* JF, this does the work for the -U option */
 
 static void
-make_undef (str, op)
-     char *str;
-     FILE_BUF *op;
+make_undef (char *str,
+            FILE_BUF *op)
 {
   FILE_BUF *ip;
   struct directive *kt;
@@ -9754,9 +9653,8 @@ make_undef (str, op)
    OPTION is the option name for which STR was the argument.  */
 
 static void
-make_assertion (option, str)
-     char *option;
-     char *str;
+make_assertion (char *option,
+                char *str)
 {
   FILE_BUF *ip;
   struct directive *kt;
@@ -9816,10 +9714,9 @@ make_assertion (option, str)
    e.g. because it is a duplicate of PREV_FILE_NAME.  */
 
 static struct file_name_list *
-new_include_prefix (prev_file_name, prefix, name)
-     struct file_name_list *prev_file_name;
-     char *prefix;
-     char *name;
+new_include_prefix (struct file_name_list *prev_file_name,
+                    char *prefix,
+                    char *name)
 {
   if (!name)
     fatal ("Directory name missing after command line option");
@@ -9893,8 +9790,8 @@ new_include_prefix (prev_file_name, prefix, name)
    FIRST is the beginning of the chain to append, and LAST is the end.  */
 
 static void
-append_include_chain (first, last)
-     struct file_name_list *first, *last;
+append_include_chain (struct file_name_list *first,
+                      struct file_name_list *last)
 {
   struct file_name_list *dir;
 
@@ -9926,9 +9823,8 @@ append_include_chain (first, last)
    SPACER is ':' for targets, ' ' for dependencies.  */
 
 static void
-deps_output (string, spacer)
-     char *string;
-     int spacer;
+deps_output (char *string,
+             int spacer)
 {
   int size = strlen (string);
 
@@ -9989,8 +9885,7 @@ fancy_abort ()
 }
 
 static void
-perror_with_name (name)
-     char *name;
+perror_with_name (char *name)
 {
   fprintf (stderr, "%s: ", progname);
   fprintf (stderr, "%s: %s\n", name, my_strerror (errno));
@@ -9998,8 +9893,7 @@ perror_with_name (name)
 }
 
 static void
-pfatal_with_name (name)
-     char *name;
+pfatal_with_name (char *name)
 {
   perror_with_name (name);
 #ifdef VMS
@@ -10012,9 +9906,7 @@ pfatal_with_name (name)
 /* Handler for SIGPIPE.  */
 
 static void
-pipe_closed (signo)
-     /* If this is missing, some compilers complain.  */
-     int signo;
+pipe_closed (int signo)
 {
   fatal ("output pipe has been closed");
 }
@@ -10027,8 +9919,7 @@ memory_full ()
 
 
 GENERIC_PTR
-xmalloc (size)
-     size_t size;
+xmalloc (size_t size)
 {
   register GENERIC_PTR ptr = (GENERIC_PTR) malloc (size);
   if (!ptr)
@@ -10037,9 +9928,8 @@ xmalloc (size)
 }
 
 static GENERIC_PTR
-xrealloc (old, size)
-     GENERIC_PTR old;
-     size_t size;
+xrealloc (GENERIC_PTR old,
+          size_t size)
 {
   register GENERIC_PTR ptr = (GENERIC_PTR) realloc (old, size);
   if (!ptr)
@@ -10048,8 +9938,7 @@ xrealloc (old, size)
 }
 
 static GENERIC_PTR
-xcalloc (number, size)
-     size_t number, size;
+xcalloc (size_t number, size_t size)
 {
   register size_t total = number * size;
   register GENERIC_PTR ptr = (GENERIC_PTR) malloc (total);
@@ -10060,8 +9949,7 @@ xcalloc (number, size)
 }
 
 static char *
-savestring (input)
-     char *input;
+savestring (char *input)
 {
   size_t size = strlen (input);
   char *output = xmalloc (size + 1);
@@ -10076,9 +9964,8 @@ savestring (input)
    VMS file specification.  */
 
 static void
-hack_vms_include_specification (fname, vaxc_include)
-     char *fname;
-     int vaxc_include;
+hack_vms_include_specification (char *fname,
+                                int vaxc_include)
 {
   register char *cp, *cp1, *cp2;
   int f, check_filename_before_returning;
@@ -10228,10 +10115,9 @@ hack_vms_include_specification (fname, vaxc_include)
      "shr=nil"- Disallow file sharing while file is open.  */
 
 static FILE *
-freopen (fname, type, oldfile)
-     char *fname;
-     char *type;
-     FILE *oldfile;
+freopen (char *fname,
+         char *type,
+         FILE *oldfile)
 {
 #undef	freopen	/* Get back the REAL fopen routine */
   if (strcmp (type, "w") == 0)
@@ -10240,9 +10126,8 @@ freopen (fname, type, oldfile)
 }
 
 static FILE *
-fopen (fname, type)
-     char *fname;
-     char *type;
+fopen (char *fname,
+       char *type)
 {
 #undef fopen	/* Get back the REAL fopen routine */
   /* The gcc-vms-1.42 distribution's header files prototype fopen with two
@@ -10259,10 +10144,9 @@ fopen (fname, type)
 
 
 static int 
-open (fname, flags, prot)
-     char *fname;
-     int flags;
-     int prot;
+open (char *fname,
+      int flags,
+      int prot)
 {
 #undef open	/* Get back the REAL open routine */
   return open (fname, flags, prot, "mbc=16", "deq=64", "fop=tef");
@@ -10288,9 +10172,8 @@ extern unsigned long sys$parse(), sys$search();
 
 #undef fstat	/* get back to library version */
 static int
-VMS_fstat (fd, statbuf)
-     int fd;
-     struct stat *statbuf;
+VMS_fstat (int fd,
+           struct stat *statbuf)
 {
   int result = fstat (fd, statbuf);
 
@@ -10308,9 +10191,8 @@ VMS_fstat (fd, statbuf)
 }
 
 static int
-VMS_stat (name, statbuf)
-     const char *name;
-     struct stat *statbuf;
+VMS_stat (const char *name,
+          struct stat *statbuf)
 {
   int result = stat (name, statbuf);
 

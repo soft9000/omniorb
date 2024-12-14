@@ -8,12 +8,8 @@
 
 #include <echo.hh>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
 
 class Echo_i : public POA_Echo
@@ -34,7 +30,7 @@ char* Echo_i::echoString(const char* mesg)
 
 static void hello(Echo_ptr e)
 {
-  if( CORBA::is_nil(e) ) {
+  if (CORBA::is_nil(e)) {
     cout << "hello: The object reference is nil!\n" << endl;
     return;
   }
@@ -76,21 +72,15 @@ int main(int argc, char** argv)
     }
     orb->destroy();
   }
-  catch(CORBA::TRANSIENT&) {
+  catch (CORBA::TRANSIENT&) {
     cerr << "Caught system exception TRANSIENT -- unable to contact the "
          << "server." << endl;
   }
-  catch(CORBA::SystemException& ex) {
+  catch (CORBA::SystemException& ex) {
     cerr << "Caught a CORBA::" << ex._name() << endl;
   }
-  catch(CORBA::Exception& ex) {
+  catch (CORBA::Exception& ex) {
     cerr << "Caught CORBA::Exception: " << ex._name() << endl;
-  }
-  catch(omniORB::fatalException& fe) {
-    cerr << "Caught omniORB::fatalException:" << endl;
-    cerr << "  file: " << fe.file() << endl;
-    cerr << "  line: " << fe.line() << endl;
-    cerr << "  mesg: " << fe.errmsg() << endl;
   }
   return 0;
 }

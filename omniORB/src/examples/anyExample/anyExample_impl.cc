@@ -13,12 +13,9 @@
 
 #include <anyExample.hh>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
+
 
 class anyExample_i : public POA_anyExample {
 public:
@@ -32,7 +29,7 @@ CORBA::Any* anyExample_i::testOp(const CORBA::Any& a)
 {
   cout << "Any received, containing: " << endl;
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
   CORBA::Double d;
 #endif
 
@@ -45,9 +42,7 @@ CORBA::Any* anyExample_i::testOp(const CORBA::Any& a)
   if (a >>= l) {
     cout << "Long: " << l << endl;
   }
-#ifndef NO_FLOAT
-  // XXX - should we provide stream ops for _CORBA_Double_ and
-  // _CORBA_Float_on VMS??
+#ifndef OMNI_NO_FLOAT
   else if (a >>= d) {
     cout << "Double: " << (double)d << endl;
   }
@@ -97,17 +92,11 @@ int main(int argc, char** argv)
     orb->run();
     orb->destroy();
   }
-  catch(CORBA::SystemException& ex) {
+  catch (CORBA::SystemException& ex) {
     cerr << "Caught CORBA::" << ex._name() << endl;
   }
-  catch(CORBA::Exception& ex) {
+  catch (CORBA::Exception& ex) {
     cerr << "Caught CORBA::Exception: " << ex._name() << endl;
-  }
-  catch(omniORB::fatalException& fe) {
-    cerr << "Caught omniORB::fatalException:" << endl;
-    cerr << "  file: " << fe.file() << endl;
-    cerr << "  line: " << fe.line() << endl;
-    cerr << "  mesg: " << fe.errmsg() << endl;
   }
   return 0;
 }

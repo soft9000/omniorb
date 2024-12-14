@@ -8,41 +8,21 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Value tracker implementation classes for C++
-//
-
-// $Log$
-// Revision 1.1.2.5  2005/01/17 14:44:46  dgrisby
-// Surprisingly few changes to compile on Windows.
-//
-// Revision 1.1.2.4  2004/07/04 23:53:35  dgrisby
-// More ValueType TypeCode and Any support.
-//
-// Revision 1.1.2.3  2004/04/02 13:26:24  dgrisby
-// Start refactoring TypeCode to support value TypeCodes, start of
-// abstract interfaces support.
-//
-// Revision 1.1.2.2  2003/11/06 11:56:55  dgrisby
-// Yet more valuetype. Plain valuetype and abstract valuetype are now working.
-//
-// Revision 1.1.2.1  2003/09/26 16:12:54  dgrisby
-// Start of valuetype support.
 //
 
 #ifndef __VALUETRACKERIMPL_H__
@@ -77,18 +57,18 @@ public:
     return pd_magic == PD_MAGIC;
   }
 
-  CORBA::Long addValue(const CORBA::ValueBase* val,
-		       CORBA::Long             current);
+  omni::s_size_t addValue(const CORBA::ValueBase* val,
+                          omni::s_size_t          current);
   // Look to see if the value has been marshalled before. If so,
   // return its offset; if not, add it to the table and return -1.
 
-  CORBA::Long addRepoId(const char*  repoId,
-			CORBA::ULong hashval,
-			CORBA::Long  current);
+  omni::s_size_t addRepoId(const char*    repoId,
+                           CORBA::ULong   hashval,
+                           omni::s_size_t current);
   // As above, for a single repository id.
 
-  CORBA::Long addRepoIds(const _omni_ValueIds* repoIds,
-			 CORBA::Long           current);
+  omni::s_size_t addRepoIds(const _omni_ValueIds* repoIds,
+                            omni::s_size_t        current);
   // As above, for a list of repository ids.
 
   inline void startTruncatable() {
@@ -105,12 +85,23 @@ public:
   // nested value away, but later receives an indirection to it.
 
 private:
+  void resizeTable();
+
+  inline void add()
+  {
+    if (++pd_table_count == pd_table_limit)
+      resizeTable();
+  }
+
   static _dyn_attr const CORBA::ULong PD_MAGIC; // "C+OV"
-  CORBA::ULong pd_magic;
+  CORBA::ULong       pd_magic;
 
   CORBA::ULong       pd_in_truncatable;
   OutputTableEntry** pd_table;
+  CORBA::ULong       pd_table_count;
   CORBA::ULong       pd_table_size;
+  CORBA::ULong       pd_table_limit;
+  CORBA::ULong       pd_table_next_idx;
 };
 
 class InputValueTracker : public ValueIndirectionTracker {
@@ -123,41 +114,52 @@ public:
     return pd_magic == PD_MAGIC;
   }
 
-  void addValue(CORBA::ValueBase* val, CORBA::Long current);
+  void addValue(CORBA::ValueBase* val, omni::s_size_t current);
   // Add record of unmarshalled value. Takes ownership of the reference.
 
-  void addRepoId(char* repoId, CORBA::Long current);
+  void addRepoId(char* repoId, omni::s_size_t current);
   // Add record of unmarshalled repoId. Takes ownership of the string.
 
-  void addRepoIds(_omni_ValueIds* repoIds, CORBA::Long current);
+  void addRepoIds(_omni_ValueIds* repoIds, omni::s_size_t current);
   // Add record of list of unmarshalled repoIds. Takes ownership of
   // the list structure. The strings stored in the list are _not_
   // owned, since they are separately registered with addRepoId.
 
-  CORBA::ValueBase* lookupValue(CORBA::Long pos,
-				CORBA::Long current,
+  CORBA::ValueBase* lookupValue(omni::s_size_t pos,
+				omni::s_size_t current,
 				CORBA::CompletionStatus comp);
   // Lookup value at specified position, from the current position.
   // Throw MARSHAL_InvalidIndirection if not found. Caller must
   // add_ref if it needs to keep the value.
 
-  const char* lookupRepoId(CORBA::Long pos,
-			   CORBA::Long current,
+  const char* lookupRepoId(omni::s_size_t pos,
+			   omni::s_size_t current,
 			   CORBA::CompletionStatus comp);
   // As above for single repoId.
 
-  const _omni_ValueIds* lookupRepoIds(CORBA::Long pos,
-				      CORBA::Long current,
+  const _omni_ValueIds* lookupRepoIds(omni::s_size_t pos,
+				      omni::s_size_t current,
 				      CORBA::CompletionStatus comp);
   // As above for list of repoIds.
 
 private:
+  void resizeTable();
+
+  inline void add()
+  {
+    if (++pd_table_count == pd_table_limit)
+      resizeTable();
+  }
+
   static _dyn_attr const CORBA::ULong PD_MAGIC; // "C+IV"
-  CORBA::ULong pd_magic;
+  CORBA::ULong      pd_magic;
 
   CORBA::ULong      pd_in_truncatable;
   InputTableEntry** pd_table;
+  CORBA::ULong      pd_table_count;
   CORBA::ULong      pd_table_size;
+  CORBA::ULong      pd_table_limit;
+  CORBA::ULong      pd_table_next_idx;
 };
 
 

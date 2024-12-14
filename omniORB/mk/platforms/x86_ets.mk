@@ -8,10 +8,11 @@ x86Processor = 1
 
 WINVER = 0x0400
 
-# Define EmbeddedSystem causes the build process to only build
-#    src/lib.
+# Defining EmbeddedSystem and CrossCompiling causes the build process
+# to only build src/lib.
 #
 EmbeddedSystem = 1
+CrossCompiling = 1
 
 HOSTBINDIR = bin/x86_win32
 LIBDIR = lib/x86_win32

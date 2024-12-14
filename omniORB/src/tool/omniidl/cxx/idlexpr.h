@@ -18,37 +18,11 @@
 //  General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//  02111-1307, USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //   
 //   Expression tree and evaluator
-
-// $Id$
-// $Log$
-// Revision 1.4.2.4  2001/08/29 11:54:20  dpg1
-// Clean up const handling in IDL compiler.
-//
-// Revision 1.4.2.3  2001/03/13 10:32:12  dpg1
-// Fixed point support.
-//
-// Revision 1.4.2.2  2000/10/27 16:31:09  dpg1
-// Clean up of omniidl dependencies and types, from omni3_develop.
-//
-// Revision 1.4.2.1  2000/07/17 10:36:03  sll
-// Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-//
-// Revision 1.5  2000/07/13 15:25:53  dpg1
-// Merge from omni3_develop for 3.0 release.
-//
-// Revision 1.2  1999/11/02 17:07:26  dpg1
-// Changes to compile on Solaris.
-//
-// Revision 1.1  1999/10/27 14:05:56  dpg1
-// *** empty log message ***
-//
 
 #ifndef _idlexpr_h_
 #define _idlexpr_h_
@@ -73,7 +47,7 @@ struct IdlLongVal {
   };
 };
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 struct IdlLongLongVal {
   IdlLongLongVal(IDL_ULongLong a) : negative(0), u(a) {}
   IdlLongLongVal(IDL_LongLong  a) : negative(0), s(a) { if (a<0) negative=1; }
@@ -96,7 +70,7 @@ public:
   //
 
   virtual IdlLongVal       evalAsLongV();
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   virtual IdlLongLongVal   evalAsLongLongV();
 #endif
   virtual IDL_Float        evalAsFloat();
@@ -105,7 +79,7 @@ public:
   virtual IDL_Char         evalAsChar();
   virtual const char*      evalAsString();
   virtual Enumerator*      evalAsEnumerator(const Enum* target);
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   virtual IDL_LongDouble   evalAsLongDouble();
 #endif
   virtual IDL_WChar        evalAsWChar();
@@ -122,7 +96,7 @@ public:
   IDL_UShort    evalAsUShort();
   IDL_ULong 	evalAsULong();
   IDL_Octet 	evalAsOctet();
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   IDL_LongLong  evalAsLongLong();
   IDL_ULongLong evalAsULongLong();
 #endif
@@ -147,7 +121,7 @@ public:
   virtual ~DummyExpr() {}
 
   IdlLongVal       evalAsLongV()     { return IdlLongVal (IDL_ULong(1)); }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   IdlLongLongVal   evalAsLongLongV() { return IdlLongLongVal(IDL_ULongLong(1));}
 #endif
 
@@ -157,7 +131,7 @@ public:
   IDL_Char         evalAsChar()                         { return '!'; }
   const char*      evalAsString()                       { return "!"; }
   Enumerator*      evalAsEnumerator(const Enum* target) { return 0; }
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   IDL_LongDouble   evalAsLongDouble()                   { return 1.0; }
 #endif
   IDL_WChar        evalAsWChar()                        { return '!'; }
@@ -177,7 +151,7 @@ public:
   ~IntegerExpr() {}
 
   IdlLongVal       evalAsLongV();
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   IdlLongLongVal   evalAsLongLongV();
 #endif
   const char*      errText() { return "integer literal"; }
@@ -253,7 +227,7 @@ public:
 
   IDL_Float        evalAsFloat();
   IDL_Double       evalAsDouble();
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   IDL_LongDouble   evalAsLongDouble();
 #endif
   const char*      errText() { return "floating point literal"; }
@@ -295,7 +269,7 @@ public:
   ~ConstExpr() {}
 
   IdlLongVal       evalAsLongV();
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   IdlLongLongVal   evalAsLongLongV();
 #endif
   IDL_Float        evalAsFloat();
@@ -305,7 +279,7 @@ public:
   IDL_Octet        evalAsOctet();
   const char*      evalAsString();
   Enumerator*      evalAsEnumerator(const Enum* target);
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   IDL_LongDouble   evalAsLongDouble();
 #endif
   IDL_WChar        evalAsWChar();
@@ -322,7 +296,7 @@ private:
 
 // Expressions
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 #define EXPR_INT_CONVERSION_FUNCTIONS \
   IdlLongVal       evalAsLongV(); \
   IdlLongLongVal   evalAsLongLongV();
@@ -331,7 +305,7 @@ private:
   IdlLongVal       evalAsLongV();
 #endif
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 #define EXPR_FLOAT_CONVERSION_FUNCTIONS \
   IDL_Float        evalAsFloat();    \
   IDL_Double       evalAsDouble();   \

@@ -59,9 +59,11 @@ x86Processor        = 1
 # for dynamic interfaces, e.g. DII, DSI, Any, Typecode etc.
 #OrbCoreOnly = 1
 
-# Define EmbeddedSystem causes the build process to only build src/lib.
+# Defining EmbeddedSystem and CrossCompiling causes the build process
+# to only build src/lib.
 #
 EmbeddedSystem = 1
+CrossCompiling = 1
 
 # RTEMS uses similar make/build structure as Unix, so turn this on
 UnixPlatform = 1

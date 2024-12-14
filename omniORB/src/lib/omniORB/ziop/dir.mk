@@ -1,6 +1,14 @@
 # dir.mk for omniORB ZIOP library
 
-ORB_SRCS = omniZIOP.cc ziopStubs.cc messagingStubs.cc zlibCompressor.cc
+ORB_SRCS = omniZIOP.cc ziopStubs.cc messagingStubs.cc
+
+ifdef EnableZIOPZLib
+ORB_SRCS += zlibCompressor.cc
+endif
+
+ifdef EnableZIOPZStd
+ORB_SRCS += zstdCompressor.cc
+endif
 
 DIR_CPPFLAGS += -I.. $(patsubst %,-I%/..,$(VPATH))
 DIR_CPPFLAGS += $(patsubst %,-I%/include/omniORB4/internal,$(IMPORT_TREES))
@@ -11,13 +19,21 @@ DIR_CPPFLAGS += -D_OMNIORB_ZIOP_LIBRARY
 ifdef UnixPlatform
   #CXXDEBUGFLAGS = -g
   DIR_CPPFLAGS += -DUnixArchitecture
-  EXTRA_LIBS = -lz
+
+ifdef EnableZIOPZLib
+  EXTRA_LIBS += -lz
+endif
+
+ifdef EnableZIOPZStd
+  EXTRA_LIBS += -lzstd
+endif
+
 endif
 
 ifdef Win32Platform
-  DIR_CPPFLAGS += -D"NTArchitecture" $(ZLIB_CPPFLAGS)
+  DIR_CPPFLAGS += -D"NTArchitecture" $(ZLIB_CPPFLAGS) $(ZSTD_CPPFLAGS)
   EXTRA_LIBS = $(patsubst %,$(LibNoDebugSearchPattern),advapi32) \
-               $(ZLIB_LIB)
+               $(ZLIB_LIB) $(ZSTD_LIB)
   MSVC_STATICLIB_CXXNODEBUGFLAGS += -D_WINSTATIC
   MSVC_STATICLIB_CXXDEBUGFLAGS += -D_WINSTATIC
   vpath %.cc $(VPATH):$(VPATH:%=%/../orbcore)

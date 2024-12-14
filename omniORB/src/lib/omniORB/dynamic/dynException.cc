@@ -9,19 +9,17 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -112,9 +110,12 @@ static const CORBA::TypeCode_ptr _tc_##module##_##_fqname = CORBA::TypeCode::PR_
  \
 static void _0RL_##module##_##_fqname##_marshal_fn(cdrStream& _s, void* _v) \
 { \
+  const module::fqname* _p = (const module::fqname*)_v; \
+  ::CORBA::Any::PR_marshalExceptionRepoId(_s, _p->_rep_id()); \
 } \
 static void _0RL_##module##_##_fqname##_unmarshal_fn(cdrStream& _s, void*& _v) \
 { \
+  ::CORBA::Any::PR_unmarshalExceptionRepoId(_s); \
   module::fqname* _p = new module::fqname; \
   *_p <<= _s; \
   _v = _p; \
@@ -211,7 +212,7 @@ static CORBA::PR_structMember _0RL_structmember_PortableServer_mForwardRequest[]
 };
 
 static CORBA::TypeCode_ptr _0RL_tc_PortableServer_mForwardRequest = CORBA::TypeCode::PR_exception_tc("IDL:omg.org/PortableServer/ForwardRequest:1.0", "ForwardRequest", _0RL_structmember_PortableServer_mForwardRequest, 1, &_0RL_tcTrack);
-#if defined(HAS_Cplusplus_Namespace) && defined(_MSC_VER)
+#if defined(OMNI_HAS_Cplusplus_Namespace) && defined(_MSC_VER)
 // MSVC++ does not give the constant external linkage otherwise.
 namespace PortableServer { 
   const CORBA::TypeCode_ptr _tc_ForwardRequest = _0RL_tc_PortableServer_mForwardRequest;
@@ -231,10 +232,12 @@ const CORBA::TypeCode_ptr PortableServer::POA::_tc_InvalidPolicy = _0RL_tc_Porta
 static void _0RL_PortableServer_mForwardRequest_marshal_fn(cdrStream& _s, void* _v)
 {
   const PortableServer::ForwardRequest* _p = (const PortableServer::ForwardRequest*)_v;
+  ::CORBA::Any::PR_marshalExceptionRepoId(_s, _p->_rep_id());
   *_p >>= _s;
 }
 static void _0RL_PortableServer_mForwardRequest_unmarshal_fn(cdrStream& _s, void*& _v)
 {
+  ::CORBA::Any::PR_unmarshalExceptionRepoId(_s);
   PortableServer::ForwardRequest* _p = new PortableServer::ForwardRequest;
   *_p <<= _s;
   _v = _p;
@@ -297,10 +300,12 @@ static _0RL_insertToAny_Singleton__cPortableServer_mForwardRequest _0RL_insertTo
 static void _0RL_PortableServer_mPOA_mInvalidPolicy_marshal_fn(cdrStream& _s, void* _v)
 {
   const PortableServer::POA::InvalidPolicy* _p = (const PortableServer::POA::InvalidPolicy*)_v;
+  ::CORBA::Any::PR_marshalExceptionRepoId(_s, _p->_rep_id());
   *_p >>= _s;
 }
 static void _0RL_PortableServer_mPOA_mInvalidPolicy_unmarshal_fn(cdrStream& _s, void*& _v)
 {
+  ::CORBA::Any::PR_unmarshalExceptionRepoId(_s);
   PortableServer::POA::InvalidPolicy* _p = new PortableServer::POA::InvalidPolicy;
   *_p <<= _s;
   _v = _p;
@@ -389,6 +394,7 @@ CORBA::TypeCode_ptr CORBA::_tc_##name = CORBA::TypeCode::PR_exception_tc("IDL:om
 static void _0RL_CORBA_##name##_marshal_fn(cdrStream& _s, void* _v) \
 { \
   const CORBA::name* e = (const CORBA::name*)_v; \
+  CORBA::Any::PR_marshalExceptionRepoId(_s, e->_rep_id()); \
   CORBA::ULong m = e->minor(); \
   CORBA::ULong c = (CORBA::ULong)e->completed(); \
   m >>= _s; \
@@ -396,6 +402,7 @@ static void _0RL_CORBA_##name##_marshal_fn(cdrStream& _s, void* _v) \
 } \
 static void _0RL_CORBA_##name##_unmarshal_fn(cdrStream& _s, void*& _v) \
 { \
+  CORBA::Any::PR_unmarshalExceptionRepoId(_s); \
   CORBA::ULong m; \
   CORBA::ULong c; \
   m <<= _s; \

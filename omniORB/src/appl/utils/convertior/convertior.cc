@@ -17,9 +17,7 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
-//  USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 //
 // Takes an IOR, hostname as arguments. Outputs IOR with new hostname.
@@ -29,14 +27,10 @@
 
 #include <omniORB4/CORBA.h>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
-#ifdef HAVE_UNISTD_H
+#ifdef OMNI_HAVE_UNISTD_H
 #  include <unistd.h>
 #endif
 
@@ -68,7 +62,7 @@ static void usage(char* progname)
 }
 
 
-#ifdef HAVE_GETOPT
+#ifdef OMNI_HAVE_GETOPT
 extern char* optarg;
 extern int optind;
 

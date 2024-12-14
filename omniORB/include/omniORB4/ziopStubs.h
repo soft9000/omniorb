@@ -1,6 +1,6 @@
 // -*- Mode: C++; -*-
 //                            Package   : omniORB
-// omniZIOP.cc                Created on: 2012/10/02
+// ziopStubs,h                Created on: 2012/10/02
 //                            Author    : Duncan Grisby (dgrisby)
 //
 //    Copyright (C) 2012 Apasphere Ltd.
@@ -8,19 +8,17 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //    ZIOP stubs
@@ -52,6 +50,17 @@
 //
 // Definitions from standard ZIOP module
 //
+
+#ifdef _dyn_attr
+# error "A local CPP macro _dyn_attr has already been defined."
+#endif
+
+#if defined(_OMNIORB_ZIOP_DYNAMIC_LIBRARY)
+#  define _dyn_attr
+#else
+#  define _dyn_attr _OMNIORB_NTDLL_IMPORT
+#endif
+
 
 _CORBA_MODULE ZIOP
 _CORBA_MODULE_BEG
@@ -111,11 +120,14 @@ _CORBA_MODULE_BEG
 
 _CORBA_MODULE_END
 
+# include <omniORB4/ziop_operators.hh>
+
 
 #ifdef USE_core_stub_in_nt_dll_was_set
 #  undef USE_core_stub_in_nt_dll
 #endif
 
 #undef _ziop_attr
+#undef _dyn_attr
 
 #endif // _omni_ziop_stubs_h_

@@ -4,25 +4,23 @@
 //                            Author1   : James Weatherall (jnw)
 //                            Author2   : David Riddoch (djr)
 //
-//    Copyright (C) 2002-2008 Apasphere Ltd
+//    Copyright (C) 2002-2017 Apasphere Ltd
 //    Copyright (C) 1996-1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -83,8 +81,6 @@ inline void fastCopyUsingTC(TypeCode_base* tc, cdrStream& ibuf, cdrStream& obuf)
 
 	switch( tc->NP_kind() ) {
 
-	  //?? Some of these could be faster (Any, TypeCode, objref ...)
-
 	case CORBA::tk_char:
 	  {
 	    if (ibuf.TCS_C() == obuf.TCS_C()) {
@@ -117,7 +113,13 @@ inline void fastCopyUsingTC(TypeCode_base* tc, cdrStream& ibuf, cdrStream& obuf)
 	  }
 
 	case CORBA::tk_any:
-	  { CORBA::Any d; d <<= ibuf; d >>= obuf; break; }
+          {
+            CORBA::TypeCode_member atc;
+            atc <<= ibuf;
+            atc >>= obuf;
+            fastCopyUsingTC(ToTcBase(atc), ibuf, obuf);
+            break;
+          }
 
 	case CORBA::tk_Principal:
 	  {
@@ -186,18 +188,39 @@ inline void fastCopyUsingTC(TypeCode_base* tc, cdrStream& ibuf, cdrStream& obuf)
 	    // Copy the value, using the type for the selected member,
 	    // unless we have an implicit default, in which case no
 	    // value is copied.
-	    CORBA::Long i =
+	    CORBA::Long idx =
 	      ((TypeCode_union*)tc)->NP_index_from_discriminator(discrim);
-	    if( i >= 0 )
-	      fastCopyUsingTC(tc->NP_member_type(i), ibuf, obuf);
+	    if( idx >= 0 )
+	      fastCopyUsingTC(tc->NP_member_type(idx), ibuf, obuf);
 	    break;
 	  }
+
+        case CORBA::tk_except:
+          {
+            // Exceptions are passed on the wire as repo id followed by
+            // members. We trust the id in the TypeCode rather than
+            // looking at the one marshalled with the buffer.
+            CORBA::Any::PR_unmarshalExceptionRepoId(ibuf);
+            CORBA::Any::PR_marshalExceptionRepoId(obuf, tc->NP_id());
+
+            CORBA::ULong nmembers = tc->NP_member_count();
+
+            // Copy the individual elements.
+            for (CORBA::ULong idx=0; idx < nmembers; idx++)
+              fastCopyUsingTC(tc->NP_member_type(idx), ibuf, obuf);
+
+            break;
+          }
 
 	case CORBA::tk_sequence:
 	  {
 	    CORBA::ULong length; length <<= ibuf; length >>= obuf;
 	    if( !length )  break;
 
+            if (!ibuf.checkInputOverrun(1, length))
+              OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                            (CORBA::CompletionStatus)ibuf.completion());
+            
 	    TypeCode_base* elem_tc = tc->NP_content_type();
 	    elem_tc = TypeCode_indirect::strip(elem_tc);
 	    const TypeCode_alignTable& eat = elem_tc->alignmentTable();
@@ -352,19 +375,25 @@ void copyUsingTC(TypeCode_base* tc, cdrStream& ibuf, cdrStream& obuf)
     case CORBA::tk_enum:
       { CORBA::ULong d;   d <<= ibuf; d >>= obuf; return; }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
     case CORBA::tk_longlong:
       { CORBA::LongLong d;    d <<= ibuf; d >>= obuf; return; }
     case CORBA::tk_ulonglong:
       { CORBA::ULongLong d;   d <<= ibuf; d >>= obuf; return; }
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
     case CORBA::tk_longdouble:
       { CORBA::LongDouble d;  d <<= ibuf; d >>= obuf; return; }
 #endif
 
     case CORBA::tk_any:
-      { CORBA::Any d;     d <<= ibuf; d >>= obuf; return; }
+      {
+        CORBA::TypeCode_member atc;
+        atc <<= ibuf;
+        atc >>= obuf;
+        copyUsingTC(ToTcBase(atc), ibuf, obuf);
+        return;
+      }
 
     // COMPLEX TYPES
     case CORBA::tk_char:
@@ -464,10 +493,11 @@ void copyUsingTC(TypeCode_base* tc, cdrStream& ibuf, cdrStream& obuf)
     
     case CORBA::tk_except:
       {
-	// Exceptions are passed on the wire as repo id followed
-	// by members - but for contents of Any we are only interested
-	// in members. Therefore we copy the members only here, and
-	// the stubs/GIOP_S code deals with the repo id.
+	// Exceptions are passed on the wire as repo id followed by
+	// members. We trust the id in the TypeCode rather than
+	// looking at the one marshalled with the buffer.
+        CORBA::Any::PR_unmarshalExceptionRepoId(ibuf);
+        CORBA::Any::PR_marshalExceptionRepoId(obuf, tc->NP_id());
 
 	CORBA::ULong nmembers = tc->NP_member_count();
 
@@ -481,7 +511,12 @@ void copyUsingTC(TypeCode_base* tc, cdrStream& ibuf, cdrStream& obuf)
     case CORBA::tk_sequence:
       {
 	CORBA::ULong max; max <<= ibuf; max >>= obuf;
-	TypeCode_base* tctmp = tc->NP_content_type();
+
+        if (!ibuf.checkInputOverrun(1, max))
+          OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                        (CORBA::CompletionStatus)ibuf.completion());
+
+        TypeCode_base* tctmp = tc->NP_content_type();
 
 	for (CORBA::ULong i=0; i < max; i++)
 	  copyUsingTC(tctmp, ibuf, obuf);
@@ -588,7 +623,12 @@ void skipUsingTC(TypeCode_base* tc, cdrStream& buf)
 	  }
 
 	case CORBA::tk_any:
-	  { CORBA::Any d; d <<= buf; break; }
+          {
+            CORBA::TypeCode_member atc;
+            atc <<= buf;
+            skipUsingTC(ToTcBase(atc), buf);
+            break;
+          }
 
 	case CORBA::tk_Principal:
 	case CORBA::tk_string:
@@ -632,6 +672,10 @@ void skipUsingTC(TypeCode_base* tc, cdrStream& buf)
 	    CORBA::ULong length; length <<= buf;
 	    if( !length )  break;
 
+            if (!buf.checkInputOverrun(1, length))
+              OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                            (CORBA::CompletionStatus)buf.completion());
+            
 	    TypeCode_base* elem_tc = tc->NP_content_type();
 	    elem_tc = TypeCode_indirect::strip(elem_tc);
 	    const TypeCode_alignTable& eat = elem_tc->alignmentTable();

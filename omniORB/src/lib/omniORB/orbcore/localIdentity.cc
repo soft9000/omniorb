@@ -3,90 +3,27 @@
 // localIdentity.cc           Created on: 16/6/99
 //                            Author    : David Riddoch (djr)
 //
-//    Copyright (C) 2003-2008 Apasphere Ltd
+//    Copyright (C) 2003-2010 Apasphere Ltd
 //    Copyright (C) 1996-1999 AT&T Research Cambridge
 //
 //    This file is part of the omniORB library.
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //
-
-/*
-  $Log$
-  Revision 1.4.2.4  2008/10/28 15:33:42  dgrisby
-  Undeclared user exceptions not caught in local calls.
-
-  Revision 1.4.2.3  2007/04/14 17:56:52  dgrisby
-  Identity downcasting mechanism was broken by VC++ 8's
-  over-enthusiastic optimiser.
-
-  Revision 1.4.2.2  2003/11/06 11:56:57  dgrisby
-  Yet more valuetype. Plain valuetype and abstract valuetype are now working.
-
-  Revision 1.4.2.1  2003/03/23 21:02:12  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.2.2.8  2001/09/03 16:52:05  sll
-  New signature for locateRequest. Now accept a calldescriptor argument.
-
-  Revision 1.2.2.7  2001/08/15 10:26:12  dpg1
-  New object table behaviour, correct POA semantics.
-
-  Revision 1.2.2.6  2001/08/03 17:41:22  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.2.2.5  2001/06/07 16:24:10  dpg1
-  PortableServer::Current support.
-
-  Revision 1.2.2.4  2001/05/29 17:03:51  dpg1
-  In process identity.
-
-  Revision 1.2.2.3  2001/04/18 18:18:07  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.2.2.2  2000/09/27 17:57:05  sll
-  Changed include/omniORB3 to include/omniORB4
-
-  Revision 1.2.2.1  2000/07/17 10:35:54  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.3  2000/07/13 15:25:57  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.1.2.5  2000/06/22 10:40:15  dpg1
-  exception.h renamed to exceptiondefs.h to avoid name clash on some
-  platforms.
-
-  Revision 1.1.2.4  1999/10/27 17:32:11  djr
-  omni::internalLock and objref_rc_lock are now pointers.
-
-  Revision 1.1.2.3  1999/10/14 16:22:11  djr
-  Implemented logging when system exceptions are thrown.
-
-  Revision 1.1.2.2  1999/09/30 12:25:59  djr
-  Minor changes.
-
-  Revision 1.1.2.1  1999/09/22 14:26:52  djr
-  Major rewrite of orbcore to support POA.
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -100,6 +37,10 @@
 #include <objectAdapter.h>
 #include <exceptiondefs.h>
 #include <orbParameters.h>
+
+#ifdef HAVE_STD
+#include <memory>
+#endif
 
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
@@ -147,6 +88,12 @@ omniLocalIdentity::dispatch(omniCallDescriptor& call_desc)
   ASSERT_OMNI_TRACEDMUTEX_HELD(*omni::internalLock, 1);
   OMNIORB_ASSERT(pd_adapter && pd_servant);
 
+  if (!call_desc.op() && !pd_deactivated) {
+    // LocateRequest. It's a local object and we know it's here.
+    omni::internalLock->unlock();
+    return;
+  }
+
   if (pd_deactivated || !call_desc.haslocalCallFn()) {
     // This localIdentity is dead and unusable, or the call descriptor
     // is unable to do a direct local call (because it's a DII call).
@@ -161,7 +108,11 @@ omniLocalIdentity::dispatch(omniCallDescriptor& call_desc)
 
     if (omniORB::trace(15)) {
       omniORB::logger l;
-      l << this << " is no longer active. Using in process identity.\n";
+      if (pd_deactivated)
+	l << this << " is no longer active. Using in-process identity.\n";
+      else
+	l << this << " cannot be directly invoked upon. "
+	  << "Using in-process identity.\n";
     }
     omniIdentity* id = omni::createInProcessIdentity(key(), keysize());
     call_desc.objref()->_setIdentity(id);
@@ -187,7 +138,7 @@ omniLocalIdentity::dispatch(omniCallDescriptor& call_desc)
 
   omni::localInvocationCount++;
 
-#ifndef HAS_Cplusplus_catch_exception_by_base
+#ifndef OMNI_HAS_Cplusplus_catch_exception_by_base
   // The compiler cannot catch exceptions by base class, hence
   // we cannot trap invalid exceptions going through here.
   pd_adapter->dispatch(call_desc, this);
@@ -205,12 +156,19 @@ omniLocalIdentity::dispatch(omniCallDescriptor& call_desc)
   catch (omniORB::LOCATION_FORWARD&) {
     throw;
   }
+#ifdef HAVE_STD
+  catch (const std::bad_alloc&) {
+    // We keep logging as simple as possible to avoid too much allocation.
+    omniORB::logs(1, "Error: invoke raised std::bad_alloc.");
+    OMNIORB_THROW(NO_MEMORY, NO_MEMORY_BadAlloc, CORBA::COMPLETED_MAYBE);
+  }
+#endif // HAVE_STD
 
   catch (...) {
-    if( omniORB::trace(2) ) {
+    if( omniORB::trace(1) ) {
       omniORB::logger l;
-      l << "WARNING -- method \'" << call_desc.op() << "\' raised an unknown\n"
-	" exception (not a legal CORBA exception).\n";
+      l << "Warning: method '" << call_desc.op() << "' raised an unknown "
+	"exception (not a legal CORBA exception).\n";
     }
     OMNIORB_THROW(UNKNOWN,UNKNOWN_UserException, CORBA::COMPLETED_MAYBE);
   }
@@ -249,13 +207,6 @@ omniLocalIdentity::loseRef(omniObjRef*)
   OMNIORB_ASSERT(0);
   // An omniLocalIdentity should never be used as the identity within
   // an object reference. omniObjTableEntry should be used instead.
-}
-
-void
-omniLocalIdentity::locateRequest(omniCallDescriptor&) {
-  // Its a local object, and we know its here.
-  ASSERT_OMNI_TRACEDMUTEX_HELD(*omni::internalLock, 1);
-  omni::internalLock->unlock();
 }
 
 omniIdentity::equivalent_fn

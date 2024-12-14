@@ -1,6 +1,6 @@
 
-OBJS  = cexp.o cccp.o config.o alloca.o
-CSRCS = cexp.c cccp.c config.c alloca.c
+OBJS  = cexp.o cccp.o config.o
+CSRCS = cexp.c cccp.c config.c
 
 ifdef Win32Platform
 OBJS  += index.o

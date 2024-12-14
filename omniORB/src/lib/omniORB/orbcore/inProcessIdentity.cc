@@ -3,25 +3,23 @@
 // inProcessIdentity.cc       Created on: 16/05/2001
 //                            Author    : Duncan Grisby (dpg1)
 //
-//    Copyright (C) 2003-2008 Apasphere Ltd
+//    Copyright (C) 2003-2010 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -30,45 +28,6 @@
 //   be called directly. This can be because they are not activated
 //   yet, because they are using DSI, or because they are in a
 //   different language to the caller.
-
-/*
- $Log$
- Revision 1.1.4.4  2008/10/28 15:33:42  dgrisby
- Undeclared user exceptions not caught in local calls.
-
- Revision 1.1.4.3  2007/04/14 17:56:52  dgrisby
- Identity downcasting mechanism was broken by VC++ 8's
- over-enthusiastic optimiser.
-
- Revision 1.1.4.2  2005/01/06 23:10:30  dgrisby
- Big merge from omni4_0_develop.
-
- Revision 1.1.4.1  2003/03/23 21:02:14  dgrisby
- Start of omniORB 4.1.x development branch.
-
- Revision 1.1.2.7  2001/11/27 14:36:17  dpg1
- Local _is_equivalent fix.
-
- Revision 1.1.2.6  2001/10/29 17:44:29  dpg1
- Wrong code when no catch by base class.
-
- Revision 1.1.2.5  2001/09/19 17:26:50  dpg1
- Full clean-up after orb->destroy().
-
- Revision 1.1.2.4  2001/09/03 16:52:05  sll
- New signature for locateRequest. Now accept a calldescriptor argument.
-
- Revision 1.1.2.3  2001/08/15 10:26:12  dpg1
- New object table behaviour, correct POA semantics.
-
- Revision 1.1.2.2  2001/08/03 17:41:21  sll
- System exception minor code overhaul. When a system exeception is raised,
- a meaning minor code is provided.
-
- Revision 1.1.2.1  2001/05/29 17:03:51  dpg1
- In process identity.
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -83,6 +42,10 @@
 #include <objectAdapter.h>
 #include <exceptiondefs.h>
 
+#ifdef HAVE_STD
+#include <memory>
+#endif
+
 
 OMNI_NAMESPACE_BEGIN(omni)
 
@@ -96,7 +59,6 @@ public:
     : pd_id(id)
   {
     pd_id->pd_refCount++;
-    omni::internalLock->unlock();
   }
 
   inline ~omniInProcessIdentity_RefHolder() {
@@ -123,24 +85,29 @@ omniInProcessIdentity::dispatch(omniCallDescriptor& call_desc)
   ASSERT_OMNI_TRACEDMUTEX_HELD(*omni::internalLock, 1);
 
   omniInProcessIdentity_RefHolder rh(this);
-  // omni::internalLock has been released by RefHolder constructor
+
+  if (!call_desc.op()) {
+    locateRequest(call_desc);
+    return;
+  }
 
   if( omniORB::traceInvocations ) {
     omniORB::logger l;
-    l << "Invoke '" << call_desc.op() << "' on in process: " << this << '\n';
+    l << "Invoke '" << call_desc.op() << "' on in-process: " << this << '\n';
   }
 
-#ifdef HAS_Cplusplus_catch_exception_by_base
+#ifdef OMNI_HAS_Cplusplus_catch_exception_by_base
   try {
 #endif
     // Can we find the object in the local object table?
-    if (keysize() < 0)
+    if (keysize() < 0) {
+      omni::internalLock->unlock();
       OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_NoMatch,
 		    CORBA::COMPLETED_NO);
+    }
 
     CORBA::ULong hash = omni::hash(key(), keysize());
 
-    omni::internalLock->lock();
     omniLocalIdentity* id;
     id = omniObjTable::locateActive(key(), keysize(), hash, 1);
 
@@ -189,7 +156,7 @@ omniInProcessIdentity::dispatch(omniCallDescriptor& call_desc)
     OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_NoMatch,
 		  CORBA::COMPLETED_NO);
 
-#ifdef HAS_Cplusplus_catch_exception_by_base
+#ifdef OMNI_HAS_Cplusplus_catch_exception_by_base
   }
   catch (CORBA::SystemException& ex) {
     throw;
@@ -201,11 +168,18 @@ omniInProcessIdentity::dispatch(omniCallDescriptor& call_desc)
   catch (omniORB::LOCATION_FORWARD&) {
     throw;
   }
+#ifdef HAVE_STD
+  catch (const std::bad_alloc&) {
+    // We keep logging as simple as possible to avoid too much allocation.
+    omniORB::logs(1, "Error: invoke raised std::bad_alloc.");
+    OMNIORB_THROW(NO_MEMORY, NO_MEMORY_BadAlloc, CORBA::COMPLETED_MAYBE);
+  }
+#endif // HAVE_STD
   catch (...){
-    if (omniORB::trace(2)) {
+    if (omniORB::trace(1)) {
       omniORB::logger l;
-      l << "WARNING -- method \'" << call_desc.op() << "\' raised an unknown\n"
-	" exception (not a legal CORBA exception).\n";
+      l << "Warning: method '" << call_desc.op() << "' raised an unknown "
+	"exception (not a legal CORBA exception).\n";
     }
     OMNIORB_THROW(UNKNOWN,UNKNOWN_UserException, CORBA::COMPLETED_MAYBE);
   }

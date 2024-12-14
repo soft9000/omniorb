@@ -86,6 +86,10 @@ int main(int argc, char **argv)
       argv[i] = EscapeDoubleQuotes(argv[i]);
     }
 
+    if (strchr(argv[i], ' ')) {
+      argv[i] = AddQuotes(argv[i]);
+    }
+    
     printf(" %s", argv[i]);
   }
 

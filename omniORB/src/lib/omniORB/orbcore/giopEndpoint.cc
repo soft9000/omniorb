@@ -3,101 +3,41 @@
 // giopEndpoint.cc            Created on: 29 Mar 2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2002-2006 Apasphere Ltd
+//    Copyright (C) 2002-2013 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //
-
-/*
-  $Log$
-  Revision 1.1.4.5  2006/04/09 19:52:31  dgrisby
-  More IPv6, endPointPublish parameter.
-
-  Revision 1.1.4.4  2006/03/25 18:54:03  dgrisby
-  Initial IPv6 support.
-
-  Revision 1.1.4.3  2005/09/05 17:12:20  dgrisby
-  Merge again. Mainly SSL transport changes.
-
-  Revision 1.1.4.2  2005/01/06 23:10:15  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.4.1  2003/03/23 21:02:16  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.13  2002/09/08 21:58:55  dgrisby
-  Support for MSVC 7. (Untested.)
-
-  Revision 1.1.2.12  2002/03/11 12:21:07  dpg1
-  ETS things.
-
-  Revision 1.1.2.11  2001/08/24 16:45:42  sll
-  Switch to use Winsock 2. Moved winsock initialisation to this module.
-
-  Revision 1.1.2.10  2001/08/23 16:00:50  sll
-  Added method in giopTransportImpl to return the addresses of the host
-  interfaces.
-
-  Revision 1.1.2.9  2001/08/21 11:02:14  sll
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.1.2.8  2001/08/17 17:12:36  sll
-  Modularise ORB configuration parameters.
-
-  Revision 1.1.2.7  2001/08/08 15:57:45  sll
-  Allows something like giop:unix: to be used.
-
-  Revision 1.1.2.6  2001/07/31 16:16:25  sll
-  New transport interface to support the monitoring of active connections.
-
-  Revision 1.1.2.5  2001/07/26 16:37:21  dpg1
-  Make sure static initialisers always run.
-
-  Revision 1.1.2.4  2001/07/25 14:22:02  dpg1
-  Same old static initialiser problem, this time with transports.
-
-  Revision 1.1.2.3  2001/07/13 15:13:32  sll
-  giopConnection is now reference counted.
-
-  Revision 1.1.2.2  2001/06/13 20:13:15  sll
-  Minor updates to make the ORB compiles with MSVC++.
-
-  Revision 1.1.2.1  2001/04/18 18:10:51  sll
-  Big checkin with the brand new internal APIs.
-
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/omniTransport.h>
 #include <omniORB4/giopEndpoint.h>
 #include <omniORB4/omniURI.h>
 #include <omniORB4/linkHacks.h>
+#include <omniORB4/omniInterceptors.h>
+#include <interceptors.h>
 #include <initialiser.h>
 #include <orbOptions.h>
 #include <orbParameters.h>
 #include <SocketCollection.h>
+#include <transportRules.h>
 #include <stdio.h>
 
 //
@@ -129,8 +69,8 @@ matchType(const char* uri,const char*& param,CORBA::Boolean allowShortHand) {
   CORBA::String_var expanded;
   if (allowShortHand) {
     const char* p1 = strchr(uri,':');
-    // Either the uri is of the form ":xxxx:xxxx" or "xxx::xxxx" do we
-    // have to expand.
+    // Either the uri is of the form ":xxxx:xxxx" or "xxx::xxxx". Do we
+    // have to expand?
     if (p1 && (uri == p1 || *(p1+1) == ':')) {
       const char* p2 = strchr(p1+1,':');
       if (p2) {
@@ -187,10 +127,24 @@ giopAddress::str2Address(const char* address) {
 }
 
 ////////////////////////////////////////////////////////////////////////
+const char*
+giopAddress::host() const {
+  return 0;
+}
+
+
+////////////////////////////////////////////////////////////////////////
+giopAddress*
+giopAddress::duplicate(const char* host) const {
+  return duplicate();
+}
+
+
+////////////////////////////////////////////////////////////////////////
 giopAddress*
 giopAddress::fromTcpAddress(const IIOP::Address& addr) {
 
-  CORBA::String_var addrstr = omniURI::buildURI("giop:tcp:",
+  CORBA::String_var addrstr = omniURI::buildURI("giop:tcp",
 						addr.host, addr.port);
   return giopAddress::str2Address(addrstr);
 }
@@ -199,7 +153,7 @@ giopAddress::fromTcpAddress(const IIOP::Address& addr) {
 giopAddress*
 giopAddress::fromSslAddress(const IIOP::Address& addr) {
 
-  CORBA::String_var addrstr = omniURI::buildURI("giop:ssl:",
+  CORBA::String_var addrstr = omniURI::buildURI("giop:ssl",
 						addr.host, addr.port);
   return giopAddress::str2Address(addrstr);
 }
@@ -231,12 +185,12 @@ giopEndpoint::strIsValidEndpoint(const char* endpoint) {
 
 ////////////////////////////////////////////////////////////////////////
 CORBA::Boolean
-giopEndpoint::addToIOR(const char* endpoint) {
+giopEndpoint::addToIOR(const char* endpoint, IORPublish* eps) {
 
   const char* param;
-  giopTransportImpl* impl = matchType(endpoint,param,0);
+  giopTransportImpl* impl = matchType(endpoint, param, 0);
   if (impl) {
-    return impl->addToIOR(param);
+    return impl->addToIOR(param, eps);
   }
   return 0;
 }
@@ -294,13 +248,107 @@ giopConnection::peeridentity() {
   return 0;
 }
 
+
 ////////////////////////////////////////////////////////////////////////
-#ifdef OMNIORB_ENABLE_CERT_ACCESS
 void*
 giopConnection::peerdetails() {
   return 0;
 }
-#endif
+
+
+////////////////////////////////////////////////////////////////////////
+_CORBA_Boolean
+giopConnection::gatekeeperCheck(giopStrand* strand)
+{
+  CORBA::StringSeq actions;
+  CORBA::ULong matchedRule;
+
+  CORBA::Boolean acceptconnection;
+  CORBA::Boolean dumprule = 0;
+  const char* why;
+
+  if (!(acceptconnection = transportRules::serverRules().
+	match(peeraddress(), actions, matchedRule)) ) {
+
+    why = (const char*) "no matching rule is found";
+  }
+
+  if (acceptconnection) {
+    acceptconnection = 0;
+
+    CORBA::ULong i;
+    const char* transport = strchr(peeraddress(), ':');
+    OMNIORB_ASSERT(transport);
+    transport++;
+    i = 0;
+    for (i = 0; i < actions.length(); i++ ) {
+      size_t len = strlen(actions[i]);
+      if (strncmp(actions[i], transport, len) == 0) {
+	acceptconnection = 1;
+	break;
+      }
+      else if (strcmp(actions[i], "none") == 0) {
+	why = (const char*) "no connection is granted by this rule: ";
+	dumprule = 1;
+	break;
+      }
+    }
+    if (i == actions.length()) {
+      why = (const char*) "the transport type is not in this rule: ";
+      dumprule = 1;
+    }
+  }
+
+  if (acceptconnection && omniInterceptorP::serverAcceptConnection) {
+    omniInterceptors::serverAcceptConnection_T::info_T info(*strand);
+    omniInterceptorP::visit(info);
+    if (info.reject) {
+      acceptconnection = 0;
+      why = info.why ? info.why : (const char*)"an interceptor rejected it";
+    }
+  }
+
+  if (!acceptconnection) {
+    if (omniORB::trace(2)) {
+      omniORB::logger log;
+      log << "Connection from " << peeraddress() << " is rejected because "
+	  << why;
+
+      if (dumprule) {
+	CORBA::String_var rule;
+	rule = transportRules::serverRules().dumpRule(matchedRule);
+	log << "\"" << (const char*) rule << "\"";
+      }
+      log << "\n";
+    }
+    return 0;
+  }
+
+  if (!gatekeeperCheckSpecific(strand))
+    return 0;
+
+  if (omniORB::trace(5)) {
+    CORBA::String_var rule;
+    rule = transportRules::serverRules().dumpRule(matchedRule);
+
+    omniORB::logger log;
+    log << "Accepted connection from " 
+	<< peeraddress()
+	<< " because of this rule: \""
+	<< (const char*) rule << "\"\n";
+  }
+  return 1;
+}
+
+
+////////////////////////////////////////////////////////////////////////
+_CORBA_Boolean
+giopConnection::gatekeeperCheckSpecific(giopStrand* strand)
+{
+  // Can be overridden by derived class.
+  return 1;
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 const omnivector<const char*>*
@@ -360,7 +408,7 @@ public:
 			"-ORBunixTransportDirectory <dir name>") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
     orbParameters::unixTransportDirectory = value;
   }
 
@@ -394,7 +442,7 @@ public:
 			"-ORBunixTransportPermission <mode bits in octal radix>") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     unsigned int v;
     if( sscanf(value,"%o",&v) != 1 ) {

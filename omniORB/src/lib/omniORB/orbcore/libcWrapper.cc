@@ -9,119 +9,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //	Wrapper for libc functions which are non-reentrant
 //
-
-/*
-  $Log$
-  Revision 1.21.2.5  2007/05/24 15:56:10  dgrisby
-  Incorrect arguments to IP4AddrInfo constructor in HPUX 11 without
-  getaddrinfo case.
-
-  Revision 1.21.2.4  2006/03/25 18:54:03  dgrisby
-  Initial IPv6 support.
-
-  Revision 1.21.2.3  2006/02/22 14:56:36  dgrisby
-  New endPointPublishHostname and endPointResolveNames parameters.
-
-  Revision 1.21.2.2  2005/01/06 23:10:31  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.21.2.1  2003/03/23 21:02:12  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.19.2.10  2003/02/17 02:03:08  dgrisby
-  vxWorks port. (Thanks Michael Sturm / Acterna Eningen GmbH).
-
-  Revision 1.19.2.9  2003/01/06 11:11:55  dgrisby
-  New AddrInfo instead of gethostbyname.
-
-  Revision 1.19.2.8  2002/11/04 17:41:42  dgrisby
-  Don't use gethostbyname for IP addresses on Win32.
-
-  Revision 1.19.2.7  2002/02/25 11:17:13  dpg1
-  Use tracedmutexes everywhere.
-
-  Revision 1.19.2.6  2002/01/15 16:38:13  dpg1
-  On the road to autoconf. Dependencies refactored, configure.ac
-  written. No makefiles yet.
-
-  Revision 1.19.2.5  2001/06/13 20:13:15  sll
-  Minor updates to make the ORB compiles with MSVC++.
-
-  Revision 1.19.2.4  2001/06/08 17:12:21  dpg1
-  Merge all the bug fixes from omni3_develop.
-
-  Revision 1.19.2.3  2001/04/18 18:18:07  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.19.2.2  2000/09/27 17:57:04  sll
-  Changed include/omniORB3 to include/omniORB4
-
-  Revision 1.19.2.1  2000/07/17 10:35:54  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.20  2000/07/13 15:25:57  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.18.6.1  1999/09/22 14:26:51  djr
-  Major rewrite of orbcore to support POA.
-
-  Revision 1.18  1999/06/26 18:08:17  sll
-  HPUX update to separate difference between HPUX 10.20 and HPUX 11.00.
-
-  Revision 1.17  1999/03/11 16:25:54  djr
-  Updated copyright notice
-
-  Revision 1.16  1999/01/07 15:57:39  djr
-  Implemented strcasecmp() and strncasecmp() for those platforms that do
-  not have it.
-
-  Revision 1.15  1998/10/20 17:54:29  sll
-  On HPUX, allocate memory hostent_data the right way.
-
-  Revision 1.14  1998/08/14 13:48:27  sll
-  Added pragma hdrstop to control pre-compile header if the compiler feature
-  is available.
-
-  Revision 1.13  1998/08/11 19:08:33  sll
-  Added CPP macro to recognise SCO OpenServer 5.
-
-  Revision 1.12  1998/01/21 12:30:32  sll
-  Corrected typo that only affects hpux.
-
-// Revision 1.11  1998/01/20  17:32:15  sll
-// Added support for OpenVMS.
-//
-  Revision 1.10  1997/12/23 19:24:00  sll
-  gethostbyname now works properly on HPUX.
-
-  Revision 1.9  1997/12/09 18:24:29  sll
-  Added support for HPUX.
-
-  Revision 1.8  1997/08/21 22:04:49  sll
-  Changed to use the new platform identification proprocessor macro.
-
-// Revision 1.7  1997/05/06  15:22:38  sll
-// Public release.
-//
-  */
 
 #include <omniORB4/CORBA.h>
 
@@ -134,13 +37,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#if !defined(HAVE_STRCASECMP) || !defined(HAVE_STRNCASECMP)
+#if !defined(OMNI_HAVE_STRCASECMP) || !defined(OMNI_HAVE_STRNCASECMP)
 #  include <ctype.h>  //  for toupper and tolower.
 #endif
 
 #include <SocketCollection.h>
 
-#ifdef HAVE_GETADDRINFO
+#ifdef OMNI_HAVE_GETADDRINFO
 #  ifdef __WIN32__
 #    include <ws2tcpip.h>
 #  else
@@ -150,17 +53,50 @@
 #  endif
 #endif
 
-#define HAVE_GETHOSTBYADDR
+#define OMNI_HAVE_GETHOSTBYADDR
 
 #ifdef __vxWorks__
 #  include <hostLib.h>
 #  include <resolvLib.h>
-#  undef HAVE_GETHOSTBYADDR
+#  undef OMNI_HAVE_GETHOSTBYADDR
 #endif
 
 #include <libcWrapper.h>
 
 OMNI_NAMESPACE_BEGIN(omni)
+
+//
+// Pseudo-random numbers
+//
+
+#ifdef OMNI_HAVE_RAND_R
+static unsigned int seed=1;
+
+unsigned int LibcWrapper::Rand()
+{
+  return rand_r(&seed);
+}
+
+void LibcWrapper::SRand(unsigned int s)
+{
+  seed = s;
+}
+
+#else
+static omni_tracedmutex rand_lock("rand_lock");
+
+unsigned int LibcWrapper::Rand()
+{
+  omni_tracedmutex_lock l(rand_lock);
+  return rand();
+}
+
+void LibcWrapper::SRand(unsigned int s)
+{
+  srand(s);
+}
+
+#endif  
 
 
 //
@@ -168,7 +104,7 @@ OMNI_NAMESPACE_BEGIN(omni)
 //
 
 static inline CORBA::Boolean
-check_number(const char* num, int base, long int max)
+checkNumber(const char* num, int base, long int max)
 {
   char* end;
 
@@ -196,7 +132,7 @@ CORBA::Boolean LibcWrapper::isip4addr(const char* node)
 
       buf[bi] = '\0';
       bi = 0;
-      if (!check_number(buf, 10, 255))
+      if (!checkNumber(buf, 10, 255))
 	return 0;
     }
     else {
@@ -212,7 +148,7 @@ CORBA::Boolean LibcWrapper::isip4addr(const char* node)
     return 0;
 
   buf[bi] = '\0';
-  if (!check_number(buf, 10, 255))
+  if (!checkNumber(buf, 10, 255))
     return 0;
 
   return 1;
@@ -223,30 +159,35 @@ CORBA::Boolean LibcWrapper::isip6addr(const char* node)
   // Test if string node is an IPv6 address
   // Return: 0: not ip address,  1: is ip address
 
-  const char* c;
-  char buf[16];
-  int bi     = 0;
-  int colons = 0;
-  int dots   = 0;
+  const char*    c;
+  char           buf[16];
+  int            bi         = 0;
+  int            colons     = 0;
+  int            dots       = 0;
   CORBA::Boolean seen_blank = 0;
 
   for (c=node; *c; ++c) {
     if (*c == ':') {
       ++colons;
-      if (*(c+1) == ':') {
-	if (seen_blank) {
-	  // Only one :: permitted
-	  return 0;
-	}
-	seen_blank = 1;
-	++c;
-	++colons;
-      }
+
       if (bi) {
 	buf[bi] = '\0';
 	bi = 0;
-	if (!check_number(buf, 16, 0xffff))
+	if (!checkNumber(buf, 16, 0xffff))
 	  return 0;
+      }
+      else if (c == node) {
+        // First character is a colon. Only valid if the next one is a
+        // colon too.
+        if (*(c+1) != ':')
+          return 0;
+      }
+      else {
+        if (seen_blank) {
+          // Only one :: permitted
+          return 0;
+        }
+        seen_blank = 1;
       }
     }
     else if ((*c >= '0' && *c <= '9') ||
@@ -274,18 +215,19 @@ CORBA::Boolean LibcWrapper::isip6addr(const char* node)
       return 0;
     }
   }
-  if (colons < 2 || colons > 7)
-    return 0;
+  if (seen_blank) {
+    if (colons < 2 || colons > 7)
+      return 0;
+  }
+  else {
+    if (colons != (dots ? 6 : 7))
+      return 0;
+  }
 
   if (bi == 0) {
-    // No number at the end. Counts equivalent to ::
-    if (seen_blank) {
-      if (colons == 2)
-	return 1;
-      else
-	return 0;
-    }
-    return 1;
+    // No number at the end. Only valid if it ends ::
+    const char* t = c-2;
+    return (t[0] == ':' && t[1] == ':');
   }
 
   buf[bi] = '\0';
@@ -299,7 +241,7 @@ CORBA::Boolean LibcWrapper::isip6addr(const char* node)
     }
   }
   else {
-    return check_number(buf, 16, 0xffff);
+    return checkNumber(buf, 16, 0xffff);
   }
 }
 
@@ -316,7 +258,7 @@ CORBA::Boolean LibcWrapper::isipaddr(const char* node)
 LibcWrapper::AddrInfo::~AddrInfo() {}
 
 
-#ifdef HAVE_GETADDRINFO
+#ifdef OMNI_HAVE_GETADDRINFO
 
 class FullAddrInfo : public LibcWrapper::AddrInfo
 {
@@ -491,14 +433,14 @@ FullAddrInfo::next()
 }
 
 
-#else // no HAVE_GETADDRINFO
+#else // no OMNI_HAVE_GETADDRINFO
 
 
 //
 // AddrInfo without getaddrinfo()
 //
 
-static omni_tracedmutex non_reentrant;
+static omni_tracedmutex non_reentrant("non_reentrant");
 
 class IP4AddrInfo : public LibcWrapper::AddrInfo
 {
@@ -528,10 +470,10 @@ IP4AddrInfo::IP4AddrInfo(const char* name,
   pd_addr.sin_family      = INETSOCKET;
   pd_addr.sin_addr.s_addr = ip4addr;
   pd_addr.sin_port        = htons(port);
-#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+#ifdef OMNI_HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
   pd_addr.sin_len = sizeof(struct sockaddr_in);
 #endif
-#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_ZERO
+#ifdef OMNI_HAVE_STRUCT_SOCKADDR_IN_SIN_ZERO
   memset((void *)&pd_addr.sin_zero, 0, sizeof(pd_addr.sin_zero));
 #endif
 }
@@ -576,7 +518,7 @@ IP4AddrInfo::name()
   if ((const char*)pd_name) {
     return CORBA::string_dup(pd_name);
   }
-#ifdef HAVE_GETHOSTBYADDR
+#ifdef OMNI_HAVE_GETHOSTBYADDR
   omni_tracedmutex_lock sync(non_reentrant);
   struct hostent* ent = gethostbyaddr((const char*)&pd_addr.sin_addr.s_addr,
 				      sizeof(struct sockaddr_in),
@@ -773,13 +715,8 @@ again:
 
   struct hostent *hp = ::gethostbyname(node);
   
-# ifdef __atmos__
-  if (hp <= 0)
-    return 0
-# else
   if (hp == NULL)
     return 0;
-# endif
 
   return new IP4AddrInfo(hp->h_name, hostent_to_ip4(hp), port);
 #endif
@@ -790,7 +727,7 @@ void LibcWrapper::freeAddrInfo(LibcWrapper::AddrInfo* ai)
   delete ai;
 }
 
-#endif  // HAVE_GETADDRINFO
+#endif  // OMNI_HAVE_GETADDRINFO
 
 OMNI_NAMESPACE_END(omni)
 
@@ -799,7 +736,7 @@ OMNI_NAMESPACE_END(omni)
 // strcasecmp / strncasecmp
 //
 
-#ifndef HAVE_STRCASECMP
+#ifndef OMNI_HAVE_STRCASECMP
 int
 strcasecmp(const char *s1, const char *s2)
 {
@@ -813,7 +750,7 @@ strcasecmp(const char *s1, const char *s2)
 #endif
 
 
-#ifndef HAVE_STRNCASECMP
+#ifndef OMNI_HAVE_STRNCASECMP
 int
 strncasecmp(const char *s1, const char *s2, size_t n)
 {

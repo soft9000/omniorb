@@ -3,15 +3,15 @@
 
 #pragma warning(disable:4786 4250)
 
-#define SIZEOF_UNSIGNED_CHAR 1
-#define SIZEOF_INT 4
-#define HAVE_STDLIB_H 1
-#define HAVE_STRERROR 1
+#define OMNI_SIZEOF_UNSIGNED_CHAR 1
+#define OMNI_SIZEOF_INT 4
+#define OMNI_HAVE_STDLIB_H 1
+#define OMNI_HAVE_STRERROR 1
 #define DONT_DECLARE_STRERROR 1
-#define STDC_HEADERS 1
+#define OMNI_STDC_HEADERS 1
 
 #ifdef __MINGW32__
-#define HAVE_VPRINTF
+#define OMNI_HAVE_VPRINTF
 #endif
 
 #pragma warning (disable: 4018)

@@ -18,50 +18,11 @@
 //  General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//  02111-1307, USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //   
 //   Utility functions
-
-// $Id$
-// $Log$
-// Revision 1.5.2.7  2003/01/16 11:08:27  dgrisby
-// Patches to support Digital Mars C++. Thanks Christof Meerwald.
-//
-// Revision 1.5.2.6  2002/01/15 16:38:14  dpg1
-// On the road to autoconf. Dependencies refactored, configure.ac
-// written. No makefiles yet.
-//
-// Revision 1.5.2.5  2001/06/21 11:17:15  sll
-// Added darwin port.
-//
-// Revision 1.5.2.4  2001/06/08 17:12:24  dpg1
-// Merge all the bug fixes from omni3_develop.
-//
-// Revision 1.5.2.3  2000/10/27 16:31:10  dpg1
-// Clean up of omniidl dependencies and types, from omni3_develop.
-//
-// Revision 1.5.2.2  2000/10/10 10:18:51  dpg1
-// Update omniidl front-end from omni3_develop.
-//
-// Revision 1.3.2.2  2000/09/22 10:50:21  dpg1
-// Digital Unix uses strtoul, not strtoull
-//
-// Revision 1.3.2.1  2000/08/07 15:34:36  dpg1
-// Partial back-port of long long from omni3_1_develop.
-//
-// Revision 1.3  1999/11/04 17:16:54  dpg1
-// Changes for NT.
-//
-// Revision 1.2  1999/11/02 17:07:24  dpg1
-// Changes to compile on Solaris.
-//
-// Revision 1.1  1999/10/27 14:05:54  dpg1
-// *** empty log message ***
-//
 
 #include <string.h>
 #include <stdlib.h>
@@ -119,7 +80,7 @@ IDL_WChar* idl_wstrcat(IDL_WChar* a, const IDL_WChar* b)
   return r;
 }
 
-#ifndef HAVE_STRCASECMP
+#ifndef OMNI_HAVE_STRCASECMP
 #include <ctype.h>
 
 int strcasecmp(const char* s1, const char* s2)
@@ -135,7 +96,7 @@ int strcasecmp(const char* s1, const char* s2)
 #endif
 
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 
 #  if defined(_MSC_VER)
 
@@ -181,7 +142,7 @@ idl_strtoul(const char* text, int base)
   return ull;
 }
 
-#  elif defined(HAVE_STRTOUL) && SIZEOF_LONG == 8
+#  elif defined(OMNI_HAVE_STRTOUL) && OMNI_SIZEOF_LONG == 8
 
 IdlIntLiteral
 idl_strtoul(const char* text, int base)
@@ -189,7 +150,7 @@ idl_strtoul(const char* text, int base)
   return strtoul(text, 0, base);
 }
 
-#  elif defined(HAVE_STRTOUQ)
+#  elif defined(OMNI_HAVE_STRTOUQ)
 
 IdlIntLiteral
 idl_strtoul(const char* text, int base)
@@ -197,7 +158,7 @@ idl_strtoul(const char* text, int base)
   return strtouq(text, 0, base);
 }
 
-#  elif defined(HAVE_STRTOULL)
+#  elif defined(OMNI_HAVE_STRTOULL)
 
 IdlIntLiteral
 idl_strtoul(const char* text, int base)

@@ -3,76 +3,33 @@
 // orbOptions.h               Created on: 13/8/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2003-2007 Apasphere Ltd
+//    Copyright (C) 2003-2013 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //
-
-/*
-  $Log$
-  Revision 1.1.4.5  2007/02/26 15:16:31  dgrisby
-  New socketSendBuffer parameter, defaulting to 16384 on Windows.
-  Avoids a bug in Windows where select() on send waits for all sent data
-  to be acknowledged.
-
-  Revision 1.1.4.4  2005/09/19 18:26:33  dgrisby
-  Merge from omni4_0_develop again.
-
-  Revision 1.1.4.3  2005/09/08 14:49:40  dgrisby
-  Merge -ORBconfigFile argument.
-
-  Revision 1.1.4.2  2005/01/06 23:08:26  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.4.1  2003/03/23 21:03:44  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.6  2002/03/18 15:13:07  dpg1
-  Fix bug with old-style ORBInitRef in config file; look for
-  -ORBtraceLevel arg before anything else; update Windows registry
-  key. Correct error message.
-
-  Revision 1.1.2.5  2002/02/11 15:15:50  dpg1
-  Things for ETS kernel.
-
-  Revision 1.1.2.4  2001/08/21 11:02:12  sll
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.1.2.3  2001/08/20 10:46:48  sll
-  New orb configuration parsing now works with NT registry.
-
-  Revision 1.1.2.2  2001/08/20 08:19:22  sll
-  Read the new ORB configuration file format. Can still read old format.
-  Can also set configuration parameters from environment variables.
-
-  Revision 1.1.2.1  2001/08/17 17:12:34  sll
-  Modularise ORB configuration parameters.
-
-*/
 
 #ifndef __ORBOPTIONS_H__
 #define __ORBOPTIONS_H__
+
+#include <omniORB4/CORBA.h>
 
 OMNI_NAMESPACE_BEGIN(omni)
 
@@ -82,7 +39,8 @@ class orbOptions {
  public:
 
   ////////////////////////////////////////////////////////////////////////
-  class sequenceString;
+  typedef CORBA::StringSeq     sequenceString;
+  typedef CORBA::StringSeq_var sequenceString_var;
 
   ////////////////////////////////////////////////////////////////////////
   class BadParam {
@@ -134,7 +92,7 @@ class orbOptions {
     CORBA::Boolean argvYes() const { return argvYes_; }
     CORBA::Boolean argvHasNoValue() const { return argvHasNoValue_; }
 
-    virtual void visit(const char* value,Source source) throw (BadParam) = 0;
+    virtual void visit(const char* value,Source source) = 0;
     virtual void dump(sequenceString& result) = 0;
 
   protected:
@@ -186,7 +144,7 @@ class orbOptions {
   // addOptions().
 
   ////////////////////////////////////////////////////////////////////////
-  void visit() throw(BadParam);
+  void visit();
   // Call this method will cause the object to walk through all the options
   // accumulated so far via addOption(). For each of these options, its
   // handler will be called.
@@ -196,7 +154,7 @@ class orbOptions {
 
   ////////////////////////////////////////////////////////////////////////
   void addOption(const char* key, const char* value, 
-		 Source source=fromInternal) throw (Unknown,BadParam);
+		 Source source=fromInternal);
   // Add to the internal option list a <key,value> tuple.
   // Both arguments are copied.
   //
@@ -204,7 +162,7 @@ class orbOptions {
   //    Not thread safe
 
   ////////////////////////////////////////////////////////////////////////
-  void addOptions(const char* options[][2]) throw (Unknown,BadParam);
+  void addOptions(const char* options[][2]);
   // Add the option list. Each element of the variable size array is
   // a key, value pair. The array ends with a key, value pair that is both
   // nil(0) in value.
@@ -213,7 +171,7 @@ class orbOptions {
   //    Not thread safe
 
   ////////////////////////////////////////////////////////////////////////
-  void extractInitOptions(int& argc, char** argv) throw (Unknown,BadParam);
+  void extractInitOptions(int& argc, char** argv);
   // Extract the ORB_init options from the argv list. Extract the arguments
   // from the argument list for those registered handlers that can accept
   // ORB_init arguments.
@@ -222,7 +180,7 @@ class orbOptions {
   //    Not thread safe
 
   ////////////////////////////////////////////////////////////////////////
-  void getTraceLevel(int argc, char** argv) throw (Unknown,BadParam);
+  void getTraceLevel(int argc, char** argv);
   // Look for -ORBtraceLevel and -ORBtraceFile arguments very early
   // on, so the trace level can affect later option logging. Does not
   // remove the arguments -- that is done by extractInitOptions()
@@ -232,8 +190,7 @@ class orbOptions {
   //    Not thread safe
 
   ////////////////////////////////////////////////////////////////////////
-  const char* getConfigFileName(int argc, char** argv, const char* fname)
-    throw (Unknown,BadParam);
+  const char* getConfigFileName(int argc, char** argv, const char* fname);
   // Look for an -ORBconfigFile argument before processing the config
   // file. Does not remove the arguments -- that is done by
   // extractInitOptions() later.
@@ -242,15 +199,15 @@ class orbOptions {
   //    Not thread safe
 
   ////////////////////////////////////////////////////////////////////////
-  CORBA::Boolean importFromFile(const char* filename) throw (Unknown,BadParam);
+  CORBA::Boolean importFromFile(const char* filename);
 
 #if defined(NTArchitecture) && !defined(__ETS_KERNEL__)
   ////////////////////////////////////////////////////////////////////////
-  CORBA::Boolean importFromRegistry() throw (Unknown,BadParam);
+  CORBA::Boolean importFromRegistry();
 #endif
 
   ////////////////////////////////////////////////////////////////////////
-  void importFromEnv() throw (Unknown,BadParam);
+  void importFromEnv();
 
   ////////////////////////////////////////////////////////////////////////
   sequenceString* usage() const;
@@ -312,9 +269,11 @@ class orbOptions {
   static CORBA::Boolean getBoolean(const char* value, CORBA::Boolean& result);
   static CORBA::Boolean getULong(const char* value, CORBA::ULong& result);
   static CORBA::Boolean getLong(const char* value, CORBA::Long& result);
+  static CORBA::Boolean getSizeT(const char* value, size_t& result);
   static void addKVBoolean(const char* key, CORBA::Boolean,sequenceString&);
   static void addKVULong(const char* key, CORBA::ULong,sequenceString&);
   static void addKVLong(const char* key, CORBA::Long,sequenceString&);
+  static void addKVSizeT(const char* key, size_t, sequenceString&);
   static void addKVString(const char* key, const char* value, sequenceString&);
 
   static void move_args(int& argc,char **argv,int idx,int nargs);
@@ -324,85 +283,6 @@ class orbOptions {
   static const char* expect_boolean_msg;
   static const char* expect_ulong_msg;
   static const char* expect_greater_than_zero_ulong_msg;
-
-  ////////////////////////////////////////////////////////////////////////
-  class sequenceString_var;
-
-  class sequenceString : public _CORBA_Unbounded_Sequence_String {
-  public:
-    typedef sequenceString_var _var_type;
-    inline sequenceString() {}
-    inline sequenceString(const sequenceString& s)
-      : _CORBA_Unbounded_Sequence_String(s) {}
-
-    inline sequenceString(_CORBA_ULong _max)
-      : _CORBA_Unbounded_Sequence_String(_max) {}
-    inline sequenceString(_CORBA_ULong _max, _CORBA_ULong _len, char** _val, _CORBA_Boolean _rel=0)
-      : _CORBA_Unbounded_Sequence_String(_max, _len, _val, _rel) {}
-
-
-
-    inline sequenceString& operator = (const sequenceString& s) {
-      _CORBA_Unbounded_Sequence_String::operator=(s);
-      return *this;
-    }
-  };
-
-  ////////////////////////////////////////////////////////////////////////
-  class sequenceString_var {
-  public:
-    typedef sequenceString T;
-    typedef sequenceString_var T_var;
-
-    inline sequenceString_var() : _pd_seq(0) {}
-    inline sequenceString_var(T* s) : _pd_seq(s) {}
-    inline sequenceString_var(const T_var& s) {
-      if( s._pd_seq )  _pd_seq = new T(*s._pd_seq);
-      else             _pd_seq = 0;
-    }
-    inline ~sequenceString_var() { if( _pd_seq )  delete _pd_seq; }
-
-    inline T_var& operator = (T* s) {
-      if( _pd_seq )  delete _pd_seq;
-      _pd_seq = s;
-      return *this;
-    }
-    inline T_var& operator = (const T_var& s) {
-      if( s._pd_seq ) {
-	if( !_pd_seq )  _pd_seq = new T;
-	*_pd_seq = *s._pd_seq;
-      } else if( _pd_seq ) {
-	delete _pd_seq;
-	_pd_seq = 0;
-      }
-      return *this;
-    }
-
-    inline _CORBA_String_element operator [] (_CORBA_ULong s) {
-      return (*_pd_seq)[s];
-    }
-
-    inline T* operator -> () { return _pd_seq; }
-#if defined(__GNUG__)
-    inline operator T& () const { return *_pd_seq; }
-#else
-    inline operator const T& () const { return *_pd_seq; }
-    inline operator T& () { return *_pd_seq; }
-#endif
-
-    inline const T& in() const { return *_pd_seq; }
-    inline T&       inout()    { return *_pd_seq; }
-    inline T*&      out() {
-      if( _pd_seq ) { delete _pd_seq; _pd_seq = 0; }
-      return _pd_seq;
-    }
-    inline T* _retn() { T* tmp = _pd_seq; _pd_seq = 0; return tmp; }
-
-  private:
-    T* _pd_seq;
-  };
-
-
 
 #ifdef __GNUG__
   friend class _keep_gcc_quiet_;

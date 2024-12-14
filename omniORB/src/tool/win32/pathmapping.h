@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <assert.h>
 
-//#define DEBUG_MOUNTS
+/*#define DEBUG_MOUNTS*/
 
 #define MAX_MOUNTS 256
 
@@ -25,6 +25,17 @@ char *unix[MAX_MOUNTS];
 int index[MAX_MOUNTS];
 int nmounts;
 char* drvprefix;
+
+
+char *AddQuotes(char *in)
+{
+  char *out = malloc(strlen(in) + 3);
+  out[0] = '"';
+  out[1] = '\0';
+  strcat(out, in);
+  strcat(out, "\"");
+  return out;
+}
 
 
 char *EscapeDoubleQuotes(char *in)

@@ -3,83 +3,30 @@
 // sslTransportImpl.cc        Created on: 29 May 2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2002-2007 Apasphere Ltd
+//    Copyright (C) 2002-2013 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 // 
 
-/*
-  $Log$
-  Revision 1.1.4.6  2009/05/06 16:14:49  dgrisby
-  Update lots of copyright notices.
-
-  Revision 1.1.4.5  2007/11/28 12:24:26  dgrisby
-  Implement a tiny subset of CSIv2 to permit multiple SSL endpoints in IORs.
-
-  Revision 1.1.4.4  2006/03/25 18:54:03  dgrisby
-  Initial IPv6 support.
-
-  Revision 1.1.4.3  2005/09/05 17:12:20  dgrisby
-  Merge again. Mainly SSL transport changes.
-
-  Revision 1.1.4.2  2005/03/30 23:35:58  dgrisby
-  Another merge from omni4_0_develop.
-
-  Revision 1.1.4.1  2003/03/23 21:01:59  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.9  2002/09/09 22:11:51  dgrisby
-  SSL transport cleanup even if certificates are wrong.
-
-  Revision 1.1.2.8  2002/08/23 14:18:38  dgrisby
-  Avoid init exceptioni when SSL linked but not configured.
-
-  Revision 1.1.2.7  2002/04/16 12:44:27  dpg1
-  Fix SSL accept bug, clean up logging.
-
-  Revision 1.1.2.6  2001/08/23 16:02:58  sll
-  Implement getInterfaceAddress().
-
-  Revision 1.1.2.5  2001/08/03 17:41:25  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.1.2.4  2001/07/31 16:16:22  sll
-  New transport interface to support the monitoring of active connections.
-
-  Revision 1.1.2.3  2001/07/26 16:37:21  dpg1
-  Make sure static initialisers always run.
-
-  Revision 1.1.2.2  2001/06/18 20:27:56  sll
-  Use strchr instead of index() for maximal portability.
-
-  Revision 1.1.2.1  2001/06/11 18:11:05  sll
-  *** empty log message ***
-
-*/
-
 #include <omniORB4/CORBA.h>
-#include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <omniORB4/giopEndpoint.h>
@@ -112,7 +59,7 @@ OMNI_NAMESPACE_BEGIN(omni)
 
 
 /////////////////////////////////////////////////////////////////////////
-sslTransportImpl::timeValue sslTransportImpl::sslAcceptTimeOut = {10,0};
+omni_time_t sslTransportImpl::sslAcceptTimeOut(10);
 
 
 /////////////////////////////////////////////////////////////////////////
@@ -126,26 +73,12 @@ sslTransportImpl::~sslTransportImpl() {
 
 /////////////////////////////////////////////////////////////////////////
 giopEndpoint*
-sslTransportImpl::toEndpoint(const char* param) {
-
-  IIOP::Address address;
-
-  char* host = omniURI::extractHostPort(param, address.port);
-  if (!host)
+sslTransportImpl::toEndpoint(const char* param)
+{
+  if (!omniURI::validHostPortRange(param))
     return 0;
 
-  if (*host == '\0') {
-    // No name in param -- try environment variable.
-    const char* hostname = getenv(OMNIORB_USEHOSTNAME_VAR);
-    if (hostname)
-      address.host = hostname;
-
-    CORBA::string_free(host);
-  }
-  else {
-    address.host = host;
-  }
-  return (giopEndpoint*)(new sslEndpoint(address, pd_ctx));
+  return (giopEndpoint*)(new sslEndpoint(param, pd_ctx));
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -183,7 +116,7 @@ sslTransportImpl::toAddress(const char* param) {
 
 /////////////////////////////////////////////////////////////////////////
 CORBA::Boolean
-sslTransportImpl::addToIOR(const char* param) {
+sslTransportImpl::addToIOR(const char* param, IORPublish* eps) {
 
   IIOP::Address address;
   if (parseAddress(param,address)) {
@@ -191,7 +124,7 @@ sslTransportImpl::addToIOR(const char* param) {
     //       Integrity (0x02) Confidentiality (0x04) |
     //       EstablishTrustInTarget (0x20) | EstablishTrustInClient (0x40)
     // In future, this should be expanded configurable options.
-    omniIOR::add_TAG_SSL_SEC_TRANS(address,0x66,0x66);
+    omniIOR::add_TAG_SSL_SEC_TRANS(address, 0x66, 0x66, eps);
     return 1;
   }
   return 0;
@@ -214,7 +147,7 @@ public:
 			1,
 			"-ORBsslCAFile <certificate authority file>") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam)
+  void visit(const char* value,orbOptions::Source)
   {    
     sslContext::certificate_authority_file = CORBA::string_dup(value);
   }
@@ -232,6 +165,33 @@ static sslCAFileHandler sslCAFileHandler_;
 
 
 /////////////////////////////////////////////////////////////////////////////
+class sslCAPathHandler : public orbOptions::Handler {
+public:
+
+  sslCAPathHandler() : 
+    orbOptions::Handler("sslCAPath",
+			"sslCAPath = <certificate authority path>",
+			1,
+			"-ORBsslCAPath <certificate authority path>") {}
+
+  void visit(const char* value,orbOptions::Source)
+  {    
+    sslContext::certificate_authority_path = CORBA::string_dup(value);
+  }
+
+  void dump(orbOptions::sequenceString& result)
+  {
+    orbOptions::addKVString(key(),
+			    sslContext::certificate_authority_path ?
+			    sslContext::certificate_authority_path : "<unset>",
+			    result);
+  }
+};
+
+static sslCAPathHandler sslCAPathHandler_;
+
+
+/////////////////////////////////////////////////////////////////////////////
 class sslKeyFileHandler : public orbOptions::Handler {
 public:
 
@@ -241,7 +201,7 @@ public:
 			1,
 			"-ORBsslKeyFile <key file>") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam)
+  void visit(const char* value,orbOptions::Source)
   {    
     sslContext::key_file = CORBA::string_dup(value);
   }
@@ -268,7 +228,7 @@ public:
 			1,
 			"-ORBsslKeyPassword <key file password>") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam)
+  void visit(const char* value,orbOptions::Source)
   {    
     sslContext::key_file_password = CORBA::string_dup(value);
   }
@@ -285,6 +245,98 @@ static sslKeyPasswordHandler sslKeyPasswordHandler_;
 
 
 /////////////////////////////////////////////////////////////////////////////
+class sslCipherListHandler : public orbOptions::Handler {
+public:
+
+  sslCipherListHandler() : 
+    orbOptions::Handler("sslCipherList",
+			"sslCipherList = <cipher list>",
+			1,
+			"-ORBsslCipherList <cipher list>") {}
+
+  void visit(const char* value, orbOptions::Source)
+  {    
+    sslContext::cipher_list = CORBA::string_dup(value);
+  }
+
+  void dump(orbOptions::sequenceString& result)
+  {
+    orbOptions::addKVString(key(),
+			    sslContext::cipher_list ?
+			    sslContext::cipher_list : "<unset>",
+			    result);
+  }
+};
+
+static sslCipherListHandler sslCipherListHandler_;
+
+
+/////////////////////////////////////////////////////////////////////////////
+static int
+verifyModeValue(const char* key, const char* value, CORBA::Boolean unset_ok)
+{
+  if (!strcmp(value, "none"))
+    return SSL_VERIFY_NONE;
+
+  if (unset_ok && !strcmp(value, "unset"))
+    return -1;
+  
+  int mode = 0;
+  CORBA::String_var val(value); // Copy
+  char* valc = (char*)val;
+  char* c;
+
+  while (*valc) {
+    for (c=valc; *c && *c != ','; ++c) {}
+
+    if (*c == ',')
+      *c++ = '\0';
+
+    if (!strcmp(valc, "peer"))
+      mode |= SSL_VERIFY_PEER;
+
+    else if (!strcmp(valc, "fail"))
+      mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+
+    else if (!strcmp(valc, "once"))
+      mode |= SSL_VERIFY_CLIENT_ONCE;
+
+    else
+      throw orbOptions::BadParam(key, val, "Invalid verify option");
+      
+    valc = c;
+  }
+  if (mode && !(mode & SSL_VERIFY_PEER))
+    throw orbOptions::BadParam(key, val, "Invalid verify option");
+  
+  return mode;
+}
+
+static void
+verifyModeDump(const char* key, int mode, orbOptions::sequenceString& result)
+{
+  char buf[20];
+
+  buf[0] = '\0';
+
+  if (mode == -1) {
+    strcpy(buf, "unset");
+  }
+  else if (!(mode & SSL_VERIFY_PEER)) {
+    strcpy(buf, "none");
+  }
+  else {
+    strcpy(buf, "peer");
+
+    if (mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+      strcat(buf, ",fail");
+
+    if (mode & SSL_VERIFY_CLIENT_ONCE)
+      strcat(buf, ",once");
+  }
+  orbOptions::addKVString(key, buf, result);
+}
+
 class sslVerifyModeHandler : public orbOptions::Handler {
 public:
 
@@ -295,63 +347,43 @@ public:
 			"-ORBsslVerifyMode < \"none\" | \"peer[,fail][,once]\" >")
   {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam)
+  void visit(const char* value, orbOptions::Source)
   {    
-    if (!strcmp(value, "none")) {
-      sslContext::verify_mode = 0;
-      return;
-    }
-
-    int mode = 0;
-    CORBA::String_var val(value); // Copy
-    char* valc = (char*)val;
-    char* c;
-
-    while (*valc) {
-      for (c=valc; *c && *c != ','; ++c) {}
-
-      if (*c == ',')
-	*c++ = '\0';
-
-      if (!strcmp(valc, "peer"))
-	mode |= SSL_VERIFY_PEER;
-
-      else if (!strcmp(valc, "fail"))
-	mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
-
-      else if (!strcmp(valc, "once"))
-	mode |= SSL_VERIFY_CLIENT_ONCE;
-
-      else
-	throw orbOptions::BadParam(key(), valc, "Invalid verify option");
-      
-      valc = c;
-    }
-    sslContext::verify_mode = mode;
+    sslContext::verify_mode = verifyModeValue(key(), value, 0);
   }
 
   void dump(orbOptions::sequenceString& result)
   {
-    char buf[20];
-
-    buf[0] = '\0';
-
-    if (sslContext::verify_mode & SSL_VERIFY_PEER)
-      strcpy(buf, "peer");
-    else
-      strcpy(buf, "none");
-      
-    if (sslContext::verify_mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
-      strcat(buf, ",fail");
-
-    if (sslContext::verify_mode & SSL_VERIFY_CLIENT_ONCE)
-      strcat(buf, ",once");
-
-    orbOptions::addKVString(key(), buf, result);
+    verifyModeDump(key(), sslContext::verify_mode, result);
   }
 };
 
 static sslVerifyModeHandler sslVerifyModeHandler_;
+
+
+/////////////////////////////////////////////////////////////////////////////
+class sslVerifyModeIncomingHandler : public orbOptions::Handler {
+public:
+
+  sslVerifyModeIncomingHandler() : 
+    orbOptions::Handler("sslVerifyModeIncoming",
+			"sslVerifyModeIncoming = <mode>",
+			1,
+			"-ORBsslVerifyModeIncoming < \"unset\" | \"none\" | \"peer[,fail][,once]\" >")
+  {}
+
+  void visit(const char* value, orbOptions::Source)
+  {    
+    sslContext::verify_mode_incoming = verifyModeValue(key(), value, 1);
+  }
+
+  void dump(orbOptions::sequenceString& result)
+  {
+    verifyModeDump(key(), sslContext::verify_mode, result);
+  }
+};
+
+static sslVerifyModeIncomingHandler sslVerifyModeIncomingHandler_;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -364,20 +396,20 @@ public:
 			1,
 			"-ORBsslAcceptTimeOut < n >= 0 in msecs >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
       throw orbOptions::BadParam(key(),value,
 				 "Expect n >= 0 in msecs");
     }
-    sslTransportImpl::sslAcceptTimeOut.secs = v / 1000;
-    sslTransportImpl::sslAcceptTimeOut.nanosecs = (v % 1000) * 1000000;
+    sslTransportImpl::sslAcceptTimeOut.assign(v / 1000, (v % 1000) * 1000000);
   }
 
   void dump(orbOptions::sequenceString& result) {
-    CORBA::ULong v = sslTransportImpl::sslAcceptTimeOut.secs * 1000 +
-      sslTransportImpl::sslAcceptTimeOut.nanosecs / 1000000;
+    CORBA::ULong v = sslTransportImpl::sslAcceptTimeOut.s * 1000 +
+                     sslTransportImpl::sslAcceptTimeOut.ns / 1000000;
+
     orbOptions::addKVULong(key(),v,result);
   }
 
@@ -386,19 +418,45 @@ public:
 static sslAcceptTimeOutHandler sslAcceptTimeOutHandler_;
 
 
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 static sslTransportImpl* _the_sslTransportImpl = 0;
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+static omni_tracedmutex* _the_locks = 0;
+
+static void ssl_locking_callback(int mode, int type, const char *, int) {
+
+  if (mode & CRYPTO_LOCK) {
+    _the_locks[type].lock();
+  }
+  else {
+    OMNIORB_ASSERT(mode & CRYPTO_UNLOCK);
+    _the_locks[type].unlock();
+  }
+}
+
+#  ifndef __WIN32__
+static unsigned long ssl_thread_id(void) {
+  unsigned long id = (unsigned long)pthread_self();
+  return id;
+}
+#  endif
+
+#endif
+
 
 class omni_sslTransport_initialiser : public omniInitialiser {
 public:
 
   omni_sslTransport_initialiser() {
     orbOptions::singleton().registerHandler(sslCAFileHandler_);
+    orbOptions::singleton().registerHandler(sslCAPathHandler_);
     orbOptions::singleton().registerHandler(sslKeyFileHandler_);
     orbOptions::singleton().registerHandler(sslKeyPasswordHandler_);
+    orbOptions::singleton().registerHandler(sslCipherListHandler_);
     orbOptions::singleton().registerHandler(sslVerifyModeHandler_);
+    orbOptions::singleton().registerHandler(sslVerifyModeIncomingHandler_);
     orbOptions::singleton().registerHandler(sslAcceptTimeOutHandler_);
     omniInitialiser::install(this);
   }
@@ -406,31 +464,52 @@ public:
   void attach() {
     if (_the_sslTransportImpl) return;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    if (CRYPTO_get_locking_callback() == 0) {
+      // If there is no locking callback, assume that we are looking
+      // after the OpenSSL library.
+      SSL_library_init();
+      OpenSSL_add_all_algorithms();
+      SSL_load_error_strings();
+
+      _the_locks = new omni_tracedmutex[CRYPTO_num_locks()];
+      CRYPTO_set_locking_callback(ssl_locking_callback);
+
+#  ifndef __WIN32__
+      CRYPTO_set_id_callback(ssl_thread_id);
+#  endif
+    }
+#endif
+
     if (!sslContext::singleton) {
 
       if (omniORB::trace(5)) {
 	omniORB::logger log;
-	log << "No SSL context object supplied, attempt to create one "
-	    << "with the default ctor.\n";
+	log << "No SSL context object supplied. Attempt to create one "
+	    << "with the default constructor.\n";
       }
-      struct stat sb;
+      if (!(sslContext::certificate_authority_file ||
+            sslContext::certificate_authority_path)) {
 
-      if (!sslContext::certificate_authority_file || 
-	  stat(sslContext::certificate_authority_file,&sb) < 0) {
-	if (omniORB::trace(1)) {
+	if (omniORB::trace(5)) {
 	  omniORB::logger log;
-	  log << "Warning: SSL CA certificate file is not set "
-	      << "or cannot be found. SSL transport disabled.\n";
+	  log << "SSL CA certificate location is not set. "
+	      << "SSL transport disabled.\n";
 	}
 	return;
       }
       
       // Create the default singleton
-      sslContext::singleton =
-	new sslContext(sslContext::certificate_authority_file,
-		       sslContext::key_file,
-		       sslContext::key_file_password);
+      sslContext::singleton = new sslContext();
+      sslContext::singleton->copy_globals(1);
     }
+
+    if (!RAND_status()) {
+      omniORB::logs(1, "The OpenSSL random number generator has "
+                    "not been seeded.");
+      OMNIORB_THROW(INITIALIZE, INITIALIZE_TransportError, CORBA::COMPLETED_NO);
+    }
+    
     sslContext::singleton->internal_initialise();
     _the_sslTransportImpl = new sslTransportImpl(sslContext::singleton);
   }
@@ -438,11 +517,21 @@ public:
   void detach() { 
     if (_the_sslTransportImpl) delete _the_sslTransportImpl;
     _the_sslTransportImpl = 0;
+
     if (sslContext::singleton) delete sslContext::singleton;
     sslContext::singleton = 0;
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    if (_the_locks) {
+      CRYPTO_set_locking_callback(0);
+#  ifndef __WIN32__
+      CRYPTO_set_id_callback(0);
+#  endif
+      delete [] _the_locks;
+      _the_locks = 0;
+    }
+#endif
   }
-
-
 };
 
 static omni_sslTransport_initialiser initialiser;

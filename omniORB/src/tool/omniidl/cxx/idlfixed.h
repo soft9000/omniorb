@@ -18,22 +18,11 @@
 //  General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//  02111-1307, USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //   
 //   Implementation of fixed point type
-
-// $Log$
-// Revision 1.1.2.2  2002/01/15 16:38:14  dpg1
-// On the road to autoconf. Dependencies refactored, configure.ac
-// written. No makefiles yet.
-//
-// Revision 1.1.2.1  2001/03/13 10:32:12  dpg1
-// Fixed point support.
-//
 
 #ifndef _idlfixed_h_
 #define _idlfixed_h_

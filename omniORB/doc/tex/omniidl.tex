@@ -1,7 +1,11 @@
 \documentclass[11pt,twoside,a4paper]{article}
 
 \usepackage[T1]{fontenc}
-\usepackage{palatino}
+\usepackage{textcomp}
+\usepackage[scaled=0.9]{DejaVuSansMono}
+\usepackage[scaled=0.9]{DejaVuSans}
+\usepackage[scaled=0.9]{DejaVuSerif}
+\linespread{1.05}
 
 \pagestyle{headings}
 \raggedbottom
@@ -44,20 +48,7 @@
 
 
 % URL-like things:
-\usepackage[T1]{url}
-\newcommand{\email}{\begingroup \urlstyle{sf}\Url}
-\newcommand{\file}{\begingroup \urlstyle{tt}\Url}
-\newcommand{\envvar}{\begingroup \urlstyle{tt}\Url}
-\newcommand{\makevar}{\begingroup \urlstyle{tt}\Url}
-\newcommand{\corbauri}{\begingroup \urlstyle{tt}\Url}
-%BEGIN LATEX
-\newcommand{\weburl}{\begingroup \urlstyle{sf}\Url}
-%END LATEX
-%HEVEA\def\weburl{\begingroup%
-%HEVEA\def\UrlLeft##1\UrlRight{\ahrefurl{##1}}%
-%HEVEA\urlstyle{tt}%
-%HEVEA\Url}
-
+\usepackage{omniURLDefs}
 
 \addtolength{\oddsidemargin}{-0.2in}
 \addtolength{\evensidemargin}{-0.6in}
@@ -267,25 +258,14 @@ and parses \file{bar.idl} and runs the two back-ends on that.
 \subsection{Preprocessor interactions}
 
 IDL is processed by the C preprocessor before \omniidl\ parses it.
-Unlike the old IDL compiler, which used different C preprocessors on
-different platforms, \omniidl\ always uses the GNU C preprocessor
-(which it builds with the name omnicpp). The \cmdline{-D},
-\cmdline{-U}, and \cmdline{-I} options are just sent to the
-preprocessor. Note that the current directory is not on the include
-search path by default---use `\cmdline{-I.}' for that. The
-\cmdline{-Y} option can be used to specify a different preprocessor to
-omnicpp. Beware that line directives inserted by other preprocessors
-are likely to confuse \omniidl.
-
-\subsubsection{Windows 9x}
-
-The output from the C preprocessor is normally fed to the \omniidl\
-parser through a pipe. On some Windows 98 machines (but not all!)  the
-pipe does not work, and the preprocessor output is echoed to the
-screen. When this happens, the \omniidl\ parser sees an empty file,
-and produces useless stub files with strange long names. To avoid the
-problem, use the `\cmdline{-T}' option to create a temporary file
-between the two stages.
+\omniidl\ always uses the GNU C preprocessor (which it builds with the
+name omnicpp). The \cmdline{-D}, \cmdline{-U}, and \cmdline{-I}
+options are just sent to the preprocessor. Note that the current
+directory is not on the include search path by default---use
+`\cmdline{-I.}' for that. The \cmdline{-Y} option can be used to
+specify a different preprocessor to omnicpp. Beware that line
+directives inserted by other preprocessors are likely to confuse
+\omniidl.
 
 
 \subsection{Forward-declared interfaces}
@@ -1293,8 +1273,8 @@ class ExampleVisitor (idlvisitor.AstVisitor):
         if node.mainFile():
             for c in node.callables():
                 if isinstance(c, idlast.Operation):
-                    print name + "::" + \
-                          c.identifier() + "()"
+                    print(name + "::" +
+                          c.identifier() + "()")
 
 def run(tree, args):
     visitor = ExampleVisitor()
@@ -1302,7 +1282,7 @@ def run(tree, args):
 \end{verbatim}
 
 \noindent
-The visitor object simple recurses through the \class{AST} and
+The visitor object simply recurses through the \class{AST} and
 \class{Module} objects, and prints the operation names it finds in
 \class{Interface} objects.
 

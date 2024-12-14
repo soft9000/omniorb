@@ -1,180 +1,100 @@
 RELEASE NOTES
 =============
 
-This is omniORB 4.1.7.
+This is omniORB 4.3.2
 
-See README.unix or README.win32.txt for building instructions.
+See README.unix.txt or README.win32.txt for building instructions.
 See the documentation in the doc directory for more information.
 
 
-Changes since omniORB 4.1.6
+Changes since omniORB 4.3.1
 ---------------------------
 
- - Bug fixes and platform updates. See bugfixes-416.xml
+omniORB 4.3.2 is mainly a bugfix release. See update.log for full
+details of changes. Highlights include:
 
- - ZIOP support. See src/examples/ziop/README.txt for details.
+ - Fixed two cases of crashes due to invalid GIOP sent by buggy or
+   malicious clients.
+
+ - Other minor bug fixes.
 
 
-Changes since omniORB 4.1.5
+Changes since omniORB 4.3.0
 ---------------------------
 
- - Bug fixes. See bugfixes-415.xml
+omniORB 4.3.1 is mainly a bugfix release, with minor new features.
 
- - New clientOpenConnection and serverAcceptConnection interceptors.
+ - On Windows, support Python being installed in a path containing
+   spaces.
+
+ - Support for building with Python 3.12 and later.
+
+ - Miscellaneous bug fixes. See update.log for details.
 
 
-Changes since omniORB 4.1.4
+Changes since omniORB 4.2.x
 ---------------------------
 
- - Bug fixes. See bugfixes-414.xml
+omniORB 4.3 has a number of new features and changes:
 
- - Support for building with the newest versions of Cygwin.
+ - A new omniORB-specific HTTP / HTTPS transport, with a number of
+   capabilities:
 
- - Incoming SSL connections can time out waiting for SSL_accept to complete.
+    . Full encapsulation of GIOP messages in HTTP.
 
- - Ability to disable longdouble support during compilation.
+    . Support for web proxies, transparent web proxies, reverse proxies.
+
+    . For cases where security is important but an end-to-end HTTPS
+      connection cannot be assured, support for in-message encryption.
+
+ - New Connection Info callback to receive information about
+   connection establishment and errors.
+
+ - New plain object keys POA policy, extending the capabilities of
+   omniINSPOA.
+
+ - Support for vast CORBA messages on 64 bit platforms.
+
+ - Support for PyPy in omniidl and omniORBpy.
+
+ - omniCallDescriptor::current() and omniCallHandle::current() to
+   access information about the current call on a server.
+
+ - The sslContext class is now in the omni namespace.
+
+ - The marshalled format of exceptions inside Anys has changed for
+   compatibility with other ORBs, meaning that it is incompatible with
+   omniORB versions prior to 4.3. See the exceptionIdInAny
+   configuration parameter to revert to the previous format.
 
 
-Changes since omniORB 4.1.3
+Changes since omniORB 4.1.x
 ---------------------------
 
- - Bug fixes. See bugfixes-413.xml
+omniORB 4.2 has a number of new features compared to omniORB 4.1.x,
+both large and small. Here are the highlights:
 
- - Connection management enhancements and logging improvements.
+ - Full Asynchronous Method Invocation (AMI) support.
 
- - Ability to switch bidirectional mode at run-time.
+ - Support for ZIOP, which compresses large messages.
 
+ - Call timeouts are indicated with the CORBA::TIMEOUT exception,
+   rather than CORBA::TRANSIENT (unless suppressed with the
+   throwTransientOnTimeout configuration parameter).
 
-Changes since omniORB 4.1.2
----------------------------
+ - Servers can be limited to a range of ports to listen on.
 
- - Bug fixes. See bugfixes-412.xml
+ - Performance improvements to Any, sequence buffer management,
+   unions, and other areas.
 
- - Option to validate UTF-8 string data.
+ - Ancient Python versions are no longer supported. omniidl and
+   omniORBpy now only work with Python 2.5 or later.
 
- - New omni_mutex trylock method.
-
- - New ISO-8859 and Windows code sets.
-
- - Port to LynxOS.
-
-
-Changes since omniORB 4.1.1
----------------------------
-
- - Bug fixes. See bugfixes-411.xml.
-
- - omniNames Windows service support. See doc/omniNames.pdf.
-
- - Support for multi-endpoint SSL IORs (using an extremely minimal
-   subset of CSIv2).
+ - omniidl works with Python 3.x as well as 2.x.
 
 
-
-Changes since omniORB 4.1.0
----------------------------
-
- - Bug fixes. See bugfixes-410.xml.
-
- - Documentation updates.
-
- - Support for new platforms and compilers.
-
- - New configuration parameters: socketSendBuffer, resetTimeOutOnRetries.
-
- - New -Wbguard_prefix option to omniidl.
-
- - Small performance improvements.
-
-
-Changes since omniORB 4.1.0 release candidate 2
------------------------------------------------
-
- - Bug fixes.
-
-
-Changes since omniORB 4.1.0 release candidate 1
------------------------------------------------
-
- - Modified Windows platform files and DLL names. Platforms are now
-   x86_win32_vs_*
-
- - Minor bug fixes.
-
-
-Changes since omniORB 4.1.0 beta 2
-----------------------------------
-
- - Incompatible change to the clientSendRequest interceptor members.
-   Application code using the interceptor will require a small
-   modification.
-
- - Support for insertion / extraction of various types from standard
-   iostreams.
-
- - More comprehensive logging of connection and protocol errors.
-
- - Experimental omniConnectionMgmt extension.
-
- - Minor bug fixes.
-
-
-Changes since omniORB 4.1.0 beta 1
-----------------------------------
-
- - IPv6 support.
-
-     See section 8.6.1 of the omniORB manual for details.
-
- - New endPointPublish parameter.
-
-     Used for configuring what to publish in IORs. See section 8.6.2
-     of the omniORB manual.
-
- - Minor bug fixes.
-
-
-Changes since omniORB 4.0.x
----------------------------
-
- - Objects by value support.
-
-     omniORB now supports the full objects by value specification,
-     with the exception of custom valuetypes. See chapter 13 of the
-     omniORB manual for information about valuetype in omniORB.
-
- - Abstract interfaces support.
-
- - New simpler and more efficient Any implementation.
-
- - New socket collection implementation.
-
-     Uses poll() on platforms where it is available to avoid limiting
-     the number of connections to FD_SETSIZE. Windows specific version
-     that better manages the unusual Windows fd_set.
-
- - New tracing options traceTime and traceInvocationReturns.
-
-     See section 4.2 of the omniORB manual.
-
- - C++ mapping updated to version 1.1.
-
-     Deprecation of RefCountServantBase; Servant_var template type.
-
- - Support for local interfaces.
-
-     In particular, ServantManagers and AdapterActivators no longer
-     need to be activated in a POA, but can be simple C++ objects. See
-     the examples in src/examples/poa/servant_manager.
-
-     Note that to use local interfaces derived from unconstrained
-     interfaces, you must compile the idl for the base interfaces
-     using the -Wbvirtual_objref -Wbimpl_mapping omniidl flags.
-
-
-
-Known issues
-------------
+Known issues / limitations
+--------------------------
 
 This release has the following known issues and omissions:
 

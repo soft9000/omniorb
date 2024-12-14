@@ -18,28 +18,11 @@
 //  General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//  02111-1307, USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //   
 //   Visitor base class
-
-// $Id$
-// $Log$
-// Revision 1.3.2.2  2000/11/01 12:45:57  dpg1
-// Update to CORBA 2.4 specification.
-//
-// Revision 1.3.2.1  2000/07/17 10:36:06  sll
-// Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-//
-// Revision 1.4  2000/07/13 15:25:52  dpg1
-// Merge from omni3_develop for 3.0 release.
-//
-// Revision 1.1  1999/10/27 14:05:52  dpg1
-// *** empty log message ***
-//
 
 #ifndef _idlvisitor_h_
 #define _idlvisitor_h_

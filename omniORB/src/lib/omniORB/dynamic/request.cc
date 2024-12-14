@@ -3,25 +3,23 @@
 // request.cc                 Created on: 9/1998
 //                            Author    : David Riddoch (djr)
 //
-//    Copyright (C) 2003-2009 Apasphere Ltd
+//    Copyright (C) 2003-2013 Apasphere Ltd
 //    Copyright (C) 1996-1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -30,13 +28,13 @@
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/objTracker.h>
+#include <omniORB4/ami.h>
 
 #ifdef HAS_pch
 #pragma hdrstop
 #endif
 
 #include <request.h>
-#include <deferredRequest.h>
 #include <context.h>
 #include <string.h>
 #include <omniORB4/callDescriptor.h>
@@ -48,113 +46,212 @@
 
 OMNI_NAMESPACE_BEGIN(omni)
 
-#define INVOKE_DONE()  if( pd_state == RS_READY )  pd_state = RS_DONE;
 
-
-RequestImpl::RequestImpl(CORBA::Object_ptr target, const char* operation)
+template <class T>
+static inline typename T::_ptr_type
+dup(typename T::_ptr_type p)
 {
-  pd_target = CORBA::Object::_duplicate(target);
+  return p ? T::_duplicate(p) : T::_nil();
+}
 
-  pd_operation = CORBA::string_dup(operation);
+DIICallDescriptor::
+DIICallDescriptor(RequestImpl*             req,
+                  const char*              op,
+                  CORBA::NVList_ptr        arguments,
+                  CORBA::NamedValue_ptr    result,
+                  CORBA::ExceptionList_ptr exceptions,
+                  CORBA::ContextList_ptr   contexts,
+                  CORBA::Context_ptr       context)
+: omniAsyncCallDescriptor(0, op, strlen(op) + 1, 0, 0, 0),
+  pd_req(req),
+  pd_environment(new EnvironmentImpl),
+  pd_exceptions (dup<CORBA::ExceptionList>(exceptions)),
+  pd_contexts   (dup<CORBA::ContextList>  (contexts)),
+  pd_context    (dup<CORBA::Context>      (context))
+{
+  if (!arguments || CORBA::is_nil(arguments))
+    pd_arguments = new NVListImpl;
+  else
+    pd_arguments = CORBA::NVList::_duplicate(arguments);
 
-  pd_arguments = new NVListImpl();
+  if (!result || CORBA::is_nil(result)) {
+    pd_result = new NamedValueImpl(CORBA::Flags(0));
+    pd_result->value()->replace(CORBA::_tc_void, (void*)0);
+  }
+  else {
+    pd_result = CORBA::NamedValue::_duplicate(result);
+  }
+}
 
-  pd_result = new NamedValueImpl(CORBA::Flags(0));
-  pd_result->value()->replace(CORBA::_tc_void, (void*)0);
 
-  pd_environment = new EnvironmentImpl;
+void
+DIICallDescriptor::
+marshalArguments(cdrStream& s)
+{
+  CORBA::ULong num_args = pd_arguments->count();
 
-  pd_state = RS_READY;
-  pd_deferredRequest = 0;
-  pd_sysExceptionToThrow = 0;
+  for (CORBA::ULong i = 0; i < num_args; i++){
+    CORBA::NamedValue_ptr arg = pd_arguments->item(i);
+    if (arg->flags() & CORBA::ARG_IN)
+      arg->value()->NP_marshalDataOnly(s);
+  }
+  if (!CORBA::is_nil(pd_contexts)) {
+    ContextListImpl* context_list = (ContextListImpl*)
+      (CORBA::ContextList_ptr)pd_contexts;
 
-  if( CORBA::is_nil(target) )
-    throw omniORB::fatalException(__FILE__,__LINE__,
-	  "CORBA::RequestImpl::RequestImpl()");
+    CORBA::Context::marshalContext(pd_context, context_list->NP_list(),
+				   context_list->count(), s);
+  }
+}
 
-  if( !operation || !*operation )
+
+void
+DIICallDescriptor::
+unmarshalReturnedValues(cdrStream& s)
+{
+  pd_result->value()->NP_unmarshalDataOnly(s);
+
+  CORBA::ULong num_args = pd_arguments->count();
+
+  for (CORBA::ULong i = 0; i < num_args; i++){
+    CORBA::NamedValue_ptr arg = pd_arguments->item(i);
+    if (arg->flags() & CORBA::ARG_OUT)
+      arg->value()->NP_unmarshalDataOnly(s);
+  }
+}
+
+
+void
+DIICallDescriptor::
+userException(cdrStream& s, IOP_C* iop_client, const char* repoId)
+{
+  CORBA::ULong exListLen = CORBA::is_nil(pd_exceptions) ?
+                                 0 : pd_exceptions->count();
+
+  // Search for a match in the exception list.
+  for (CORBA::ULong i = 0; i < exListLen; i++){
+    CORBA::TypeCode_ptr exType = pd_exceptions->item(i);
+
+    if (omni::strMatch(repoId, exType->id())){
+      // Unmarshal the exception into an Any.
+      CORBA::Any* newAny = new CORBA::Any(exType, 0);
+      try {
+	newAny->NP_unmarshalExceptionDataOnly(s);
+      }
+      catch(...) {
+	delete newAny;
+	throw;
+      }
+      // Encapsulate this in an UnknownUserException, which is
+      // placed into pd_environment.
+      CORBA::UnknownUserException* ex =
+	new CORBA::UnknownUserException(newAny);
+
+      pd_environment->exception(ex);
+
+      if (iop_client)
+        iop_client->RequestCompleted();
+
+      return;
+    }
+  }
+  if (iop_client)
+    iop_client->RequestCompleted();
+
+  OMNIORB_THROW(UNKNOWN, UNKNOWN_UserException, CORBA::COMPLETED_MAYBE);
+}
+
+
+void
+DIICallDescriptor::
+completeCallback()
+{
+  if (exceptionOccurred() && !orbParameters::diiThrowsSysExceptions)
+    pd_environment->exception(getException());
+
+  omniAMI::DIIPollableImpl::_PD_instance._replyReady();
+
+  {
+    omni_tracedmutex_lock l(sd_lock);
+    pd_do_callback = 0;
+    if (pd_cond)
+      pd_cond->broadcast();
+  }
+
+  pd_req->decrRefCount();
+}
+
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+
+RequestImpl::RequestImpl(CORBA::Object_ptr target,
+                         const char*       operation)
+
+: pd_target(CORBA::Object::_duplicate(target)),
+  pd_operation(CORBA::string_dup(operation)),
+  pd_state(RS_READY),
+  pd_cd(this, pd_operation, 0, 0, 0, 0, 0),
+  pd_sysExceptionToThrow(0)
+{
+  if (CORBA::is_nil(target))
+    OMNIORB_THROW(INV_OBJREF,
+                  INV_OBJREF_InvokeOnNilObjRef,
+                  CORBA::COMPLETED_NO);
+
+  if (!operation || !*operation)
     OMNIORB_THROW(BAD_PARAM,
 		  BAD_PARAM_NullStringUnexpected,
 		  CORBA::COMPLETED_NO);
 }
 
 
-RequestImpl::RequestImpl(CORBA::Object_ptr target, const char* operation,
-			 CORBA::Context_ptr context,
-			 CORBA::NVList_ptr arguments,
+RequestImpl::RequestImpl(CORBA::Object_ptr     target,
+                         const char*           operation,
+			 CORBA::Context_ptr    context,
+			 CORBA::NVList_ptr     arguments,
 			 CORBA::NamedValue_ptr result)
+
+: pd_target(CORBA::Object::_duplicate(target)),
+  pd_operation(CORBA::string_dup(operation)),
+  pd_state(RS_READY),
+  pd_cd(this, pd_operation, arguments, result, 0, 0, context),
+  pd_sysExceptionToThrow(0)
 {
-  pd_target = CORBA::Object::_duplicate(target);
+  if (CORBA::is_nil(target))
+    OMNIORB_THROW(INV_OBJREF,
+                  INV_OBJREF_InvokeOnNilObjRef,
+                  CORBA::COMPLETED_NO);
 
-  pd_operation = CORBA::string_dup(operation);
-
-  if( CORBA::is_nil(arguments) )
-    pd_arguments = new NVListImpl();
-  else
-    pd_arguments = CORBA::NVList::_duplicate(arguments);
-
-  if( CORBA::is_nil(result) ){
-    pd_result = new NamedValueImpl(CORBA::Flags(0));
-    pd_result->value()->replace(CORBA::_tc_void, (void*) 0);
-  } else
-    pd_result = CORBA::NamedValue::_duplicate(result);
-
-  pd_environment = new EnvironmentImpl;
-
-  pd_context     = CORBA::Context::_duplicate(context);
-
-  pd_state = RS_READY;
-  pd_deferredRequest = 0;
-  pd_sysExceptionToThrow = 0;
-
-  if( CORBA::is_nil(target) )
-    throw omniORB::fatalException(__FILE__,__LINE__,
-	  "CORBA::RequestImpl::RequestImpl()");
-
-  if( !operation || !*operation )
+  if (!operation || !*operation)
     OMNIORB_THROW(BAD_PARAM,
 		  BAD_PARAM_NullStringUnexpected,
 		  CORBA::COMPLETED_NO);
 }
 
 
-RequestImpl::RequestImpl(CORBA::Object_ptr target, const char* operation,
-			 CORBA::Context_ptr context,
-			 CORBA::NVList_ptr arguments,
-			 CORBA::NamedValue_ptr result,
+RequestImpl::RequestImpl(CORBA::Object_ptr        target,
+                         const char*              operation,
+			 CORBA::Context_ptr       context,
+			 CORBA::NVList_ptr        arguments,
+			 CORBA::NamedValue_ptr    result,
 			 CORBA::ExceptionList_ptr exceptions,
-			 CORBA::ContextList_ptr contexts)
+			 CORBA::ContextList_ptr   contexts)
+
+: pd_target(CORBA::Object::_duplicate(target)),
+  pd_operation(CORBA::string_dup(operation)),
+  pd_state(RS_READY),
+  pd_cd(this, pd_operation, arguments, result, exceptions, contexts, context),
+  pd_sysExceptionToThrow(0)
+
 {
-  pd_target = CORBA::Object::_duplicate(target);
+  if (CORBA::is_nil(target))
+    OMNIORB_THROW(INV_OBJREF,
+                  INV_OBJREF_InvokeOnNilObjRef,
+                  CORBA::COMPLETED_NO);
 
-  pd_operation = CORBA::string_dup(operation);
-
-  if( CORBA::is_nil(arguments) )
-    pd_arguments = new NVListImpl();
-  else
-    pd_arguments = CORBA::NVList::_duplicate(arguments);
-
-  if( CORBA::is_nil(result) ){
-    pd_result = new NamedValueImpl(CORBA::Flags(0));
-    pd_result->value()->replace(CORBA::_tc_void, (void*) 0);
-  } else
-    pd_result = CORBA::NamedValue::_duplicate(result);
-
-  pd_environment = new EnvironmentImpl;
-
-  pd_exceptions  = CORBA::ExceptionList::_duplicate(exceptions);
-  pd_contexts    = CORBA::ContextList::_duplicate(contexts);
-  pd_context     = CORBA::Context::_duplicate(context);
-
-  pd_state = RS_READY;
-  pd_deferredRequest = 0;
-  pd_sysExceptionToThrow = 0;
-
-  if( CORBA::is_nil(target) )
-    throw omniORB::fatalException(__FILE__,__LINE__,
-	  "CORBA::RequestImpl::RequestImpl()");
-
-  if( !operation || !*operation )
+  if (!operation || !*operation)
     OMNIORB_THROW(BAD_PARAM,
 		  BAD_PARAM_NullStringUnexpected,
 		  CORBA::COMPLETED_NO);
@@ -163,14 +260,13 @@ RequestImpl::RequestImpl(CORBA::Object_ptr target, const char* operation,
 
 RequestImpl::~RequestImpl()
 {
-  if( (pd_state == RS_DEFERRED) && omniORB::traceLevel > 0 ){
-    omniORB::logger log;
-    log <<
-      "WARNING -- The application has not collected the reponse of\n"
-      " a deferred DII request.  Use Request::get_response() or\n"
-      " poll_response().\n";
+  if (pd_state == RS_DEFERRED) {
+    omniORB::logs(1, "Warning: The application has not collected the "
+                  "reponse of a deferred DII request. Use "
+                  "Request::get_response() or poll_response().");
   }
-  if( pd_sysExceptionToThrow )  delete pd_sysExceptionToThrow;
+  if (pd_sysExceptionToThrow)
+    delete pd_sysExceptionToThrow;
 }
 
 
@@ -191,54 +287,48 @@ RequestImpl::operation() const
 CORBA::NVList_ptr
 RequestImpl::arguments()
 {
-  if( pd_sysExceptionToThrow )  pd_sysExceptionToThrow->_raise();
+  if (pd_sysExceptionToThrow)  pd_sysExceptionToThrow->_raise();
 
-  return pd_arguments;
+  return pd_cd.arguments();
 }
 
 
 CORBA::NamedValue_ptr
 RequestImpl::result()
 {
-  if( pd_sysExceptionToThrow )  pd_sysExceptionToThrow->_raise();
+  if (pd_sysExceptionToThrow)  pd_sysExceptionToThrow->_raise();
 
-  return pd_result;
+  return pd_cd.result();
 }
 
 
 CORBA::Environment_ptr
 RequestImpl::env()
 {
-  if( pd_sysExceptionToThrow )  pd_sysExceptionToThrow->_raise();
+  if (pd_sysExceptionToThrow)  pd_sysExceptionToThrow->_raise();
 
-  return pd_environment;
+  return pd_cd.environment();
 }
 
 
 CORBA::ExceptionList_ptr
 RequestImpl::exceptions()
 {
-  if( CORBA::is_nil(pd_exceptions) )
-    pd_exceptions = new ExceptionListImpl();
-
-  return pd_exceptions;
+  return pd_cd.exceptions();
 }
 
 
 CORBA::ContextList_ptr
 RequestImpl::contexts()
 {
-  if( CORBA::is_nil(pd_contexts) )
-    pd_contexts = new ContextListImpl();
-
-  return pd_contexts;
+  return pd_cd.contexts();
 }
 
 
 CORBA::Context_ptr
 RequestImpl::ctx() const
 {
-  return pd_context;
+  return pd_cd.context();
 }
 
 
@@ -250,84 +340,84 @@ RequestImpl::ctx(CORBA::Context_ptr context)
 		  BAD_PARAM_InvalidContext,
 		  CORBA::COMPLETED_NO);
 
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  pd_context = CORBA::Context::_duplicate(context);
+  pd_cd.context(context);
 }
 
 
 CORBA::Any&
 RequestImpl::add_in_arg()
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  return *(pd_arguments->add(CORBA::ARG_IN)->value());
+  return *(pd_cd.arguments()->add(CORBA::ARG_IN)->value());
 }
 
 
 CORBA::Any&
 RequestImpl::add_in_arg(const char* name)
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  return *(pd_arguments->add_item(name, CORBA::ARG_IN)->value());
+  return *(pd_cd.arguments()->add_item(name, CORBA::ARG_IN)->value());
 }
 
 
 CORBA::Any&
 RequestImpl::add_inout_arg()
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  return *(pd_arguments->add(CORBA::ARG_INOUT)->value());
+  return *(pd_cd.arguments()->add(CORBA::ARG_INOUT)->value());
 }
 
 
 CORBA::Any&
 RequestImpl::add_inout_arg(const char* name)
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  return *(pd_arguments->add_item(name, CORBA::ARG_INOUT)->value());
+  return *(pd_cd.arguments()->add_item(name, CORBA::ARG_INOUT)->value());
 }
 
 
 CORBA::Any&
 RequestImpl::add_out_arg()
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  return *(pd_arguments->add(CORBA::ARG_OUT)->value());
+  return *(pd_cd.arguments()->add(CORBA::ARG_OUT)->value());
 }
 
 
 CORBA::Any&
 RequestImpl::add_out_arg(const char* name)
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  return *(pd_arguments->add_item(name, CORBA::ARG_OUT)->value());
+  return *(pd_cd.arguments()->add_item(name, CORBA::ARG_OUT)->value());
 }
 
 
@@ -339,228 +429,173 @@ RequestImpl::set_return_type(CORBA::TypeCode_ptr tc)
 		  BAD_PARAM_InvalidTypeCode,
 		  CORBA::COMPLETED_NO);
 
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestConfiguredOutOfOrder,
 		  CORBA::COMPLETED_NO);
 
-  pd_result->value()->replace(tc, (void*)0);
+  pd_cd.result()->value()->replace(tc, (void*)0);
 }
 
 
 CORBA::Any&
 RequestImpl::return_value()
 {
-  if( pd_sysExceptionToThrow )  pd_sysExceptionToThrow->_raise();
+  if (pd_sysExceptionToThrow)  pd_sysExceptionToThrow->_raise();
 
-  return *(pd_result->value());
+  return *(pd_cd.result()->value());
 }
 
 
-class omni_RequestImpl_callDesc : public omniCallDescriptor
-{
-public:
-  inline omni_RequestImpl_callDesc(const char* op,
-				   size_t oplen,
-				   _CORBA_Boolean oneway,
-				   RequestImpl& impl) :
-    omniCallDescriptor(0,op,oplen,oneway,0,0,0), pd_impl(impl) {}
-
-  void marshalArguments(cdrStream& s) {
-    pd_impl.marshalArgs(s);
-  }
-
-  void unmarshalReturnedValues(cdrStream& s) {
-    pd_impl.unmarshalResults(s);
-  }
-
-  void userException(cdrStream& stream, IOP_C* iop_c, const char* repoId) {
-    CORBA::Boolean rc = pd_impl.unmarshalUserException(stream, repoId);
-    if (iop_c) iop_c->RequestCompleted(!rc);
-    if (!rc) {
-      OMNIORB_THROW(UNKNOWN, UNKNOWN_UserException, CORBA::COMPLETED_MAYBE);
-    }
-  }
-
-private:
-  RequestImpl&       pd_impl;
-};
-
-				    
 void
 RequestImpl::invoke()
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestAlreadySent,
 		  CORBA::COMPLETED_NO);
+
   try {
-
-    CORBA::ULong operation_len = strlen(pd_operation) + 1;
-    omniObjRef* o = pd_target->_PR_getobj();
-
-    omni_RequestImpl_callDesc call_desc(pd_operation,operation_len,0,*this);
-
-    o->_invoke(call_desc);
+    pd_target->_PR_getobj()->_invoke(pd_cd);
   }
-  // Either throw system exceptions, or store in pd_environment.
-  catch(CORBA::SystemException& ex){
-    INVOKE_DONE();
-    if( orbParameters::diiThrowsSysExceptions ) {
+  catch (CORBA::SystemException& ex) {
+    // Either throw system exceptions, or store in environment.
+    pd_state = RS_DONE;
+
+    if (orbParameters::diiThrowsSysExceptions) {
       pd_sysExceptionToThrow = CORBA::Exception::_duplicate(&ex);
       throw;
-    } else
-      pd_environment->exception(CORBA::Exception::_duplicate(&ex));
+    }
+    else
+      pd_cd.environment()->exception(CORBA::Exception::_duplicate(&ex));
   }
-  INVOKE_DONE();
-}
-
-
-void
-RequestImpl::deferred_invoke()
-{
-  OMNIORB_ASSERT(pd_state == RS_DEFERRED);
-  try {
-
-    CORBA::ULong operation_len = strlen(pd_operation) + 1;
-    omniObjRef* o = pd_target->_PR_getobj();
-
-    omni_RequestImpl_callDesc call_desc(pd_operation,operation_len,0,*this);
-
-    o->_invoke(call_desc);
-  }
-  // Either throw system exceptions, or store in pd_environment.
-  catch(CORBA::SystemException& ex){
-    INVOKE_DONE();
-    if( orbParameters::diiThrowsSysExceptions ) {
-      pd_sysExceptionToThrow = CORBA::Exception::_duplicate(&ex);
-      throw;
-    } else
-      pd_environment->exception(CORBA::Exception::_duplicate(&ex));
-  }
-  INVOKE_DONE();
+  pd_state = RS_DONE;
 }
 
 
 void
 RequestImpl::send_oneway()
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestAlreadySent,
 		  CORBA::COMPLETED_NO);
 
-  try{
-    CORBA::ULong operation_len = strlen(pd_operation) + 1;
-    omniObjRef* o = pd_target->_PR_getobj();
-
-    omni_RequestImpl_callDesc call_desc(pd_operation,operation_len,1,*this);
-
-    o->_invoke(call_desc);
+  try {
+    pd_cd.set_oneway(1);
+    pd_target->_PR_getobj()->_invoke(pd_cd);
   }
-  // Either throw system exceptions, or store in pd_environment.
-  catch(CORBA::SystemException& ex){
-    INVOKE_DONE();
-    if( orbParameters::diiThrowsSysExceptions ) {
+  catch(CORBA::SystemException& ex) {
+    // Either throw system exceptions, or store in pd_environment.
+    pd_state = RS_DONE;
+
+    if (orbParameters::diiThrowsSysExceptions) {
       pd_sysExceptionToThrow = CORBA::Exception::_duplicate(&ex);
       throw;
-    } else
-      pd_environment->exception(CORBA::Exception::_duplicate(&ex));
+    }
+    else {
+      pd_cd.environment()->exception(CORBA::Exception::_duplicate(&ex));
+    }
   }
-  INVOKE_DONE();
+  pd_state = RS_DONE;
 }
 
 
 void
 RequestImpl::send_deferred()
 {
-  if( pd_state != RS_READY )
+  if (pd_state != RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestAlreadySent,
 		  CORBA::COMPLETED_NO);
 
   pd_state = RS_DEFERRED;
-  pd_deferredRequest = new DeferredRequest(this);
-  orbAsyncInvoker->insert(pd_deferredRequest);
+  incrRefCount(); // Make sure Request lives until invocation completes
+
+  omniObjRef* o = pd_target->_PR_getobj();
+  pd_target->_PR_getobj()->_invoke_async(&pd_cd);
 }
 
 
 void
 RequestImpl::get_response()
 {
-  if( pd_state == RS_READY )
+  if (pd_state == RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestNotSentYet,
 		  CORBA::COMPLETED_NO);
 
-  if( !pd_deferredRequest )
+  if (pd_state == RS_DONE)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestIsSynchronous,
 		  CORBA::COMPLETED_NO);
 
-  if( pd_state == RS_DONE )
+  if (pd_state == RS_DONE_DEFERRED)
     OMNIORB_THROW(BAD_INV_ORDER,
-		  BAD_INV_ORDER_ResultAlreadyReceived,
-		  CORBA::COMPLETED_NO);
+                  BAD_INV_ORDER_ResultAlreadyReceived,
+                  CORBA::COMPLETED_NO);
 
-  if( pd_sysExceptionToThrow )  pd_sysExceptionToThrow->_raise();
+  if (pd_state == RS_POLLED_DONE_DEFERRED)
+    pd_state = RS_DONE_DEFERRED;
 
-  if( pd_state == RS_POLLED_DONE ) pd_state = RS_DONE;
+  if (pd_sysExceptionToThrow)  pd_sysExceptionToThrow->_raise();
 
-  if( pd_state == RS_DONE ) return;
+  if (pd_state == RS_DONE_DEFERRED)
+    return;
 
-  OMNIORB_ASSERT(pd_state == RS_DEFERRED);
+  pd_cd.waitForCallback();
+  pd_state = RS_DONE_DEFERRED;
+  omniAMI::DIIPollableImpl::_PD_instance._replyCollected();
 
-  pd_deferredRequest->get_response();
-  pd_sysExceptionToThrow = pd_deferredRequest->get_exception();
-  pd_deferredRequest->die();
-  pd_state = RS_DONE;
-  if( pd_sysExceptionToThrow )  pd_sysExceptionToThrow->_raise();
+  CORBA::Exception* ex = pd_cd.getException();
+  if (ex) {
+    // System exception occurred. Store it so later calls can rethrow
+    // it, then throw it immediately. User exceptions are handled by
+    // DIICallDescriptor::userException, so ex should only be a system
+    // exception.
+    pd_sysExceptionToThrow = CORBA::SystemException::_downcast(ex);
+    OMNIORB_ASSERT(pd_sysExceptionToThrow);
+    pd_sysExceptionToThrow->_raise();
+  }
 }
 
 
 CORBA::Boolean
 RequestImpl::poll_response()
 {
-  if( pd_state == RS_READY )
+  if (pd_state == RS_READY)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestNotSentYet,
 		  CORBA::COMPLETED_NO);
 
-  if( !pd_deferredRequest )
+  if (pd_state == RS_DONE)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_RequestIsSynchronous,
 		  CORBA::COMPLETED_NO);
 
-  if( pd_state == RS_DONE )
+  if (pd_state == RS_DONE_DEFERRED || pd_state == RS_POLLED_DONE_DEFERRED)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_ResultAlreadyReceived,
 		  CORBA::COMPLETED_NO);
 
-  if( pd_state == RS_POLLED_DONE )  return CORBA::Boolean(1);
+  if (!pd_cd.isCalledBack())
+    return 0;
 
-  OMNIORB_ASSERT(pd_state == RS_DEFERRED);
+  pd_state = RS_POLLED_DONE_DEFERRED;
+  omniAMI::DIIPollableImpl::_PD_instance._replyCollected();
 
-  CORBA::Boolean result = pd_deferredRequest->poll_response();
-
-  if( result ) {
-    pd_sysExceptionToThrow = pd_deferredRequest->get_exception();
-    pd_deferredRequest->die();
-    pd_state = RS_POLLED_DONE;
+  CORBA::Exception* ex = pd_cd.getException();
+  if (ex) {
+    pd_sysExceptionToThrow = CORBA::SystemException::_downcast(ex);
+    OMNIORB_ASSERT(pd_sysExceptionToThrow);
 
     // XXX Opengroup vsOrb tests for poll_response to raise an
     //     exception when the invocation results in a system exception.
-    if( orbParameters::diiThrowsSysExceptions ) {
-      if (pd_sysExceptionToThrow) pd_sysExceptionToThrow->_raise();
-    }
+    if (orbParameters::diiThrowsSysExceptions)
+      pd_sysExceptionToThrow->_raise();
   }
-  else {
-    omni_thread::yield();
-  }
-
-  return result;
+  return 1;
 }
-
 
 CORBA::Boolean
 RequestImpl::NP_is_nil() const
@@ -576,72 +611,6 @@ RequestImpl::NP_duplicate()
   return this;
 }
 
-
-void
-RequestImpl::marshalArgs(cdrStream& s)
-{
-  CORBA::ULong num_args = pd_arguments->count();
-
-  for( CORBA::ULong i = 0; i < num_args; i++ ){
-    CORBA::NamedValue_ptr arg = pd_arguments->item(i);
-    if( arg->flags() & CORBA::ARG_IN )
-      arg->value()->NP_marshalDataOnly(s);
-  }
-  if( !CORBA::is_nil(pd_contexts) ) {
-    ContextListImpl* context_list = (ContextListImpl*)
-      (CORBA::ContextList_ptr)pd_contexts;
-
-    CORBA::Context::marshalContext(pd_context, context_list->NP_list(),
-				   context_list->count(), s);
-  }
-}
-
-
-void
-RequestImpl::unmarshalResults(cdrStream& s)
-{
-  pd_result->value()->NP_unmarshalDataOnly(s);
-
-  CORBA::ULong num_args = pd_arguments->count();
-
-  for( CORBA::ULong i = 0; i < num_args; i++){
-    CORBA::NamedValue_ptr arg = pd_arguments->item(i);
-    if( arg->flags() & CORBA::ARG_OUT )
-      arg->value()->NP_unmarshalDataOnly(s);
-  }
-}
-
-
-CORBA::Boolean
-RequestImpl::unmarshalUserException(cdrStream& s, const char* repoId)
-{
-  CORBA::ULong exListLen = CORBA::is_nil(pd_exceptions) ?
-                                 0 : pd_exceptions->count();
-
-  // Search for a match in the exception list.
-  for( CORBA::ULong i = 0; i < exListLen; i++ ){
-    CORBA::TypeCode_ptr exType = pd_exceptions->item(i);
-
-    if( omni::strMatch(repoId, exType->id()) ){
-      // Unmarshal the exception into an Any.
-      CORBA::Any* newAny = new CORBA::Any(exType, 0);
-      try {
-	newAny->NP_unmarshalDataOnly(s);
-      }
-      catch(...) {
-	delete newAny;
-	throw;
-      }
-      // Encapsulate this in an UnknownUserException, which is
-      // placed into pd_environment.
-      CORBA::UnknownUserException* ex =
-	new CORBA::UnknownUserException(newAny);
-      pd_environment->exception(ex);
-      return 1;
-    }
-  }
-  return 0;
-}
 
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
@@ -760,8 +729,11 @@ Request::_duplicate(Request_ptr p)
     OMNIORB_THROW(BAD_PARAM,
 		  BAD_PARAM_InvalidRequest,
 		  CORBA::COMPLETED_NO);
-  if( !CORBA::is_nil(p) )  return p->NP_duplicate();
-  else     return _nil();
+
+  if (!CORBA::is_nil(p))
+    return p->NP_duplicate();
+  else
+    return _nil();
 }
 
 
@@ -770,9 +742,9 @@ CORBA::
 Request::_nil()
 {
   static omniNilRequest* _the_nil_ptr = 0;
-  if( !_the_nil_ptr ) {
+  if (!_the_nil_ptr) {
     omni::nilRefLock().lock();
-    if( !_the_nil_ptr ) {
+    if (!_the_nil_ptr) {
       _the_nil_ptr = new omniNilRequest;
       registerTrackedObject(_the_nil_ptr);
     }
@@ -781,6 +753,7 @@ Request::_nil()
   return _the_nil_ptr;
 }
 
+
 //////////////////////////////////////////////////////////////////////
 //////////////////////////// CORBA::Object ///////////////////////////
 //////////////////////////////////////////////////////////////////////
@@ -788,22 +761,23 @@ Request::_nil()
 void
 CORBA::release(CORBA::Request_ptr p)
 {
-  if( CORBA::Request::PR_is_valid(p) && !CORBA::is_nil(p) )
+  if (CORBA::Request::PR_is_valid(p) && !CORBA::is_nil(p))
     ((RequestImpl*)p)->decrRefCount();
 }
 
 
 void
-CORBA::Object::_create_request(CORBA::Context_ptr ctx,
-			       const char* operation,
-			       CORBA::NVList_ptr arg_list,
+CORBA::Object::_create_request(CORBA::Context_ptr    ctx,
+			       const char*           operation,
+			       CORBA::NVList_ptr     arg_list,
 			       CORBA::NamedValue_ptr result,
-			       CORBA::Request_out request,
-			       CORBA::Flags req_flags)
+			       CORBA::Request_out    request,
+			       CORBA::Flags          req_flags)
 {
-  if( _NP_is_pseudo() )  OMNIORB_THROW(NO_IMPLEMENT,
-				       NO_IMPLEMENT_DIIOnLocalObject,
-				       CORBA::COMPLETED_NO);
+  if (_NP_is_pseudo())
+    OMNIORB_THROW(NO_IMPLEMENT,
+                  NO_IMPLEMENT_DIIOnLocalObject,
+                  CORBA::COMPLETED_NO);
 
   // NB. req_flags is ignored - ref. CORBA 2.2 section 20.28
   if (!CORBA::Context::PR_is_valid(ctx))
@@ -828,18 +802,19 @@ CORBA::Object::_create_request(CORBA::Context_ptr ctx,
 
 
 void 
-CORBA::Object::_create_request(CORBA::Context_ptr ctx,
-                               const char* operation,
-			       CORBA::NVList_ptr arg_list,
-			       CORBA::NamedValue_ptr result,
+CORBA::Object::_create_request(CORBA::Context_ptr       ctx,
+                               const char*              operation,
+			       CORBA::NVList_ptr        arg_list,
+			       CORBA::NamedValue_ptr    result,
 			       CORBA::ExceptionList_ptr exceptions,
-			       CORBA::ContextList_ptr ctxlist,
-			       CORBA::Request_out request,
-			       CORBA::Flags req_flags)
+			       CORBA::ContextList_ptr   ctxlist,
+			       CORBA::Request_out       request,
+			       CORBA::Flags             req_flags)
 {
-  if( _NP_is_pseudo() )  OMNIORB_THROW(NO_IMPLEMENT,
-				       NO_IMPLEMENT_DIIOnLocalObject,
-				       CORBA::COMPLETED_NO);
+  if (_NP_is_pseudo())
+    OMNIORB_THROW(NO_IMPLEMENT,
+                  NO_IMPLEMENT_DIIOnLocalObject,
+                  CORBA::COMPLETED_NO);
 
   // NB. req_flags is ignored - ref. CORBA 2.2 section 20.28
   if (!CORBA::Context::PR_is_valid(ctx))
@@ -875,13 +850,15 @@ CORBA::Object::_create_request(CORBA::Context_ptr ctx,
 CORBA::Request_ptr
 CORBA::Object::_request(const char* operation) 
 {
-  if( _NP_is_pseudo() )  OMNIORB_THROW(NO_IMPLEMENT,
-				       NO_IMPLEMENT_DIIOnLocalObject,
-				       CORBA::COMPLETED_NO);
+  if (_NP_is_pseudo())
+    OMNIORB_THROW(NO_IMPLEMENT,
+                  NO_IMPLEMENT_DIIOnLocalObject,
+                  CORBA::COMPLETED_NO);
 
-  if( !operation )  OMNIORB_THROW(BAD_PARAM,
-				  BAD_PARAM_NullStringUnexpected,
-				  CORBA::COMPLETED_NO);
+  if (!operation)
+    OMNIORB_THROW(BAD_PARAM,
+                  BAD_PARAM_NullStringUnexpected,
+                  CORBA::COMPLETED_NO);
 
   return new RequestImpl(this, operation);
 }

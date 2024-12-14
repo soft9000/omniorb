@@ -18,49 +18,11 @@
 //  General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//  02111-1307, USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //   
 //   Expression evaluation functions
-
-// $Id$
-// $Log$
-// Revision 1.6.2.6  2001/10/17 16:48:33  dpg1
-// Minor error message tweaks
-//
-// Revision 1.6.2.5  2001/08/29 11:54:20  dpg1
-// Clean up const handling in IDL compiler.
-//
-// Revision 1.6.2.4  2001/03/13 10:32:11  dpg1
-// Fixed point support.
-//
-// Revision 1.6.2.3  2000/10/27 16:31:09  dpg1
-// Clean up of omniidl dependencies and types, from omni3_develop.
-//
-// Revision 1.6.2.2  2000/10/10 10:18:50  dpg1
-// Update omniidl front-end from omni3_develop.
-//
-// Revision 1.4.2.2  2000/08/07 15:34:36  dpg1
-// Partial back-port of long long from omni3_1_develop.
-//
-// Revision 1.4.2.1  2000/06/27 16:00:17  sll
-// Fixes to WIN 32 related build and compiler issues.
-//
-// Revision 1.4  2000/02/04 12:17:09  dpg1
-// Support for VMS.
-//
-// Revision 1.3  1999/11/02 17:07:26  dpg1
-// Changes to compile on Solaris.
-//
-// Revision 1.2  1999/10/29 10:01:31  dpg1
-// Nicer error reporting.
-//
-// Revision 1.1  1999/10/27 14:05:57  dpg1
-// *** empty log message ***
-//
 
 #include <idlexpr.h>
 #include <idlerr.h>
@@ -78,7 +40,7 @@ rt IdlExpr::fn() { \
 // Error functions
 
 EXPR_ERR(IdlLongVal, evalAsLongV, "an integer", IdlLongVal((IDL_ULong)1))
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 EXPR_ERR(IdlLongLongVal, evalAsLongLongV, "an integer",
          IdlLongLongVal((IDL_ULongLong)1))
 #endif
@@ -88,7 +50,7 @@ EXPR_ERR(IDL_Double,       evalAsDouble,     "a double",              1.0)
 EXPR_ERR(IDL_Boolean,      evalAsBoolean,    "a boolean",             0)
 EXPR_ERR(IDL_Char,         evalAsChar,       "a character",           '!')
 EXPR_ERR(const char*,      evalAsString,     "a string",              "!")
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 EXPR_ERR(IDL_LongDouble,   evalAsLongDouble, "a long double",         1.0)
 #endif
 EXPR_ERR(IDL_WChar,        evalAsWChar,      "a wide character",      '!')
@@ -165,7 +127,7 @@ IDL_Octet IdlExpr::evalAsOctet()
   }
   return v.u;
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IDL_LongLong IdlExpr::evalAsLongLong()
 {
   IdlLongLongVal v = evalAsLongLongV();
@@ -222,7 +184,7 @@ const IDL_WChar* DummyExpr::evalAsWString() { return EMPTY_WSTRING; }
 // Literals
 
 IdlLongVal IntegerExpr::evalAsLongV() {
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   if (value_ > 0xffffffff) {
     IdlError(file(), line(), "Integer literal is too large for unsigned long");
     return IdlLongVal((IDL_ULong)1);
@@ -230,7 +192,7 @@ IdlLongVal IntegerExpr::evalAsLongV() {
 #endif
   return IdlLongVal((IDL_ULong)value_);
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal IntegerExpr::evalAsLongLongV() {
   return IdlLongLongVal((IDL_ULongLong)value_);
 }
@@ -273,7 +235,7 @@ IDL_Float FloatExpr::evalAsFloat() {
 }
 IDL_Double FloatExpr::evalAsDouble() {
   IDL_Double   f = value_;
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   IdlFloatLiteral g = f;
   if (f != g)
     IdlWarning(file(), line(), "Loss of precision converting literal "
@@ -281,7 +243,7 @@ IDL_Double FloatExpr::evalAsDouble() {
 #endif
   return f;
 }
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 IDL_LongDouble FloatExpr::evalAsLongDouble() {
   return value_;
 }
@@ -322,11 +284,11 @@ IdlLongVal ConstExpr::evalAsLongV() {
   case IdlType::tk_ulong:  return IdlLongVal(IDL_ULong(c_->constAsULong()));
   case IdlType::tk_octet:  return IdlLongVal(IDL_ULong(c_->constAsOctet()));
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case IdlType::tk_longlong:
     {
       IDL_LongLong v = c_->constAsLongLong();
-      if (v < -0x80000000 || v > 0xffffffff) goto precision_error;
+      if (v < (-0x7fffffff) - 1 || v > 0xffffffff) goto precision_error;
       if (v >= 0)
 	return IdlLongVal(IDL_ULong(v));
       else
@@ -358,7 +320,7 @@ IdlLongVal ConstExpr::evalAsLongV() {
   return IdlLongVal(IDL_ULong(1));
 }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 
 IdlLongLongVal ConstExpr::evalAsLongLongV() {
   switch (c_->constKind()) {
@@ -395,7 +357,7 @@ IdlLongLongVal ConstExpr::evalAsLongLongV() {
     }
   }
 }
-#endif // HAS_LongLong
+#endif // OMNI_HAS_LongLong
 
 
 IDL_Float ConstExpr::evalAsFloat() {
@@ -408,7 +370,7 @@ IDL_Float ConstExpr::evalAsFloat() {
 #else
   case IdlType::tk_double:     r = (float)(double)c_->constAsDouble(); break;
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   case IdlType::tk_longdouble: r = c_->constAsLongDouble(); break;
 #endif
   default:
@@ -437,7 +399,7 @@ IDL_Double ConstExpr::evalAsDouble() {
   case IdlType::tk_float:      r = (double)(float)c_->constAsFloat(); break;
 #endif
   case IdlType::tk_double:     r = c_->constAsDouble();     break;
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   case IdlType::tk_longdouble: r = c_->constAsLongDouble(); break;
 #endif
   default:
@@ -456,7 +418,7 @@ IDL_Double ConstExpr::evalAsDouble() {
   return r;
 }
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 IDL_LongDouble ConstExpr::evalAsLongDouble() {
   IDL_LongDouble r;
 
@@ -481,7 +443,7 @@ IDL_LongDouble ConstExpr::evalAsLongDouble() {
   }
   return r;
 }
-#endif // HAS_LongDouble
+#endif // OMNI_HAS_LongDouble
 
 
 #define CONST_EXPR_EVAL(rt, eop, tk, cop, str, rv) \
@@ -551,7 +513,7 @@ IdlLongVal OrExpr::evalAsLongV() {
   else
     return IdlLongVal(IDL_ULong(a.u | b.u));
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal OrExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -573,7 +535,7 @@ IdlLongVal XorExpr::evalAsLongV() {
   else
     return IdlLongVal(IDL_ULong(a.u ^ b.u));
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal XorExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -595,7 +557,7 @@ IdlLongVal AndExpr::evalAsLongV() {
   else
     return IdlLongVal(IDL_ULong(a.u & b.u));
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal AndExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -625,7 +587,7 @@ IdlLongVal RShiftExpr::evalAsLongV() {
   else
     return IdlLongVal(IDL_ULong(a.u >> b.u));
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal RShiftExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -657,7 +619,7 @@ IdlLongVal LShiftExpr::evalAsLongV() {
   else
     return IdlLongVal(IDL_ULong(a.u << b.u));
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal LShiftExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -696,7 +658,7 @@ IdlLongVal ModExpr::evalAsLongV() {
   }
   return IdlLongVal(IDL_ULong(0)); // Never reach here
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal ModExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -758,7 +720,7 @@ IdlLongVal AddExpr::evalAsLongV() {
   return a;
 }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal AddExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -810,7 +772,7 @@ ret AddExpr::op() { \
 }
 ADD_EXPR_EVAL_F(IDL_Float,      evalAsFloat,      "float")
 ADD_EXPR_EVAL_F(IDL_Double,     evalAsDouble,     "double")
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 ADD_EXPR_EVAL_F(IDL_LongDouble, evalAsLongDouble, "long double")
 #endif
 
@@ -839,13 +801,13 @@ IdlLongVal SubExpr::evalAsLongV() {
       if (a.u >= b.u) return IdlLongVal(a.u - b.u);
       IDL_ULong mr = b.u - a.u;
       if (mr > 0x80000000) goto overflow;
-      return IdlLongVal(IDL_Long(-mr));
+      return IdlLongVal(-IDL_Long(mr));
     }
   case 1:
     {
       IDL_ULong mr = IDL_ULong(-a.s) + b.s;
       if (mr > 0x80000000) goto overflow;
-      return IdlLongVal(IDL_Long(-mr));
+      return IdlLongVal(-IDL_Long(mr));
     }
   case 2:
     {
@@ -865,7 +827,7 @@ IdlLongVal SubExpr::evalAsLongV() {
   return a;
 }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal SubExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -876,13 +838,13 @@ IdlLongLongVal SubExpr::evalAsLongLongV() {
       if (a.u >= b.u) return IdlLongLongVal(a.u - b.u);
       IDL_ULongLong mr = b.u - a.u;
       if (mr > _CORBA_LONGLONG_CONST(0x8000000000000000)) goto overflow;
-      return IdlLongLongVal(IDL_LongLong(-mr));
+      return IdlLongLongVal(-IDL_LongLong(mr));
     }
   case 1:
     {
       IDL_ULongLong mr = IDL_ULongLong(-a.s) + b.s;
       if (mr > _CORBA_LONGLONG_CONST(0x8000000000000000)) goto overflow;
-      return IdlLongLongVal(IDL_LongLong(-mr));
+      return IdlLongLongVal(-IDL_LongLong(mr));
     }
   case 2:
     {
@@ -917,7 +879,7 @@ ret SubExpr::op() { \
 }
 SUB_EXPR_EVAL_F(IDL_Float,      evalAsFloat,      "float")
 SUB_EXPR_EVAL_F(IDL_Double,     evalAsDouble,     "double")
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 SUB_EXPR_EVAL_F(IDL_LongDouble, evalAsLongDouble, "long double")
 #endif
 
@@ -973,7 +935,7 @@ IdlLongVal MultExpr::evalAsLongV() {
   return a;
 }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal MultExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -1025,7 +987,7 @@ ret MultExpr::op() { \
 }
 MULT_EXPR_EVAL_F(IDL_Float,      evalAsFloat,      "float")
 MULT_EXPR_EVAL_F(IDL_Double,     evalAsDouble,     "double")
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 MULT_EXPR_EVAL_F(IDL_LongDouble, evalAsLongDouble, "long double")
 #endif
 
@@ -1061,13 +1023,13 @@ IdlLongVal DivExpr::evalAsLongV() {
   case 1:
     {
       IDL_ULong mr = IDL_ULong(-a.s) / b.u;
-      return IdlLongVal(IDL_Long(-mr));
+      return IdlLongVal(-IDL_Long(mr));
     }
   case 2:
     {
       IDL_ULong mr = a.u / IDL_ULong(-b.s);
       if (mr > 0x80000000) goto overflow;
-      return IdlLongVal(IDL_Long(-mr));
+      return IdlLongVal(-IDL_Long(mr));
     }
   case 3:
     {
@@ -1080,7 +1042,7 @@ IdlLongVal DivExpr::evalAsLongV() {
   return a;
 }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal DivExpr::evalAsLongLongV() {
   IdlLongLongVal a = a_->evalAsLongLongV();
   IdlLongLongVal b = b_->evalAsLongLongV();
@@ -1098,13 +1060,13 @@ IdlLongLongVal DivExpr::evalAsLongLongV() {
   case 1:
     {
       IDL_ULongLong mr = IDL_ULongLong(-a.s) / b.u;
-      return IdlLongLongVal(IDL_LongLong(-mr));
+      return IdlLongLongVal(-IDL_LongLong(mr));
     }
   case 2:
     {
       IDL_ULongLong mr = a.u / IDL_ULongLong(-b.s);
       if (mr > _CORBA_LONGLONG_CONST(0x8000000000000000)) goto overflow;
-      return IdlLongLongVal(IDL_LongLong(-mr));
+      return IdlLongLongVal(-IDL_LongLong(mr));
     }
   case 3:
     {
@@ -1136,7 +1098,7 @@ ret DivExpr::op() { \
 }
 DIV_EXPR_EVAL_F(IDL_Float,      evalAsFloat,      "float")
 DIV_EXPR_EVAL_F(IDL_Double,     evalAsDouble,     "double")
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 DIV_EXPR_EVAL_F(IDL_LongDouble, evalAsLongDouble, "long double")
 #endif
 
@@ -1164,7 +1126,7 @@ IdlLongVal InvertExpr::evalAsLongV() {
   IdlLongVal e = e_->evalAsLongV();
   return IdlLongVal(~e.u);
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal InvertExpr::evalAsLongLongV() {
   IdlLongLongVal e = e_->evalAsLongLongV();
   return IdlLongLongVal(~e.u);
@@ -1181,11 +1143,11 @@ IdlLongVal MinusExpr::evalAsLongV() {
   else {
     if (e.u > 0x80000000)
       IdlError(file(), line(), "Result of unary minus overflows");
-    return IdlLongVal(IDL_Long(-e.u));
+    return IdlLongVal(-IDL_Long(e.u));
   }
 }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 IdlLongLongVal MinusExpr::evalAsLongLongV() {
   IdlLongLongVal e = e_->evalAsLongLongV();
 
@@ -1194,7 +1156,7 @@ IdlLongLongVal MinusExpr::evalAsLongLongV() {
   else {
     if (e.u > _CORBA_LONGLONG_CONST(0x8000000000000000))
       IdlError(file(), line(), "Result of unary minus overflows");
-    return IdlLongLongVal(IDL_LongLong(-e.u));
+    return IdlLongLongVal(-IDL_LongLong(e.u));
   }
 }
 #endif
@@ -1205,7 +1167,7 @@ ret MinusExpr::op() { \
 }
 MINUS_EXPR_EVAL(IDL_Float,      evalAsFloat)
 MINUS_EXPR_EVAL(IDL_Double,     evalAsDouble)
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 MINUS_EXPR_EVAL(IDL_LongDouble, evalAsLongDouble)
 #endif
 
@@ -1222,12 +1184,12 @@ ret PlusExpr::op() { \
   return e_->op(); \
 }
 PLUS_EXPR_EVAL(IdlLongVal,     evalAsLongV)
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 PLUS_EXPR_EVAL(IdlLongLongVal, evalAsLongLongV)
 #endif
 PLUS_EXPR_EVAL(IDL_Float,      evalAsFloat)
 PLUS_EXPR_EVAL(IDL_Double,     evalAsDouble)
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 PLUS_EXPR_EVAL(IDL_LongDouble, evalAsLongDouble)
 #endif
 PLUS_EXPR_EVAL(IDL_Fixed*,     evalAsFixed)

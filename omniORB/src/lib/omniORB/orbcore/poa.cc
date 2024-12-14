@@ -3,272 +3,28 @@
 // poa.cc                     Created on: 14/4/99
 //                            Author    : David Riddoch (djr)
 //
-//    Copyright (C) 2002-2009 Apasphere Ltd
+//    Copyright (C) 2002-2020 Apasphere Ltd
 //    Copyright (C) 1996-1999 AT&T Research Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Implementation of PortableServer::POA.
 //
-
-/*
-  $Log$
-  Revision 1.4.2.13  2009/01/13 14:11:00  dgrisby
-  When deactivating an object in a main thread policy POA, call
-  _remove_ref from the main thread.
-
-  Revision 1.4.2.12  2007/06/03 19:21:38  dgrisby
-  POAManager deactivate would not meet its detached object if all
-  objects were busy, leading to a hang in POA destruction.
-
-  Revision 1.4.2.11  2007/03/23 14:36:46  dgrisby
-  Use one etherealisation queue per POA, rather than one global one.
-  Thanks Teemu Torma.
-
-  Revision 1.4.2.10  2006/07/18 16:21:21  dgrisby
-  New experimental connection management extension; ORB core support
-  for it.
-
-  Revision 1.4.2.9  2005/11/29 13:33:35  dgrisby
-  INS POA leaked a reference to the Root POA. Thanks Dirk Siebnich.
-
-  Revision 1.4.2.8  2005/11/17 17:03:26  dgrisby
-  Merge from omni4_0_develop.
-
-  Revision 1.4.2.7  2005/11/09 12:22:17  dgrisby
-  Local interfaces support.
-
-  Revision 1.4.2.6  2005/05/22 12:39:43  dgrisby
-  Merge Mac OS X and POA fixes.
-
-  Revision 1.4.2.5  2005/04/14 00:03:56  dgrisby
-  New traceInvocationReturns and traceTime options; remove logf function.
-
-  Revision 1.4.2.4  2005/04/08 00:35:46  dgrisby
-  Merging again.
-
-  Revision 1.4.2.3  2005/01/13 21:55:56  dgrisby
-  Turn off -g debugging; suppress some compiler warnings.
-
-  Revision 1.4.2.2  2005/01/06 23:10:37  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.4.2.1  2003/03/23 21:02:07  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.2.2.37  2003/02/17 02:03:08  dgrisby
-  vxWorks port. (Thanks Michael Sturm / Acterna Eningen GmbH).
-
-  Revision 1.2.2.36  2002/11/08 17:26:26  dgrisby
-  Hang on shutdown with servant locators.
-
-  Revision 1.2.2.35  2002/11/08 01:20:46  dgrisby
-  Initialise oid prefix member in nil POA.
-
-  Revision 1.2.2.34  2002/10/14 15:16:20  dgrisby
-  Fix create_POA / destroy deadlock, unique persistent system ids.
-
-  Revision 1.2.2.33  2002/09/11 20:40:15  dgrisby
-  Call thread interceptors from etherealiser queue.
-
-  Revision 1.2.2.32  2002/08/16 17:47:40  dgrisby
-  Documentation, message updates. ORB tweaks to match docs.
-
-  Revision 1.2.2.31  2002/03/18 15:13:09  dpg1
-  Fix bug with old-style ORBInitRef in config file; look for
-  -ORBtraceLevel arg before anything else; update Windows registry
-  key. Correct error message.
-
-  Revision 1.2.2.30  2002/02/25 11:17:13  dpg1
-  Use tracedmutexes everywhere.
-
-  Revision 1.2.2.29  2002/02/13 17:39:58  dpg1
-  Don't put POA in DISCARDING state during destroy().
-
-  Revision 1.2.2.28  2002/02/11 14:47:03  dpg1
-  Bug in cleanup of nil POA.
-
-  Revision 1.2.2.27  2002/01/16 11:31:59  dpg1
-  Race condition in use of registerNilCorbaObject/registerTrackedObject.
-  (Reported by Teemu Torma).
-
-  Revision 1.2.2.26  2002/01/15 16:38:13  dpg1
-  On the road to autoconf. Dependencies refactored, configure.ac
-  written. No makefiles yet.
-
-  Revision 1.2.2.25  2001/11/13 14:11:45  dpg1
-  Tweaks for CORBA 2.5 compliance.
-
-  Revision 1.2.2.24  2001/11/08 16:33:52  dpg1
-  Local servant POA shortcut policy.
-
-  Revision 1.2.2.23  2001/11/06 16:52:47  dpg1
-  Minor bug with traceLevel >= 10.
-
-  Revision 1.2.2.22  2001/10/17 16:44:07  dpg1
-  Update DynAny to CORBA 2.5 spec, const Any exception extraction.
-
-  Revision 1.2.2.21  2001/09/20 09:27:44  dpg1
-  Remove assertion failure on exit if not all POAs are deleted.
-
-  Revision 1.2.2.20  2001/09/19 17:26:51  dpg1
-  Full clean-up after orb->destroy().
-
-  Revision 1.2.2.19  2001/08/21 11:02:18  sll
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.2.2.18  2001/08/20 10:43:57  sll
-  Fixed minor bug detected by MSVC++
-
-  Revision 1.2.2.17  2001/08/17 17:12:41  sll
-  Modularise ORB configuration parameters.
-
-  Revision 1.2.2.16  2001/08/17 15:00:48  dpg1
-  Fixes for pre-historic compilers.
-
-  Revision 1.2.2.15  2001/08/15 17:59:12  dpg1
-  Minor POA bugs.
-
-  Revision 1.2.2.14  2001/08/15 10:26:13  dpg1
-  New object table behaviour, correct POA semantics.
-
-  Revision 1.2.2.13  2001/08/03 17:41:24  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.2.2.12  2001/08/01 10:08:22  dpg1
-  Main thread policy.
-
-  Revision 1.2.2.11  2001/07/31 16:10:37  sll
-  Added GIOP BiDir support.
-
-  Revision 1.2.2.10  2001/06/29 16:24:48  dpg1
-  Support re-entrancy in single thread policy POAs.
-
-  Revision 1.2.2.9  2001/06/07 16:24:10  dpg1
-  PortableServer::Current support.
-
-  Revision 1.2.2.8  2001/05/31 16:18:14  dpg1
-  inline string matching functions, re-ordered string matching in
-  _ptrToInterface/_ptrToObjRef
-
-  Revision 1.2.2.7  2001/05/29 17:03:52  dpg1
-  In process identity.
-
-  Revision 1.2.2.6  2001/04/18 18:18:05  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.2.2.5  2000/11/15 17:47:58  dpg1
-  Typo in Monday's servant manager fix
-
-  Revision 1.2.2.4  2000/11/13 12:39:54  dpg1
-  djr's fix to exceptions in servant managers from omni3_develop
-
-  Revision 1.2.2.3  2000/11/09 12:27:58  dpg1
-  Huge merge from omni3_develop, plus full long long from omni3_1_develop.
-
-  Revision 1.2.2.2  2000/09/27 18:02:56  sll
-  Updated to use the new cdrStream abstraction.
-
-  Revision 1.2.2.1  2000/07/17 10:35:56  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.3  2000/07/13 15:25:56  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.1.2.21  2000/06/22 10:40:16  dpg1
-  exception.h renamed to exceptiondefs.h to avoid name clash on some
-  platforms.
-
-  Revision 1.1.2.20  2000/06/12 11:15:52  dpg1
-  Clarifying comment about TRANSIENT exceptions on exiting HOLDING
-  state.
-
-  Revision 1.1.2.19  2000/06/02 16:09:59  dpg1
-  If an object is deactivated while its POA is in the HOLDING state,
-  clients which were held now receive a TRANSIENT exception when the POA
-  becomes active again.
-
-  Revision 1.1.2.18  2000/05/05 18:59:36  dpg1
-  Back out last change, since it doesn't work.
-
-  Revision 1.1.2.17  2000/05/05 17:00:46  dpg1
-  INS POA now has the USE_SERVANT_MANAGER policy, with the small
-  exception that it raises OBJECT_NOT_EXIST rather than OBJ_ADAPTER if
-  no servant activator has been registered.
-
-  Revision 1.1.2.16  2000/04/27 10:51:39  dpg1
-  Interoperable Naming Service
-
-  Add magic INS POA.
-
-  Revision 1.1.2.15  2000/03/01 12:28:36  dpg1
-  find_POA() now correctly throws AdapterNonExistent if an
-  AdapterActivator fails to activate the POA.
-
-  Revision 1.1.2.14  2000/02/04 18:11:03  djr
-  Minor mods for IRIX (casting pointers to ulong instead of int).
-
-  Revision 1.1.2.13  2000/01/27 10:55:46  djr
-  Mods needed for powerpc_aix.  New macro OMNIORB_BASE_CTOR to provide
-  fqname for base class constructor for some compilers.
-
-  Revision 1.1.2.12  2000/01/20 11:51:36  djr
-  (Most) Pseudo objects now used omni::poRcLock for ref counting.
-  New assertion check OMNI_USER_CHECK.
-
-  Revision 1.1.2.11  2000/01/03 20:35:09  djr
-  Added check for POA being CORBA::release()d too many times.
-
-  Revision 1.1.2.10  1999/11/12 17:05:38  djr
-  Minor mods for hp-10.20 with aCC.
-
-  Revision 1.1.2.9  1999/10/29 13:18:18  djr
-  Changes to ensure mutexes are constructed when accessed.
-
-  Revision 1.1.2.8  1999/10/27 17:32:14  djr
-  omni::internalLock and objref_rc_lock are now pointers.
-
-  Revision 1.1.2.7  1999/10/21 12:34:06  djr
-  Removed duplicate include of exception.h.
-
-  Revision 1.1.2.6  1999/10/14 16:22:14  djr
-  Implemented logging when system exceptions are thrown.
-
-  Revision 1.1.2.5  1999/09/30 11:52:32  djr
-  Implemented use of AdapterActivators in POAs.
-
-  Revision 1.1.2.4  1999/09/28 10:54:34  djr
-  Removed pretty-printing of object keys from object adapters.
-
-  Revision 1.1.2.3  1999/09/24 17:11:14  djr
-  New option -ORBtraceInvocations and omniORB::traceInvocations.
-
-  Revision 1.1.2.2  1999/09/24 10:28:51  djr
-  Added POA_Helper and POA::the_children().
-
-  Revision 1.1.2.1  1999/09/22 14:27:00  djr
-  Major rewrite of orbcore to support POA.
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -309,13 +65,6 @@
 #  include <process.h>
 #endif
 
-#ifdef __atmos__
-#  include <kernel.h>
-#  include <timelib.h>
-#  include <sys/time.h>
-#endif
-
-
 #define POA_NAME_SEP            '\xff'
 #define POA_NAME_SEP_STR        "\xff"
 #define TRANSIENT_SUFFIX_SEP    '\xfe'
@@ -336,7 +85,7 @@ OMNI_NAMESPACE_BEGIN(omni)
 // to incarnate() are made by dispatch_to_sa(), but are synchronised
 // with the queue's activities.
 
-class omniServantActivatorTaskQueue : public omni_thread {
+class omniServantActivatorTaskQueue : public omniTask {
 public:
   class Task;
 
@@ -369,15 +118,7 @@ public:
     Task* pd_next;
   };
 
-  // Since this thread calls into application code, it must run both
-  // the thread interceptors -- to mark thread creation and assignment
-  // of the thread to do upcalls. run_undetached() trggers any
-  // createThread interceptors, and control reaches mid_run();
-  // mid_run() triggers any assignUpcallThread interceptors, and
-  // control reaches real_run(), which does the work.
-  virtual void* run_undetached(void*);
-  void mid_run();
-  void real_run();
+  void execute();
 
 private:
   omni_tracedmutex     pd_queue_lock;
@@ -392,12 +133,15 @@ omniServantActivatorTaskQueue::~omniServantActivatorTaskQueue() {}
 
 
 omniServantActivatorTaskQueue::omniServantActivatorTaskQueue()
-  : pd_cond(&pd_queue_lock),
+  : omniTask(omniTask::ImmediateDispatch, omniTask::ServerUpcall),
+    pd_queue_lock("omniServantActivatorTaskQueue::pd_queue_lock"),
+    pd_task_lock("omniServantActivatorTaskQueue::pd_task_lock"),
+    pd_cond(&pd_queue_lock, "omniServantActivatorTaskQueue::pd_cond"),
     pd_taskq(0),
     pd_taskqtail(0),
     pd_dying(0)
 {
-  start_undetached();
+  orbAsyncInvoker->insert(this);
 }
 
 
@@ -411,25 +155,38 @@ omniServantActivatorTaskQueue::insert(Task* t)
   int signal = !pd_taskq;
 
   t->pd_next = 0;
-  if( pd_taskq ) {
+  if (pd_taskq) {
     pd_taskqtail->pd_next = t;
     pd_taskqtail = t;
   }
   else
     pd_taskq = pd_taskqtail = t;
 
-  if( signal )  pd_cond.signal();
+  if (signal)  pd_cond.signal();
 }
 
 void
 omniServantActivatorTaskQueue::die()
 {
-  pd_queue_lock.lock();
-  pd_dying = 1;
-  int signal = !pd_taskq;
-  pd_queue_lock.unlock();
+  {
+    omni_tracedmutex_lock sync(pd_queue_lock);
+    pd_dying = 1;
+    pd_cond.signal();
 
-  if( signal )  pd_cond.signal();
+    omni_time_t deadline;
+    omni_thread::get_time(deadline, 60);
+
+    omniORB::logs(15, "Wait for ServantActivator task queue to finish...");
+    while (pd_dying != 2) {
+      if (pd_cond.timedwait(deadline) == 0) {
+        omniORB::logs(2, "Timed out waiting for ServantActivator task queue "
+                      "to finish.");
+        return;
+      }
+    }
+  }
+  omniORB::logs(15, "ServantActivator task queue finished.");
+  delete this;
 }
 
 OMNI_NAMESPACE_END(omni)
@@ -484,7 +241,7 @@ PortableServer::POA_Helper::release(POA_ptr p)
 void
 PortableServer::POA_Helper::duplicate(POA_ptr obj)
 {
-  if( !CORBA::is_nil(obj) )  obj->_NP_incrRefCount();
+  if (!CORBA::is_nil(obj))  obj->_NP_incrRefCount();
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -497,7 +254,7 @@ PortableServer::POA::~POA() {}
 PortableServer::POA_ptr
 PortableServer::POA::_duplicate(PortableServer::POA_ptr obj)
 {
-  if( !CORBA::is_nil(obj) )  obj->_NP_incrRefCount();
+  if (!CORBA::is_nil(obj))  obj->_NP_incrRefCount();
 
   return obj;
 }
@@ -506,11 +263,11 @@ PortableServer::POA::_duplicate(PortableServer::POA_ptr obj)
 PortableServer::POA_ptr
 PortableServer::POA::_narrow(CORBA::Object_ptr obj)
 {
-  if( CORBA::is_nil(obj) || !obj->_NP_is_pseudo() )  return _nil();
+  if (CORBA::is_nil(obj) || !obj->_NP_is_pseudo())  return _nil();
 
   POA_ptr p = (POA_ptr) obj->_ptrToObjRef(_PD_repoId);
 
-  if( p )  p->_NP_incrRefCount();
+  if (p)  p->_NP_incrRefCount();
 
   return p ? p : _nil();
 }
@@ -520,9 +277,9 @@ PortableServer::POA_ptr
 PortableServer::POA::_nil()
 {
   static omniOrbPOA* _the_nil_ptr = 0;
-  if( !_the_nil_ptr ) {
+  if (!_the_nil_ptr) {
     omni::nilRefLock().lock();
-    if( !_the_nil_ptr ) {
+    if (!_the_nil_ptr) {
       _the_nil_ptr = new omniOrbPOA();
       registerNilCorbaObject(_the_nil_ptr);
     }
@@ -631,26 +388,27 @@ PortableServer::POA::InvalidPolicy::operator<<= (cdrStream& _n)
 //////////////////////////////////////////////////////////////////////
 
 #define CHECK_NOT_NIL()  \
- if( _NP_is_nil() )  _CORBA_invoked_nil_pseudo_ref()
+ if (_NP_is_nil())  _CORBA_invoked_nil_pseudo_ref()
 
 #define CHECK_NOT_DYING()  \
- if( pd_dying )  OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_POANotInitialised, CORBA::COMPLETED_NO)
+ if (pd_dying)  OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_POANotInitialised, CORBA::COMPLETED_NO)
 
 #define CHECK_NOT_DESTROYED()  \
- if( pd_destroyed )  OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_POANotInitialised, CORBA::COMPLETED_NO)
+ if (pd_destroyed)  OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_POANotInitialised, CORBA::COMPLETED_NO)
 
 #define CHECK_NOT_NIL_OR_DESTROYED()  \
- if( _NP_is_nil() )  _CORBA_invoked_nil_pseudo_ref();  \
- if( pd_destroyed )  OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_POANotInitialised, CORBA::COMPLETED_NO)
+ if (_NP_is_nil())  _CORBA_invoked_nil_pseudo_ref();  \
+ if (pd_destroyed)  OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_POANotInitialised, CORBA::COMPLETED_NO)
 
 
 static void transfer_and_check_policies(omniOrbPOA::Policies& pout,
 					const CORBA::PolicyList& pin);
 
 
-static omni_tracedmutex     poa_lock;
+static omni_tracedmutex     poa_lock("poa_lock");
 
-static omni_tracedcondition adapteractivator_signal(&poa_lock);
+static omni_tracedcondition adapteractivator_signal(&poa_lock,
+						    "adapteractivator_signal");
 // Used to signal between threads when using an AdapterActivator
 // to create a child POA.
 
@@ -678,9 +436,8 @@ omniOrbPOA::~omniOrbPOA()
     delete [] pd_oidPrefix;
 
   if (pd_servant_activator_queue) {
-    void* v;
     pd_servant_activator_queue->die();
-    pd_servant_activator_queue->join(&v);
+    pd_servant_activator_queue = 0;
   }
 }
 
@@ -691,20 +448,21 @@ omniOrbPOA::create_POA(const char* adapter_name,
 		       const CORBA::PolicyList& policies)
 {
   CHECK_NOT_NIL();
-  if( !adapter_name_is_valid(adapter_name) )
+  if (!adapter_name_is_valid(adapter_name))
     OMNIORB_THROW(BAD_PARAM,BAD_PARAM_InvalidPOAName, CORBA::COMPLETED_NO);
 
   // Setup the default policies.
   Policies policy;
-  policy.threading = TP_ORB_CTRL;
-  policy.transient = 1;
-  policy.multiple_id = 0;
-  policy.user_assigned_id = 0;
-  policy.retain_servants = 1;
-  policy.req_processing = RPP_ACTIVE_OBJ_MAP;
-  policy.implicit_activation = 0;
+  policy.threading            = TP_ORB_CTRL;
+  policy.transient            = 1;
+  policy.multiple_id          = 0;
+  policy.user_assigned_id     = 0;
+  policy.retain_servants      = 1;
+  policy.req_processing       = RPP_ACTIVE_OBJ_MAP;
+  policy.implicit_activation  = 0;
   policy.bidirectional_accept = 0;
-  policy.local_shortcut = 0;
+  policy.local_shortcut       = 0;
+  policy.plain_object_keys    = 0;
 
   transfer_and_check_policies(policy, policies);
 
@@ -722,28 +480,28 @@ omniOrbPOA::create_POA(const char* adapter_name,
   // created.  Ref CORBA 2.3 11.3.8.4
 
   omniOrbPOA* p = find_child(adapter_name);
-  if( p ) {
+  if (p) {
     // Increment its refcount so it doesn't disappear from under us
     p->incrRefCount();
 
     p->pd_lock.lock();
 
-    if( p->pd_dying ) {
+    if (p->pd_dying) {
 
       // Temporarily release other locks
       pd_lock.unlock();
       poa_lock.unlock();
 
-      if( omniORB::trace(10) ) {
+      if (omniORB::trace(10)) {
 	omniORB::logger l;
 	l << "Waiting for destruction of POA(" << adapter_name << ").\n";
       }
-      while( p->pd_destroyed != 2 )  p->pd_deathSignal.wait();
+      while (p->pd_destroyed != 2)  p->pd_deathSignal.wait();
 
       p->pd_lock.unlock();
       p->decrRefCount();
 
-      if( omniORB::trace(10) ) {
+      if (omniORB::trace(10)) {
 	omniORB::logger l;
 	l << "Continuing the creation of POA(" << adapter_name << ").\n";
       }
@@ -762,7 +520,7 @@ omniOrbPOA::create_POA(const char* adapter_name,
     }
   }
 
-  if( CORBA::is_nil(manager) )
+  if (CORBA::is_nil(manager))
     manager = new omniOrbPOAManager();
   else
     PortableServer::POAManager::_duplicate(manager);
@@ -777,7 +535,7 @@ omniOrbPOA::create_POA(const char* adapter_name,
   // Need to ensure state is not changed from HOLDING if POA is
   // being created by an adapter activator.  So in this case do
   // not attach the new poa to the manager.
-  if( !is_adapteractivating_child(adapter_name) )
+  if (!is_adapteractivating_child(adapter_name))
     ((omniOrbPOAManager*) manager)->gain_poa(poa);
 
   poa->incrRefCount();
@@ -789,24 +547,24 @@ PortableServer::POA_ptr
 omniOrbPOA::find_POA(const char* adapter_name, CORBA::Boolean activate_it)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
-  if( !adapter_name )  OMNIORB_THROW(BAD_PARAM,BAD_PARAM_InvalidPOAName,
+  if (!adapter_name)  OMNIORB_THROW(BAD_PARAM,BAD_PARAM_InvalidPOAName,
 				     CORBA::COMPLETED_NO);
 
   omni_tracedmutex_lock sync(poa_lock);
 
   omniOrbPOA* poa = find_child(adapter_name);
 
-  if( poa && !poa->pd_dying ) {
+  if (poa && !poa->pd_dying) {
     poa->incrRefCount();
     return poa;
   }
 
-  if( !activate_it || !pd_adapterActivator )  throw AdapterNonExistent();
+  if (!activate_it || !pd_adapterActivator)  throw AdapterNonExistent();
 
   try {
     poa = attempt_to_activate_adapter(adapter_name);
   }
-#ifdef HAS_Cplusplus_catch_exception_by_base
+#ifdef OMNI_HAS_Cplusplus_catch_exception_by_base
   catch (CORBA::SystemException&)
 #else
   catch (...)
@@ -816,7 +574,7 @@ omniOrbPOA::find_POA(const char* adapter_name, CORBA::Boolean activate_it)
 		  CORBA::COMPLETED_NO);
   }
 
-  if( poa && !poa->pd_dying ) {
+  if (poa && !poa->pd_dying) {
     poa->incrRefCount();
     return poa;
   }
@@ -834,7 +592,7 @@ omniOrbPOA::destroy(CORBA::Boolean etherealize_objects,
 		    CORBA::Boolean wait_for_completion)
 {
   CHECK_NOT_NIL();
-  if( wait_for_completion ) {
+  if (wait_for_completion) {
 
     omniCurrent* current = omniCurrent::get();
     if (current && current->callDescriptor()) {
@@ -860,22 +618,22 @@ omniOrbPOA::destroy(CORBA::Boolean etherealize_objects,
   {
     pd_lock.lock();
 
-    if( pd_destroyed ) {
+    if (pd_destroyed) {
       pd_lock.unlock ();
       OMNIORB_THROW(OBJECT_NOT_EXIST,
 		    OBJECT_NOT_EXIST_POANotInitialised,
 		    CORBA::COMPLETED_NO);
     }
 
-    if( pd_dying ) {
+    if (pd_dying) {
       // Need to be able to handle multiple concurrent calls to
       // destroy.  If destruction is in progress and wait_f_c is
       // true, must wait to complete.  Otherwise can just return.
-      if( wait_for_completion ) {
+      if (wait_for_completion) {
 
 	incrRefCount();
 
-	while( pd_destroyed != 2 )  pd_deathSignal.wait();
+	while (pd_destroyed != 2)  pd_deathSignal.wait();
 
 	pd_lock.unlock ();
 	decrRefCount();
@@ -903,7 +661,7 @@ omniOrbPOA::destroy(CORBA::Boolean etherealize_objects,
 
     omni::internalLock->unlock();
 
-    if( old_state == (int) PortableServer::POAManager::HOLDING )
+    if (old_state == (int) PortableServer::POAManager::HOLDING)
       pd_signal->broadcast();
   }
 
@@ -912,7 +670,7 @@ omniOrbPOA::destroy(CORBA::Boolean etherealize_objects,
   //   o  create child POAs
   //   o  activate objects
 
-  if( omniORB::trace(10) ) {
+  if (omniORB::trace(10)) {
     omniORB::logger l;
     l << "Destroying POA(" << (char*) pd_name << ").\n";
   }
@@ -921,7 +679,7 @@ omniOrbPOA::destroy(CORBA::Boolean etherealize_objects,
   // We release the reference to the manager only when we are
   // deleted -- since we want <pd_manager> to be immutable.
 
-  if( wait_for_completion ) {
+  if (wait_for_completion) {
     do_destroy(etherealize_objects);
   }
   else {
@@ -929,7 +687,7 @@ omniOrbPOA::destroy(CORBA::Boolean etherealize_objects,
 
     void** args = new void* [2];
     args[0] = (omniOrbPOA*) this;
-    args[1] = (void*) (unsigned long) etherealize_objects;
+    args[1] = (void*) (omni::ptr_arith_t) etherealize_objects;
 
     try {
       (new omni_thread(destroyer_thread_fn, args))->start();
@@ -979,7 +737,7 @@ omniOrbPOA::the_children()
 
   poa_lock.lock();
   childer->length(pd_children.length());
-  for( CORBA::ULong i = 0; i < pd_children.length(); i++ ) {
+  for (CORBA::ULong i = 0; i < pd_children.length(); i++) {
     pd_children[i]->incrRefCount();
     (*childer)[i] = pd_children[i];
   }
@@ -1020,14 +778,14 @@ omniOrbPOA::the_activator(PortableServer::AdapterActivator_ptr aa)
 
   PortableServer::AdapterActivator_ptr neww =
     PortableServer::AdapterActivator::_duplicate(aa);
-  if( CORBA::is_nil(neww) )  neww = 0;
+  if (CORBA::is_nil(neww))  neww = 0;
 
   poa_lock.lock();
   PortableServer::AdapterActivator_ptr old = pd_adapterActivator;
   pd_adapterActivator = neww;
   poa_lock.unlock();
 
-  if( old )  CORBA::release(old);
+  if (old)  CORBA::release(old);
 }
 
 
@@ -1035,12 +793,12 @@ PortableServer::ServantManager_ptr
 omniOrbPOA::get_servant_manager()
 {
   CHECK_NOT_NIL_OR_DESTROYED();
-  if( pd_policy.req_processing != RPP_SERVANT_MANAGER )
+  if (pd_policy.req_processing != RPP_SERVANT_MANAGER)
     throw WrongPolicy();
 
   omni_tracedmutex_lock sync(pd_lock);
 
-  if( pd_policy.retain_servants )
+  if (pd_policy.retain_servants)
     return pd_servantActivator ?
       PortableServer::ServantActivator::_duplicate(pd_servantActivator)
       : PortableServer::ServantActivator::_nil();
@@ -1056,9 +814,9 @@ omniOrbPOA::set_servant_manager(PortableServer::ServantManager_ptr imgr)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( pd_policy.req_processing != RPP_SERVANT_MANAGER )
+  if (pd_policy.req_processing != RPP_SERVANT_MANAGER)
     throw WrongPolicy();
-  if( CORBA::is_nil(imgr) )
+  if (CORBA::is_nil(imgr))
     OMNIORB_THROW(OBJ_ADAPTER,OBJ_ADAPTER_NoServantManager,
 		  CORBA::COMPLETED_NO);
 
@@ -1067,27 +825,27 @@ omniOrbPOA::set_servant_manager(PortableServer::ServantManager_ptr imgr)
     omni::internalLock->lock();
     int islocal = imgr->_PR_getobj()->_identity()->inThisAddressSpace();
     omni::internalLock->unlock();
-    if( !islocal )  OMNIORB_THROW(BAD_PARAM,BAD_PARAM_LocalObjectExpected,
+    if (!islocal)  OMNIORB_THROW(BAD_PARAM,BAD_PARAM_LocalObjectExpected,
 				  CORBA::COMPLETED_NO);
   }
 
   omni_tracedmutex_lock sync(pd_lock);
 
-  if( pd_servantActivator || pd_servantLocator )
+  if (pd_servantActivator || pd_servantLocator)
     OMNIORB_THROW(BAD_INV_ORDER,
 		  BAD_INV_ORDER_ServantManagerAlreadySet,
 		  CORBA::COMPLETED_NO);
 
-  if( pd_policy.retain_servants ) {
+  if (pd_policy.retain_servants) {
     pd_servantActivator = PortableServer::ServantActivator::_narrow(imgr);
-    if( CORBA::is_nil(pd_servantActivator) ) {
+    if (CORBA::is_nil(pd_servantActivator)) {
       pd_servantActivator = 0;
       OMNIORB_THROW(OBJ_ADAPTER, OBJ_ADAPTER_NoServantManager,
 		    CORBA::COMPLETED_NO);
     }
   } else {
     pd_servantLocator = PortableServer::ServantLocator::_narrow(imgr);
-    if( CORBA::is_nil(pd_servantLocator) ) {
+    if (CORBA::is_nil(pd_servantLocator)) {
       pd_servantLocator = 0;
       OMNIORB_THROW(OBJ_ADAPTER, OBJ_ADAPTER_NoServantManager,
 		    CORBA::COMPLETED_NO);
@@ -1101,12 +859,12 @@ omniOrbPOA::get_servant()
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( pd_policy.req_processing != RPP_DEFAULT_SERVANT )
+  if (pd_policy.req_processing != RPP_DEFAULT_SERVANT)
     throw WrongPolicy();
 
   omni_tracedmutex_lock sync(pd_lock);
 
-  if( !pd_defaultServant )  throw NoServant();
+  if (!pd_defaultServant)  throw NoServant();
 
   pd_defaultServant->_add_ref();
   return pd_defaultServant;
@@ -1118,13 +876,13 @@ omniOrbPOA::set_servant(PortableServer::Servant p_servant)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( pd_policy.req_processing != RPP_DEFAULT_SERVANT )
+  if (pd_policy.req_processing != RPP_DEFAULT_SERVANT)
     throw WrongPolicy();
 
   omni_tracedmutex_lock l(pd_lock);
 
-  if( pd_defaultServant )  pd_defaultServant->_remove_ref();
-  if( p_servant         )  p_servant->_add_ref();
+  if (pd_defaultServant)  pd_defaultServant->_remove_ref();
+  if (p_servant        )  p_servant->_add_ref();
   pd_defaultServant = p_servant;
 }
 
@@ -1133,17 +891,17 @@ PortableServer::ObjectId*
 omniOrbPOA::activate_object(PortableServer::Servant p_servant)
 {
   CHECK_NOT_NIL();
-  if( !p_servant )
+  if (!p_servant)
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_InvalidServant, CORBA::COMPLETED_NO);
 
-  if( pd_policy.user_assigned_id || !pd_policy.retain_servants )
+  if (pd_policy.user_assigned_id || !pd_policy.retain_servants)
     throw WrongPolicy();
 
   omni_tracedmutex_lock sync(pd_lock);
   CHECK_NOT_DYING();
   omni_tracedmutex_lock sync2(*omni::internalLock);
 
-  if( !pd_policy.multiple_id ) {
+  if (!pd_policy.multiple_id) {
     // Check the servant's list of activations, to ensure that it
     // isn't already active in this POA.
 
@@ -1171,7 +929,7 @@ omniOrbPOA::activate_object(PortableServer::Servant p_servant)
     create_new_key(key, &oid, &idsize);
     entry = omniObjTable::newEntry(key);
 
-  } while( !entry );
+  } while (!entry);
 
   entry->setActive(p_servant, this);
 
@@ -1191,12 +949,12 @@ omniOrbPOA::activate_object_with_id(const PortableServer::ObjectId& oid,
 				    PortableServer::Servant p_servant)
 {
   CHECK_NOT_NIL();
-  if( !pd_policy.retain_servants )  throw WrongPolicy();
+  if (!pd_policy.retain_servants)  throw WrongPolicy();
 
-  if( !p_servant )
+  if (!p_servant)
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_InvalidServant, CORBA::COMPLETED_NO);
 
-  if( !pd_policy.user_assigned_id ) {
+  if (!pd_policy.user_assigned_id) {
 
     CORBA::ULong length_check;
 
@@ -1254,7 +1012,7 @@ omniOrbPOA::activate_object_with_id(const PortableServer::ObjectId& oid,
 		    CORBA::COMPLETED_NO);
     }
 
-    if( !pd_policy.multiple_id ) {
+    if (!pd_policy.multiple_id) {
       // Check the servant's list of activations, to ensure that it
       // isn't already active in this POA.
 
@@ -1295,14 +1053,14 @@ omniOrbPOA::deactivate_object(const PortableServer::ObjectId& oid)
   // until it is safe to continue.
 
   CHECK_NOT_NIL();
-  if( !pd_policy.retain_servants )  throw WrongPolicy();
+  if (!pd_policy.retain_servants)  throw WrongPolicy();
 
   omniObjKey key;
   create_key(key, oid.NP_data(), oid.length());
   CORBA::ULong hashv = omni::hash(key.key(), key.size());
 
   pd_lock.lock();
-  if( pd_destroyed ) {
+  if (pd_destroyed) {
     pd_lock.unlock();
     OMNIORB_THROW(OBJECT_NOT_EXIST,OBJECT_NOT_EXIST_POANotInitialised,
 		  CORBA::COMPLETED_NO);
@@ -1332,7 +1090,7 @@ omniOrbPOA::deactivate_object(const PortableServer::ObjectId& oid)
   entry->setDeactivating();
   entry->removeFromOAObjList();
 
-  if( entry->is_idle() ) {
+  if (entry->is_idle()) {
     detached_object();
     pd_lock.unlock();
     lastInvocationHasCompleted(entry);
@@ -1353,9 +1111,9 @@ CORBA::Object_ptr
 omniOrbPOA::create_reference(const char* intf)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
-  if( pd_policy.user_assigned_id )  throw WrongPolicy();
+  if (pd_policy.user_assigned_id)  throw WrongPolicy();
 
-  if( !intf )  intf = ""; // Null string is permitted.
+  if (!intf)  intf = ""; // Null string is permitted.
 
   omniObjKey key;
   omniLocalIdentity* id;
@@ -1371,7 +1129,7 @@ omniOrbPOA::create_reference(const char* intf)
     create_new_key(key);
     hash = omni::hash(key.key(), key.size());
     id = omniObjTable::locate(key.key(), key.size(), hash);
-  } while( id );
+  } while (id);
 
   pd_lock.unlock();
 
@@ -1392,7 +1150,7 @@ omniOrbPOA::create_reference_with_id(const PortableServer::ObjectId& oid,
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( !pd_policy.user_assigned_id ) {
+  if (!pd_policy.user_assigned_id) {
 
     CORBA::ULong length_check;
 
@@ -1405,7 +1163,7 @@ omniOrbPOA::create_reference_with_id(const PortableServer::ObjectId& oid,
       OMNIORB_THROW(BAD_PARAM, BAD_PARAM_InvalidSystemId, CORBA::COMPLETED_NO);
   }
 
-  if( !intf )  intf = ""; // Null string is permitted.
+  if (!intf)  intf = ""; // Null string is permitted.
 
   omniObjKey key;
   create_key(key, oid.NP_data(), oid.length());
@@ -1457,17 +1215,17 @@ PortableServer::ObjectId*
 omniOrbPOA::servant_to_id(PortableServer::Servant p_servant)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
-  if( !p_servant )
+  if (!p_servant)
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_InvalidServant, CORBA::COMPLETED_NO);
 
-  if( !( (pd_policy.req_processing == RPP_DEFAULT_SERVANT) ||
+  if (! ((pd_policy.req_processing == RPP_DEFAULT_SERVANT) ||
 	 (pd_policy.retain_servants && (!pd_policy.multiple_id ||
-					pd_policy.implicit_activation)) ) )
+					pd_policy.implicit_activation))))
     throw WrongPolicy();
 
   omni_tracedmutex_lock sync(pd_lock);
 
-  if( pd_policy.req_processing == RPP_DEFAULT_SERVANT ) {
+  if (pd_policy.req_processing == RPP_DEFAULT_SERVANT) {
 
     if (p_servant == pd_defaultServant) {
       omniCurrent* current = omniCurrent::get();
@@ -1489,7 +1247,7 @@ omniOrbPOA::servant_to_id(PortableServer::Servant p_servant)
 
   omni_tracedmutex_lock sync2(*omni::internalLock);
 
-  if( !pd_policy.multiple_id ) {
+  if (!pd_policy.multiple_id) {
     // Search the servants activations, to see if it is activated in
     // this poa.
 
@@ -1503,7 +1261,7 @@ omniOrbPOA::servant_to_id(PortableServer::Servant p_servant)
     }
   }
 
-  if( !pd_policy.implicit_activation ) throw ServantNotActive();
+  if (!pd_policy.implicit_activation) throw ServantNotActive();
 
   CHECK_NOT_DYING();
 
@@ -1519,7 +1277,7 @@ omniOrbPOA::servant_to_id(PortableServer::Servant p_servant)
     create_new_key(key, &oid, &idsize);
     entry = omniObjTable::newEntry(key);
 
-  } while( !entry );
+  } while (!entry);
 
   entry->setActive(p_servant, this);
 
@@ -1538,7 +1296,7 @@ CORBA::Object_ptr
 omniOrbPOA::servant_to_reference(PortableServer::Servant p_servant)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
-  if( !p_servant )
+  if (!p_servant)
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_InvalidServant, CORBA::COMPLETED_NO);
 
   omniCurrent* current = omniCurrent::get();
@@ -1559,14 +1317,14 @@ omniOrbPOA::servant_to_reference(PortableServer::Servant p_servant)
     // POA. It seems most sensible to carry on with the code below...
   }
 
-  if( !( pd_policy.retain_servants &&
-	 (!pd_policy.multiple_id || pd_policy.implicit_activation) ) )
+  if (! (pd_policy.retain_servants &&
+	 (!pd_policy.multiple_id || pd_policy.implicit_activation)))
     throw WrongPolicy();
 
   omni_tracedmutex_lock sync(pd_lock);
   omni_tracedmutex_lock sync2(*omni::internalLock);
 
-  if( !pd_policy.multiple_id ) {
+  if (!pd_policy.multiple_id) {
     // Search the servants identities, to see if it is
     // activated in this poa.
 
@@ -1592,7 +1350,7 @@ omniOrbPOA::servant_to_reference(PortableServer::Servant p_servant)
       }
     }
   }
-  if( !pd_policy.implicit_activation )  throw ServantNotActive();
+  if (!pd_policy.implicit_activation)  throw ServantNotActive();
   CHECK_NOT_DYING();
 
   // If we get here, then either the servant is not activated in
@@ -1608,7 +1366,7 @@ omniOrbPOA::servant_to_reference(PortableServer::Servant p_servant)
     create_new_key(key, &oid, &idsize);
     entry = omniObjTable::newEntry(key);
 
-  } while( !entry );
+  } while (!entry);
 
   entry->setActive(p_servant, this);
 
@@ -1631,13 +1389,13 @@ omniOrbPOA::reference_to_servant(CORBA::Object_ptr reference)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( CORBA::is_nil(reference) )
+  if (CORBA::is_nil(reference))
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_InvalidObjectRef, CORBA::COMPLETED_NO);
 
-  if( reference->_NP_is_pseudo() )  throw WrongAdapter();
+  if (reference->_NP_is_pseudo())  throw WrongAdapter();
 
-  if( !pd_policy.retain_servants &&
-      pd_policy.req_processing != RPP_DEFAULT_SERVANT )
+  if (!pd_policy.retain_servants &&
+      pd_policy.req_processing != RPP_DEFAULT_SERVANT)
     throw WrongPolicy();
 
   omni_tracedmutex_lock sync(pd_lock);
@@ -1651,7 +1409,7 @@ omniOrbPOA::reference_to_servant(CORBA::Object_ptr reference)
       memcmp(id->key(), (const char*) pd_poaId, pd_poaIdSize))
     throw WrongAdapter();
 
-  if( pd_policy.retain_servants ) {
+  if (pd_policy.retain_servants) {
     omniObjTableEntry* entry = omniObjTableEntry::downcast(id);
 
     if (!entry) {
@@ -1676,14 +1434,14 @@ omniOrbPOA::reference_to_servant(CORBA::Object_ptr reference)
     }
   }
 
-  if( pd_policy.req_processing == RPP_DEFAULT_SERVANT && pd_defaultServant ) {
+  if (pd_policy.req_processing == RPP_DEFAULT_SERVANT && pd_defaultServant) {
     pd_defaultServant->_add_ref();
     return pd_defaultServant;
   }
 
   throw ObjectNotActive();
 
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1694,10 +1452,10 @@ omniOrbPOA::reference_to_id(CORBA::Object_ptr reference)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( CORBA::is_nil(reference) )
+  if (CORBA::is_nil(reference))
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_InvalidObjectRef, CORBA::COMPLETED_NO);
 
-  if( reference->_NP_is_pseudo() )  throw WrongAdapter();
+  if (reference->_NP_is_pseudo())  throw WrongAdapter();
 
   omni_tracedmutex_lock sync(*omni::internalLock);
 
@@ -1718,11 +1476,11 @@ omniOrbPOA::id_to_servant(const PortableServer::ObjectId& oid)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( !pd_policy.retain_servants &&
-      pd_policy.req_processing != RPP_DEFAULT_SERVANT )
+  if (!pd_policy.retain_servants &&
+      pd_policy.req_processing != RPP_DEFAULT_SERVANT)
     throw WrongPolicy();
 
-  if( pd_policy.retain_servants ) {
+  if (pd_policy.retain_servants) {
 
     omniObjKey key;
     create_key(key, oid.NP_data(), oid.length());
@@ -1733,26 +1491,26 @@ omniOrbPOA::id_to_servant(const PortableServer::ObjectId& oid)
 							  key.size(),
 							  hash, 0);
     PortableServer::Servant s = 0;
-    if( entry ) {
+    if (entry) {
       OMNIORB_ASSERT(entry->servant());
       s = DOWNCAST(entry->servant());
       s->_add_ref();
     }
     omni::internalLock->unlock();
-    if( s )  return s;
+    if (s)  return s;
   }
 
   omni_tracedmutex_lock sync(pd_lock);
 
-  if( pd_policy.req_processing == RPP_DEFAULT_SERVANT &&
-      pd_defaultServant != 0 ) {
+  if (pd_policy.req_processing == RPP_DEFAULT_SERVANT &&
+      pd_defaultServant != 0) {
     pd_defaultServant->_add_ref();
     return pd_defaultServant;
   }
 
   throw ObjectNotActive();
 
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1763,7 +1521,7 @@ omniOrbPOA::id_to_reference(const PortableServer::ObjectId& oid)
 {
   CHECK_NOT_NIL_OR_DESTROYED();
 
-  if( !pd_policy.retain_servants )
+  if (!pd_policy.retain_servants)
     throw WrongPolicy();
 
   omniObjKey key;
@@ -1817,7 +1575,7 @@ omniOrbPOA::id()
 _CORBA_Boolean
 omniOrbPOA::_non_existent()
 {
-  if( _NP_is_nil() )  _CORBA_invoked_nil_pseudo_ref();
+  if (_NP_is_nil())  _CORBA_invoked_nil_pseudo_ref();
 
   omni_tracedmutex_lock sync(pd_lock);
 
@@ -1830,9 +1588,9 @@ omniOrbPOA::_ptrToObjRef(const char* repoId)
 {
   OMNIORB_ASSERT(repoId);
 
-  if( omni::ptrStrMatch(repoId, PortableServer::POA::_PD_repoId) )
+  if (omni::ptrStrMatch(repoId, PortableServer::POA::_PD_repoId))
     return (PortableServer::POA_ptr) this;
-  if( omni::ptrStrMatch(repoId, CORBA::Object::_PD_repoId) )
+  if (omni::ptrStrMatch(repoId, CORBA::Object::_PD_repoId))
     return (CORBA::Object_ptr) this;
 
   return 0;
@@ -1874,7 +1632,7 @@ omniOrbPOA::decrRefCount()
   omni::poRcLock->lock();
   int done = --pd_refCount > 0;
   omni::poRcLock->unlock();
-  if( done )  return;
+  if (done)  return;
 
   OMNIORB_USER_CHECK(pd_destroyed == 2);
   OMNIORB_USER_CHECK(pd_refCount == 0);
@@ -1882,9 +1640,9 @@ omniOrbPOA::decrRefCount()
   // POA reference too many times.
 
   CORBA::release(pd_manager);
-  if( pd_adapterActivator )  CORBA::release(pd_adapterActivator);
-  if( pd_servantActivator )  CORBA::release(pd_servantActivator);
-  if( pd_servantLocator )    CORBA::release(pd_servantLocator);
+  if (pd_adapterActivator)  CORBA::release(pd_adapterActivator);
+  if (pd_servantActivator)  CORBA::release(pd_servantActivator);
+  if (pd_servantLocator)    CORBA::release(pd_servantLocator);
 
   delete this;
 }
@@ -1901,7 +1659,7 @@ omniOrbPOA::dispatch(omniCallHandle& handle, omniLocalIdentity* id)
 
   enterAdapter();
 
-  if( pd_rq_state != (int) PortableServer::POAManager::ACTIVE )
+  if (pd_rq_state != (int) PortableServer::POAManager::ACTIVE)
     synchronise_request(id);
 
   startRequest();
@@ -1918,7 +1676,7 @@ omniOrbPOA::dispatch(omniCallHandle& handle, omniLocalIdentity* id)
       handle.mainThread(pd_main_thread_sync.mu, pd_main_thread_sync.cond);
   }
 
-  if( omniORB::traceInvocations ) {
+  if (omniORB::traceInvocations) {
     omniORB::logger l;
     l << "Dispatching "
       << (handle.call_desc() ? "in process" : "remote")
@@ -1934,7 +1692,7 @@ omniOrbPOA::dispatch(omniCallHandle& handle, omniLocalIdentity* id)
 
     handle.upcall(id->servant(), *handle.call_desc());
 
-    if( omniORB::traceInvocationReturns ) {
+    if (omniORB::traceInvocationReturns) {
       omniORB::logger l;
       l << "Return from in process call '" << handle.operation_name()
 	<< "' to: " << id << '\n';
@@ -1943,15 +1701,15 @@ omniOrbPOA::dispatch(omniCallHandle& handle, omniLocalIdentity* id)
   }
 
   // Dispatch through the servant's _dispatch() function.
-  if( !id->servant()->_dispatch(handle) ) {
-    if( !id->servant()->omniServant::_dispatch(handle) ) {
+  if (!id->servant()->_dispatch(handle)) {
+    if (!id->servant()->omniServant::_dispatch(handle)) {
       handle.SkipRequestBody();
       OMNIORB_THROW(BAD_OPERATION,
 		    BAD_OPERATION_UnRecognisedOperationName,
 		    CORBA::COMPLETED_NO);
     }
   }
-  if( omniORB::traceInvocationReturns ) {
+  if (omniORB::traceInvocationReturns) {
     omniORB::logger l;
     l << "Return from "
       << (handle.call_desc() ? "in process" : "remote")
@@ -1973,7 +1731,7 @@ omniOrbPOA::dispatch(omniCallHandle& handle,
   handle.poa(this);
 
   // Check that the key is the right size (if system generated).
-  if( !pd_policy.user_assigned_id ) {
+  if (!pd_policy.user_assigned_id) {
     int length_check;
 
     if (!pd_policy.transient && poaUniquePersistentSystemIds)
@@ -1987,15 +1745,64 @@ omniOrbPOA::dispatch(omniCallHandle& handle,
 		    CORBA::COMPLETED_NO);
     }
   }
-  switch( pd_policy.req_processing ) {
+  switch (pd_policy.req_processing) {
   case RPP_ACTIVE_OBJ_MAP:
     {
-      omni_tracedmutex_lock sync(*omni::internalLock);
-      switch (pd_rq_state) {
+      omni::internalLock->lock();
+
+      // To have reached here, the object did not exist when we first
+      // looked for it. It may have been activated by now. If we are
+      // HOLDING, wait in case the object is activated while held...
+      
+      while (pd_rq_state == (int) PortableServer::POAManager::HOLDING) {
+        if (omniORB::trace(15)) {
+          omniORB::logger l;
+          l << "POA(" << (char*)pd_name << ") in HOLDING state; waiting...\n";
+        }
+        if (orbParameters::poaHoldRequestTimeout) {
+          unsigned long sec, nsec;
+          omni_thread::get_time(
+            &sec, &nsec,
+            orbParameters::poaHoldRequestTimeout/1000,
+            (orbParameters::poaHoldRequestTimeout%1000)*1000000);
+
+          if (!pd_signal->timedwait(sec, nsec)) {
+            omni::internalLock->unlock();
+            if (orbParameters::throwTransientOnTimeOut) {
+              OMNIORB_THROW(TRANSIENT,
+                            TRANSIENT_CallTimedout,
+                            CORBA::COMPLETED_NO);
+            }
+            else {
+              OMNIORB_THROW(TIMEOUT,
+                            TIMEOUT_CallTimedOutOnServer,
+                            CORBA::COMPLETED_NO);
+            }
+          }
+        }
+        else {
+          pd_signal->wait();
+        }
+      }
+
+      // Is there now an active object?
+      CORBA::ULong       hash = omni::hash(key, keysize);
+      omniLocalIdentity* id   = omniObjTable::locateActive(key, keysize,
+                                                           hash, 1);
+      if (id) {
+        id->dispatch(handle);
+
+        // omni::internalLock has been released.
+        return;
+      }
+
+      int rq_state = pd_rq_state;
+
+      omni::internalLock->unlock();
+
+      switch (rq_state) {
       case (int) PortableServer::POAManager::HOLDING:
-	// *** We should block here until we leave the HOLDING state,
-	// then check if the object now exists. For now we fall
-	// through as if ACTIVE...
+        OMNIORB_ASSERT(0);
 	  
       case (int) PortableServer::POAManager::ACTIVE:
 	OMNIORB_THROW(OBJECT_NOT_EXIST,
@@ -2020,10 +1827,10 @@ omniOrbPOA::dispatch(omniCallHandle& handle,
     break;
 
   case RPP_SERVANT_MANAGER:
-    if( pd_policy.retain_servants )  dispatch_to_sa(handle, key, keysize);
+    if (pd_policy.retain_servants)  dispatch_to_sa(handle, key, keysize);
     else                             dispatch_to_sl(handle, key, keysize);
     break;
-  };
+  }
 }
 
 
@@ -2036,7 +1843,7 @@ omniOrbPOA::dispatch(omniCallDescriptor& call_desc, omniLocalIdentity* id)
 
   enterAdapter();
 
-  if( pd_rq_state != (int) PortableServer::POAManager::ACTIVE )
+  if (pd_rq_state != (int) PortableServer::POAManager::ACTIVE)
     synchronise_request(id);
 
   startRequest();
@@ -2047,7 +1854,7 @@ omniOrbPOA::dispatch(omniCallDescriptor& call_desc, omniLocalIdentity* id)
 			   pd_policy.threading != TP_SINGLE_THREAD,
 			   pd_policy.threading != TP_SINGLE_THREAD);
 
-  if( omniORB::traceInvocations ) {
+  if (omniORB::traceInvocations) {
     omniORB::logger l;
     l << "Dispatching local call \'" << call_desc.op() << "\' to "
       << id << '\n';
@@ -2063,7 +1870,7 @@ omniOrbPOA::dispatch(omniCallDescriptor& call_desc, omniLocalIdentity* id)
       handle.localId(id);
       handle.mainThread(pd_main_thread_sync.mu, pd_main_thread_sync.cond);
       handle.upcall(id->servant(), call_desc);
-      if( omniORB::traceInvocationReturns ) {
+      if (omniORB::traceInvocationReturns) {
 	omniORB::logger l;
 	l << "Return from local call \'" << call_desc.op() << "\' to "
 	  << id << '\n';
@@ -2084,7 +1891,7 @@ omniOrbPOA::dispatch(omniCallDescriptor& call_desc, omniLocalIdentity* id)
   call_desc.poa(this);
   _OMNI_NS(poaCurrentStackInsert) insert(&call_desc);
   call_desc.doLocalCall(id->servant());
-  if( omniORB::traceInvocationReturns ) {
+  if (omniORB::traceInvocationReturns) {
     omniORB::logger l;
     l << "Return from local call \'" << call_desc.op() << "\' to "
       << id << '\n';
@@ -2095,7 +1902,7 @@ omniOrbPOA::dispatch(omniCallDescriptor& call_desc, omniLocalIdentity* id)
 int
 omniOrbPOA::objectExists(const _CORBA_Octet*, int)
 {
-  if( pd_policy.req_processing == RPP_ACTIVE_OBJ_MAP )
+  if (pd_policy.req_processing == RPP_ACTIVE_OBJ_MAP)
     return 0;
 
   pd_lock.lock();
@@ -2107,7 +1914,7 @@ omniOrbPOA::objectExists(const _CORBA_Octet*, int)
 
 // Task to release servant reference in main thread policy POAs.
 
-#ifdef HAS_Cplusplus_Namespace
+#ifdef OMNI_HAS_Cplusplus_Namespace
 namespace {
 #endif
   class RemoveRefTask : public omniTask {
@@ -2115,7 +1922,8 @@ namespace {
     inline RemoveRefTask(PortableServer::Servant servant)
       : omniTask(omniTask::DedicatedThread),
 	pd_servant(servant),
-	pd_cond(&pd_mu)
+	pd_mu("RemoveRefTask::pd_mu"),
+	pd_cond(&pd_mu, "RemoveRefTask::pd_cond")
     {
       if (omniORB::trace(25)) {
 	omniORB::logger l;
@@ -2137,7 +1945,7 @@ namespace {
     omni_tracedcondition    pd_cond;
   };
 
-#ifdef HAS_Cplusplus_Namespace
+#ifdef OMNI_HAS_Cplusplus_Namespace
 }
 #endif
 
@@ -2156,7 +1964,7 @@ RemoveRefTask::execute()
   catch (...) {
     if (omniORB::trace(1)) {
       omniORB::logger log;
-      log << "ERROR: call to _remove_ref on servant " << (void*)pd_servant
+      log << "Error: call to _remove_ref on servant " << (void*)pd_servant
 	  << " threw an exception.\n";
     }
   }
@@ -2197,7 +2005,7 @@ omniOrbPOA::lastInvocationHasCompleted(omniLocalIdentity* id)
     return;
   }
 
-  if( omniORB::trace(15) ) {
+  if (omniORB::trace(15)) {
     omniORB::logger l;
     l << "POA(" << (char*) pd_name << ") etherealising object "
       << entry <<".\n"
@@ -2210,40 +2018,28 @@ omniOrbPOA::lastInvocationHasCompleted(omniLocalIdentity* id)
 
   PortableServer::ServantActivator_ptr sa = 0;
 
-  // This lock _could_ go inside the body of the 'if' below, but I want
-  // to ensure that we take this lock no matter what.  The reason is to
-  // ensure that detached_object() is called (in deactivate_object())
-  // before met_detached_object() (below).  Otherwise we get a nasty
-  // race ...
-  pd_lock.lock();
+  // We must take pd_lock both to protect pd_servantActivator and to
+  // ensure synchronisation with a thread in deactivate_object().
+  // Otherwise we could call met_detached_object() below before
+  // deactivate_object() has called detached_object().
 
-  if( (pd_policy.req_processing == RPP_SERVANT_MANAGER &&
-       pd_policy.retain_servants) || pd_dying ) {
+  {
+    omni_tracedmutex_lock sync(pd_lock);
 
-    // The omniLocalIdentity still holds a reference to us, and
-    // we hold a reference to the servant activator, so we don't
-    // need to grab a reference to pd_servantActivator here.
-    // (since it is also immutable once set).
-    sa = pd_servantActivator;
+    if (pd_policy.req_processing == RPP_SERVANT_MANAGER &&
+        pd_policy.retain_servants) {
 
-    if( pd_dying && !pd_destroyed ) {
-      // We cannot etherealise until apparent destruction is complete.
-      // Wait for apparent destruction.
-      if (omniORB::trace(25)) {
-	omniORB::logger l;
-	l << "Waiting for destruction of POA before etherealising "
-	  << entry << ".\n";
-      }
-      while( !pd_destroyed )  pd_deathSignal.wait();
-      omniORB::logs(25, "POA destroyed; continuing with etherealisation.");
+      // The omniLocalIdentity still holds a reference to us, and
+      // we hold a reference to the servant activator, so we don't
+      // need to grab a reference to pd_servantActivator here.
+      // (since it is also immutable once set).
+      sa = pd_servantActivator;
     }
   }
 
-  pd_lock.unlock();
-
   PortableServer::Servant servant = DOWNCAST(id->servant());
 
-  if( sa ) {
+  if (sa) {
     // Delegate etherealisation to a separate thread.
     add_object_to_etherealisation_queue(entry, sa, 0, 1);
   }
@@ -2270,7 +2066,7 @@ omniOrbPOA::lastInvocationHasCompleted(omniLocalIdentity* id)
 	// we swallow it here.
 	if (omniORB::trace(1)) {
 	  omniORB::logger log;
-	  log << "ERROR: call to _remove_ref on servant " << (void*)servant
+	  log << "Error: call to _remove_ref on servant " << (void*)servant
 	      << " threw an exception.\n";
 	}
       }
@@ -2286,11 +2082,11 @@ omniOrbPOA::lastInvocationHasCompleted(omniLocalIdentity* id)
 static void generateUniqueId(CORBA::Octet* k);
 
 
-omniOrbPOA::omniOrbPOA(const char* name,
-		       omniOrbPOAManager* manager,
-		       const Policies& policies,
+omniOrbPOA::omniOrbPOA(const char*              name,
+		       omniOrbPOAManager*       manager,
+		       const Policies&          policies,
 		       const CORBA::PolicyList& policy_list,
-		       omniOrbPOA* parent)
+		       omniOrbPOA*              parent)
   : OMNIORB_BASE_CTOR(PortableServer::)POA(0),
     pd_destroyed(0),
     pd_dying(0),
@@ -2302,7 +2098,8 @@ omniOrbPOA::omniOrbPOA(const char* name,
     pd_defaultServant(0),
     pd_rq_state(PortableServer::POAManager::HOLDING),
     pd_policy_list(policy_list),
-    pd_deathSignal(&pd_lock),
+    pd_lock("omniOrbPOA::pd_lock"),
+    pd_deathSignal(&pd_lock, "omniOrbPOA::pd_deathSignal"),
     pd_oidIndex(0),
     pd_activeObjList(0),
     pd_oidPrefix(0),
@@ -2311,51 +2108,49 @@ omniOrbPOA::omniOrbPOA(const char* name,
   OMNIORB_ASSERT(name);
   OMNIORB_ASSERT(manager);
 
-  pd_name = name;
+  pd_name    = name;
   pd_manager = manager;
 
-  if (pd_parent == (omniOrbPOA*)1) {
-    // This is the magic INS POA
-    OMNIORB_ASSERT(theRootPOA);
-    theRootPOA->incrRefCount();
-    pd_parent = theRootPOA;
-
-    int fnlen   = strlen(pd_parent->pd_fullname) + strlen(name) + 1;
+  if (pd_parent) {
+    int fnlen   = strlen(parent->pd_fullname) + strlen(name) + 1;
     pd_fullname = _CORBA_String_helper::alloc(fnlen);
-    strcpy(pd_fullname, pd_parent->pd_fullname);
-    strcat(pd_fullname, POA_NAME_SEP_STR);
-    strcat(pd_fullname, name);
 
-    pd_poaIdSize = 0;
-    pd_poaId     = (const char*)"";
-  }
-  else if( pd_parent ) {
-    int fnlen = strlen(parent->pd_fullname) + strlen(name) + 1;
-    pd_fullname = _CORBA_String_helper::alloc(fnlen);
     strcpy(pd_fullname, parent->pd_fullname);
     strcat(pd_fullname, POA_NAME_SEP_STR);
     strcat(pd_fullname, name);
 
-    pd_poaIdSize = fnlen + 1;
-    if( policies.transient )  pd_poaIdSize += TRANSIENT_SUFFIX_SIZE + 1;
-    pd_poaId = _CORBA_String_helper::alloc(pd_poaIdSize - 1);
-    strcpy(pd_poaId, pd_fullname);
-    if( policies.transient ) {
-      ((char*) pd_poaId)[fnlen] = TRANSIENT_SUFFIX_SEP;
-      generateUniqueId((_CORBA_Octet*) ((char*) pd_poaId + fnlen + 1));
-      ((char*) pd_poaId)[pd_poaIdSize - 1] = '\0';
+    if (policies.plain_object_keys) {
+      // Do not include POA id in object keys
+      pd_poaIdSize = 0;
+      pd_poaId     = (const char*)"";
     }
-    else if (!policies.user_assigned_id && poaUniquePersistentSystemIds) {
-      pd_oidPrefix = new CORBA::Octet[TRANSIENT_SUFFIX_SIZE];
-      generateUniqueId(pd_oidPrefix);
+    else {
+      pd_poaIdSize = fnlen + 1;
+      if (policies.transient)
+        pd_poaIdSize += TRANSIENT_SUFFIX_SIZE + 1;
+
+      pd_poaId = _CORBA_String_helper::alloc(pd_poaIdSize - 1);
+      strcpy(pd_poaId, pd_fullname);
+
+      if (policies.transient) {
+        ((char*) pd_poaId)[fnlen] = TRANSIENT_SUFFIX_SEP;
+        generateUniqueId((_CORBA_Octet*) ((char*) pd_poaId + fnlen + 1));
+        ((char*) pd_poaId)[pd_poaIdSize - 1] = '\0';
+      }
+      else if (!policies.user_assigned_id && poaUniquePersistentSystemIds) {
+        pd_oidPrefix = new CORBA::Octet[TRANSIENT_SUFFIX_SIZE];
+        generateUniqueId(pd_oidPrefix);
+      }
     }
   }
   else {
     // This is the root poa.
     OMNIORB_ASSERT(policies.transient);
-    pd_fullname = (const char*) "";
+
+    pd_fullname  = (const char*) "";
     pd_poaIdSize = 1 + TRANSIENT_SUFFIX_SIZE + 1;
-    pd_poaId = _CORBA_String_helper::alloc(pd_poaIdSize - 1);
+    pd_poaId     = _CORBA_String_helper::alloc(pd_poaIdSize - 1);
+
     ((char*) pd_poaId)[0] = TRANSIENT_SUFFIX_SEP;
     generateUniqueId((_CORBA_Octet*) ((char*) pd_poaId + 1));
     ((char*) pd_poaId)[pd_poaIdSize - 1] = '\0';
@@ -2368,8 +2163,10 @@ omniOrbPOA::omniOrbPOA(const char* name,
     pd_call_lock = new omni_rmutex();
     break;
   case TP_MAIN_THREAD:
-    pd_main_thread_sync.mu  = new omni_tracedmutex();
-    pd_main_thread_sync.cond= new omni_tracedcondition(pd_main_thread_sync.mu);
+    pd_main_thread_sync.mu  = new omni_tracedmutex(
+				"omniOrbPOA::pd_main_thread_sync.mu");
+    pd_main_thread_sync.cond= new omni_tracedcondition(pd_main_thread_sync.mu,
+				"omniOrbPOA::pd_main_thread_sync.cond");
     break;
   }
 
@@ -2393,7 +2190,8 @@ omniOrbPOA::omniOrbPOA()  // nil constructor
     pd_defaultServant(0),
     pd_rq_state(PortableServer::POAManager::INACTIVE),
     pd_poaIdSize(0),
-    pd_deathSignal(&pd_lock),
+    pd_lock("omniOrbPOA::pd_lock [nil]"),
+    pd_deathSignal(&pd_lock, "omniOrbPOA::pd_deathSignal [nil]"),
     pd_oidIndex(0),
     pd_activeObjList(0),
     pd_oidPrefix(0),
@@ -2441,7 +2239,7 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
 
   OMNIORB_ASSERT(pd_children.length() == 0);
 
-  if( omniORB::trace(10) ) {
+  if (omniORB::trace(10)) {
     omniORB::logger l;
     l << "Deactivating all POA(" << (char*) pd_name << ")'s objects.\n";
   }
@@ -2454,7 +2252,7 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
 
   {
     omni_tracedmutex_lock sync(pd_lock);
-    if( pd_activeObjList )  pd_activeObjList->reRootOAObjList(&obj_list);
+    if (pd_activeObjList)  pd_activeObjList->reRootOAObjList(&obj_list);
     sa = pd_servantActivator;
   }
 
@@ -2463,7 +2261,7 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
 
     deactivate_objects(obj_list);
 
-    if( omniORB::trace(10) ) {
+    if (omniORB::trace(10)) {
       omniORB::logger l;
       l << "Waiting for requests to complete on POA(" << (char*) pd_name
         << ").\n";
@@ -2473,7 +2271,7 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
 
     waitForAllRequestsToComplete(1);
 
-    if( omniORB::trace(10) ) {
+    if (omniORB::trace(10)) {
       omniORB::logger l;
       l << "Requests on POA(" << (char*) pd_name << ") completed.\n";
     }
@@ -2489,7 +2287,7 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
     defaultServant = pd_defaultServant;
     pd_defaultServant = 0;
 
-    if( omniORB::trace(10) ) {
+    if (omniORB::trace(10)) {
       omniORB::logger l;
       l << "Etherealising POA(" << (char*) pd_name << ")'s objects.\n";
     }
@@ -2506,7 +2304,7 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
   // etherealisations.
   wait_for_detached_objects();
 
-  if( defaultServant )  defaultServant->_remove_ref();
+  if (defaultServant)  defaultServant->_remove_ref();
 
   {
     omni_tracedmutex_lock sync(poa_lock);
@@ -2514,10 +2312,11 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
       omni_tracedmutex_lock sync2(pd_lock);
 
       pd_destroyed = 2;
-      if( pd_parent ) {
+      if (pd_parent) {
         pd_parent->lose_child(this);
         pd_parent = 0;
         if (theINSPOA == this) {
+          // The INS POA conceptually holds a reference to the Root POA.
           if (theRootPOA)
             theRootPOA->decrRefCount();
           theINSPOA = 0;
@@ -2533,7 +2332,7 @@ omniOrbPOA::do_destroy(CORBA::Boolean etherealize_objects)
 
   try { adapterInactive(); } catch(...) {}
 
-  if( omniORB::trace(10) ) {
+  if (omniORB::trace(10)) {
     omniORB::logger l;
     l << "Destruction of POA(" << (char*) pd_name << ") complete.\n";
   }
@@ -2565,7 +2364,7 @@ omniOrbPOA::pm_waitForReqCmpltnOrSttChnge(omniOrbPOAManager::State state)
 
   pd_signalOnZeroInvocations++;
 
-  while( pd_rq_state == (int) state && pd_nReqActive )
+  while (pd_rq_state == (int) state && pd_nReqActive)
     pd_signal->wait();
 
   pd_signalOnZeroInvocations--;
@@ -2586,25 +2385,25 @@ omniOrbPOA::pm_deactivate(_CORBA_Boolean etherealize_objects)
   }
 
   pd_lock.lock();
-  if( pd_dying ) {
+  if (pd_dying) {
     // If being destroyed by another thread, then we just
     // have to wait until that completes.
     incrRefCount();
-    while( pd_destroyed != 2 )  pd_deathSignal.wait();
+    while (pd_destroyed != 2)  pd_deathSignal.wait();
     pd_lock.unlock();
     decrRefCount();
     return;
   }
 
   omniObjTableEntry* obj_list = 0;
-  if( pd_activeObjList )  pd_activeObjList->reRootOAObjList(&obj_list);
+  if (pd_activeObjList)  pd_activeObjList->reRootOAObjList(&obj_list);
   PortableServer::ServantActivator_ptr sa = pd_servantActivator;
 
   // We pretend to detach an object here, so that if some other
   // thread tries to destroy this POA, they will have to block
   // until we've finished etherealising these objects.
   CORBA::Boolean did_detach = 0;
-  if( obj_list ) {
+  if (obj_list) {
     detached_object();
     did_detach = 1;
   }
@@ -2615,8 +2414,8 @@ omniOrbPOA::pm_deactivate(_CORBA_Boolean etherealize_objects)
   waitForAllRequestsToComplete(1);
   complete_object_deactivation(obj_list);
   omni::internalLock->unlock();
-  if( obj_list ) {
-    if( etherealize_objects )
+  if (obj_list) {
+    if (etherealize_objects)
       this->etherealise_objects(obj_list, etherealize_objects, sa);
 
     met_detached_object();
@@ -2639,15 +2438,15 @@ omniOrbPOA::servant__this(PortableServer::Servant p_servant,
 {
   CHECK_NOT_NIL();
   OMNIORB_ASSERT(p_servant && repoId);
-  if( !pd_policy.retain_servants ||
-      (pd_policy.multiple_id && !pd_policy.implicit_activation) )
+  if (!pd_policy.retain_servants ||
+      (pd_policy.multiple_id && !pd_policy.implicit_activation))
     throw WrongPolicy();
 
   omni_tracedmutex_lock sync(pd_lock);
   CHECK_NOT_DESTROYED();
   omni_tracedmutex_lock sync2(*omni::internalLock);
 
-  if( !pd_policy.multiple_id ) {
+  if (!pd_policy.multiple_id) {
     // Search the servants activations, to see if it is activated in
     // this poa.
 
@@ -2671,7 +2470,7 @@ omniOrbPOA::servant__this(PortableServer::Servant p_servant,
     }
   }
 
-  if( !pd_policy.implicit_activation )  throw WrongPolicy();
+  if (!pd_policy.implicit_activation)  throw WrongPolicy();
   CHECK_NOT_DYING();
 
   // If we get here, then we have the implicit activation policy,
@@ -2687,7 +2486,7 @@ omniOrbPOA::servant__this(PortableServer::Servant p_servant,
     create_new_key(key, &oid, &idsize);
     entry = omniObjTable::newEntry(key);
 
-  } while( !entry );
+  } while (!entry);
 
   entry->setActive(p_servant, this);
 
@@ -2717,15 +2516,16 @@ initialise_poa()
   // The root poa differs from the default policies only in that
   // it has the IMPLICIT_ACTIVATION policy.
   omniOrbPOA::Policies policy;
-  policy.threading = omniOrbPOA::TP_ORB_CTRL;
-  policy.transient = 1;
-  policy.multiple_id = 0;
-  policy.user_assigned_id = 0;
-  policy.retain_servants = 1;
-  policy.req_processing = omniOrbPOA::RPP_ACTIVE_OBJ_MAP;
-  policy.implicit_activation = 1;
+  policy.threading            = omniOrbPOA::TP_ORB_CTRL;
+  policy.transient            = 1;
+  policy.multiple_id          = 0;
+  policy.user_assigned_id     = 0;
+  policy.retain_servants      = 1;
+  policy.req_processing       = omniOrbPOA::RPP_ACTIVE_OBJ_MAP;
+  policy.implicit_activation  = 1;
   policy.bidirectional_accept = 0;
-  policy.local_shortcut = 0;
+  policy.local_shortcut       = 0;
+  policy.plain_object_keys    = 0;
 
   omniOrbPOAManager* manager = new omniOrbPOAManager();
 
@@ -2745,8 +2545,8 @@ omniOrbPOA::rootPOA(int init_if_none)
 {
   omni_tracedmutex_lock sync(poa_lock);
 
-  if( !theRootPOA ) {
-    if( !init_if_none )  return 0;
+  if (!theRootPOA) {
+    if (!init_if_none)  return 0;
     ::initialise_poa();
   }
 
@@ -2764,7 +2564,7 @@ omniOrbPOA::omniINSPOA()
       ::initialise_poa();
 
     omniOrbPOA::Policies policy;
-    policy.threading           	= omniOrbPOA::TP_ORB_CTRL;;
+    policy.threading           	= omniOrbPOA::TP_ORB_CTRL;
     policy.transient           	= 0;
     policy.multiple_id         	= 0;
     policy.user_assigned_id    	= 1;
@@ -2773,6 +2573,7 @@ omniOrbPOA::omniINSPOA()
     policy.implicit_activation 	= 1;
     policy.bidirectional_accept = 0;
     policy.local_shortcut       = 0;
+    policy.plain_object_keys    = 1;
 
     omni_tracedmutex_lock sync2(theRootPOA->pd_lock);
 
@@ -2783,14 +2584,17 @@ omniOrbPOA::omniINSPOA()
 
     omniOrbPOAManager* manager = new omniOrbPOAManager();
 
-    CORBA::PolicyList pl(2);
-    pl.length(2);
+    CORBA::PolicyList pl(3);
+    pl.length(3);
     pl[0] = new PortableServer::ImplicitActivationPolicy(PortableServer::
 							 IMPLICIT_ACTIVATION);
     pl[1] = new PortableServer::IdAssignmentPolicy(PortableServer::USER_ID);
+    pl[2] = new omniPolicy::PlainObjectKeysPolicy(omniPolicy::
+                                                  PLAIN_OBJECT_KEYS_ENABLE);
 
-    theINSPOA = new omniOrbPOA("omniINSPOA", manager, policy, pl,
-			       (omniOrbPOA*)1);
+    // The INS POA conceptually holds a reference to the Root POA.
+    theRootPOA->incrRefCount();
+    theINSPOA = new omniOrbPOA("omniINSPOA", manager, policy, pl, theRootPOA);
 
     theRootPOA->insert_child(theINSPOA);
 
@@ -2810,30 +2614,32 @@ omniOrbPOA::getAdapter(const _CORBA_Octet* key, int keysize)
 
   omni_tracedmutex_lock sync(poa_lock);
 
-  if( !theRootPOA )  return 0;
+  if (!theRootPOA)  return 0;
   omniOrbPOA* poa = theRootPOA;
 
-  while( k < kend && *k == POA_NAME_SEP ) {
+  while (k < kend && *k == POA_NAME_SEP) {
 
     k++;
     const char* name = k;
 
-    while( k < kend && *k && *k != POA_NAME_SEP && *k != TRANSIENT_SUFFIX_SEP )
+    while (k < kend && *k && *k != POA_NAME_SEP && *k != TRANSIENT_SUFFIX_SEP)
       k++;
 
-    if( k == kend )  return 0;
+    if (k == kend)  return 0;
 
     omniOrbPOA* child = poa->find_child(name, k);
 
-    if( !child || child->pd_dying ) {
-      if( poa->pd_adapterActivator ) {
+    if (!child || child->pd_dying) {
+      if (poa->pd_adapterActivator) {
 	// We need to extract the name properly here.
-	int namelen = k - name;
-	char* thename = new char[namelen + 1];
+	int   namelen = k - name;
+	char* thename = CORBA::string_alloc(namelen);
+	CORBA::String_var name_var(thename);
+        
 	memcpy(thename, name, namelen);
 	thename[namelen] = '\0';
 
-	if( !(child = poa->attempt_to_activate_adapter(thename)) )
+	if (!(child = poa->attempt_to_activate_adapter(thename)))
 	  return 0;
       }
       else
@@ -2843,19 +2649,19 @@ omniOrbPOA::getAdapter(const _CORBA_Octet* key, int keysize)
     poa = child;
   }
 
-  if( k == kend )  return 0;
+  if (k == kend)  return 0;
 
-  if( *k == TRANSIENT_SUFFIX_SEP ) {
+  if (*k == TRANSIENT_SUFFIX_SEP) {
     // Check that <poa> is indeed a TRANSIENT poa, and that
     // the transient id matches.
     k++;
-    if( k + TRANSIENT_SUFFIX_SIZE >= kend )  return 0;
+    if (k + TRANSIENT_SUFFIX_SIZE >= kend)  return 0;
     const char* t = (char*) poa->pd_poaId +
       poa->pd_poaIdSize - TRANSIENT_SUFFIX_SIZE - 1;
     int i = TRANSIENT_SUFFIX_SIZE;
-    while( i-- )  if( *k++ != *t++ )  return 0;
+    while (i--)  if (*k++ != *t++)  return 0;
   }
-  if( *k )  return 0;
+  if (*k)  return 0;
 
   poa->incrRefCount();
   return poa;
@@ -2895,8 +2701,8 @@ omniOrbPOA::create_new_key(omniObjKey& key_out, const CORBA::Octet** id,
   _CORBA_ULong idx = pd_oidIndex;
   if (omni::myByteOrder) {
     idx = (((idx & 0xff000000) >> 24) |
-	   ((idx & 0x00ff0000) >> 8 ) |
-	   ((idx & 0x0000ff00) << 8 ) |
+	   ((idx & 0x00ff0000) >> 8)  |
+	   ((idx & 0x0000ff00) << 8)  |
 	   ((idx & 0x000000ff) << 24));
   }
 
@@ -2916,8 +2722,8 @@ omniOrbPOA::create_new_key(omniObjKey& key_out, const CORBA::Octet** id,
 
   pd_oidIndex++;
 
-  if( id )      *id = k + pd_poaIdSize;
-  if( idsize )  *idsize = (SYS_ASSIGNED_ID_SIZE +
+  if (id)      *id = k + pd_poaIdSize;
+  if (idsize)  *idsize = (SYS_ASSIGNED_ID_SIZE +
 			   (add_prefix ? TRANSIENT_SUFFIX_SIZE : 0));
 }
 
@@ -2931,14 +2737,14 @@ omniOrbPOA::find_child(const char* name)
   int bottom = 0;
   int top = count;
 
-  while( bottom < top ){
+  while (bottom < top) {
 
     int middle = (bottom + top) / 2;
 
     int cmp = strcmp(name, pd_children[middle]->pd_name);
 
-    if( cmp < 0 )       top = middle;
-    else if( cmp > 0 )  bottom = middle + 1;
+    if (cmp < 0)       top = middle;
+    else if (cmp > 0)  bottom = middle + 1;
     else                return pd_children[middle];
   }
 
@@ -2950,7 +2756,7 @@ static inline int
 tstrcmp(const char* start1, const char* end1,
 	const char* start2, const char* end2)
 {
-  while( start1 != end1 && start2 != end2 && *start1 == *start2 )
+  while (start1 != end1 && start2 != end2 && *start1 == *start2)
     start1++, start2++;
 
   int c1 = (start1 == end1) ? 0 : *start1;
@@ -2969,15 +2775,15 @@ omniOrbPOA::find_child(const char* name_start, const char* name_end)
   int bottom = 0;
   int top = count;
 
-  while( bottom < top ){
+  while (bottom < top) {
 
     int middle = (bottom + top) / 2;
 
     const char* cn = pd_children[middle]->pd_name;
     int cmp = tstrcmp(name_start, name_end, cn, cn + strlen(cn));
 
-    if( cmp < 0 )       top = middle;
-    else if( cmp > 0 )  bottom = middle + 1;
+    if (cmp < 0)       top = middle;
+    else if (cmp > 0)  bottom = middle + 1;
     else                return pd_children[middle];
   }
 
@@ -2999,14 +2805,14 @@ omniOrbPOA::insert_child(omniOrbPOA* child)
   int bottom = 0;
   int top = count;
 
-  while( bottom < top ) {
+  while (bottom < top) {
 
     int middle = (bottom + top) / 2;
 
     int cmp = strcmp(child->pd_name, pd_children[middle]->pd_name);
 
-    if( cmp < 0 )       top = middle;
-    else if( cmp > 0 )  bottom = middle + 1;
+    if (cmp < 0)       top = middle;
+    else if (cmp > 0)  bottom = middle + 1;
     else                OMNIORB_ASSERT(0);
   }
 
@@ -3014,7 +2820,7 @@ omniOrbPOA::insert_child(omniOrbPOA* child)
 
   pd_children.length(count + 1);
 
-  for( int i = count; i > bottom; i-- )
+  for (int i = count; i > bottom; i--)
     pd_children[i] = pd_children[i - 1];
 
   pd_children[bottom] = child;
@@ -3032,18 +2838,18 @@ omniOrbPOA::lose_child(omniOrbPOA* child)
   int top = count;
   int middle = -1;
 
-  while( bottom < top ){
+  while (bottom < top) {
 
     middle = (bottom + top) / 2;
 
     int cmp = strcmp(child->pd_name, pd_children[middle]->pd_name);
 
-    if( cmp < 0 )       top = middle;
-    else if( cmp > 0 )  bottom = middle + 1;
+    if (cmp < 0)       top = middle;
+    else if (cmp > 0)  bottom = middle + 1;
     else                break;
   }
 
-  for( int i = middle; i < count - 1; i++ )
+  for (int i = middle; i < count - 1; i++)
     pd_children[i] = pd_children[i + 1];
 
   pd_children.length(count - 1);
@@ -3053,10 +2859,10 @@ omniOrbPOA::lose_child(omniOrbPOA* child)
 int
 omniOrbPOA::adapter_name_is_valid(const char* name)
 {
-  if( !name )  return 0;
+  if (!name)  return 0;
 
-  while( *name )
-    switch( *name ) {
+  while (*name)
+    switch (*name) {
     case POA_NAME_SEP:
     case TRANSIENT_SUFFIX_SEP:
       return 0;
@@ -3076,29 +2882,38 @@ omniOrbPOA::synchronise_request(omniLocalIdentity* lid)
 
   // Wait until the request can proceed, or discard it.
 
-  while( pd_rq_state == (int) PortableServer::POAManager::HOLDING ) {
+  while (pd_rq_state == (int) PortableServer::POAManager::HOLDING) {
     if (omniORB::trace(15)) {
       omniORB::logger l;
       l << "POA for " << lid << " in HOLDING state; waiting...\n";
     }
-    if( orbParameters::poaHoldRequestTimeout ) {
+    if (orbParameters::poaHoldRequestTimeout) {
       unsigned long sec, nsec;
       omni_thread::get_time(&sec, &nsec,
 			    orbParameters::poaHoldRequestTimeout/1000,
 			    (orbParameters::poaHoldRequestTimeout%1000)*1000000);
-      if( !pd_signal->timedwait(sec, nsec) ) {
+      if (!pd_signal->timedwait(sec, nsec)) {
 	// We have to do startRequest() here, since the identity
 	// will do endInvocation() when we pass through there.
 	startRequest();
 	omni::internalLock->unlock();
-	OMNIORB_THROW(TRANSIENT, TRANSIENT_CallTimedout, CORBA::COMPLETED_NO);
+	if (orbParameters::throwTransientOnTimeOut) {
+	  OMNIORB_THROW(TRANSIENT,
+			TRANSIENT_CallTimedout,
+			CORBA::COMPLETED_NO);
+	}
+	else {
+	  OMNIORB_THROW(TIMEOUT,
+			TIMEOUT_CallTimedOutOnServer,
+			CORBA::COMPLETED_NO);
+	}
       }
     }
     else
       pd_signal->wait();
   }
 
-  switch( pd_rq_state ) {
+  switch (pd_rq_state) {
   case (int) PortableServer::POAManager::HOLDING:
     OMNIORB_ASSERT(0);
 
@@ -3134,12 +2949,7 @@ omniOrbPOA::synchronise_request(omniLocalIdentity* lid)
   // Check to see if the object has been deactivated while we've been
   // holding. If so, throw a TRANSIENT exception.
 
-  CORBA::Boolean deactivated;
-  pd_lock.lock();
-  deactivated = lid->deactivated();
-  pd_lock.unlock();
-
-  if (deactivated) {
+  if (lid->deactivated()) {
     // We have to do startRequest() here, since the identity
     // will do endInvocation() when we pass through there.
     startRequest();
@@ -3158,7 +2968,7 @@ omniOrbPOA::deactivate_objects(omniObjTableEntry* entry)
 
   omniObjTableEntry* next;
 
-  while( entry ) {
+  while (entry) {
     while (entry->state() == omniObjTableEntry::ACTIVATING)
       entry->wait(omniObjTableEntry::ACTIVE |
 		  omniObjTableEntry::DEACTIVATING |
@@ -3169,18 +2979,6 @@ omniOrbPOA::deactivate_objects(omniObjTableEntry* entry)
     if (entry->state() == omniObjTableEntry::ACTIVE)
       entry->setDeactivatingOA();
 
-    if (!entry->is_idle()) {
-      // Entry has outstanding invocations. When the last invocation
-      // finishes, lastInvocationHasCompleted() will be called. We
-      // detach the entry here, so the destroying thread doesn't try
-      // to etherealise it.
-      if (omniORB::trace(20)) {
-	omniORB::logger l;
-	l << entry << " is not idle, etherealise from other thread\n";
-      }
-      entry->removeFromOAObjList();
-      detached_object();
-    }
     entry = next;
   }
 }
@@ -3191,7 +2989,7 @@ omniOrbPOA::complete_object_deactivation(omniObjTableEntry* entry)
 {
   ASSERT_OMNI_TRACEDMUTEX_HELD(*omni::internalLock, 1);
 
-  while( entry ) {
+  while (entry) {
     if (entry->state() & omniObjTableEntry::DEACTIVATING)
       entry->setEtherealising();
 
@@ -3209,14 +3007,14 @@ omniOrbPOA::etherealise_objects(omniObjTableEntry* entry,
   ASSERT_OMNI_TRACEDMUTEX_HELD(*omni::internalLock, 0);
   ASSERT_OMNI_TRACEDMUTEX_HELD(pd_lock, 0);
 
-  while( entry ) {
+  while (entry) {
     OMNIORB_ASSERT(entry->is_idle());
 
     omniObjTableEntry* next = entry->nextInOAObjList();
 
     PortableServer::Servant servant = DOWNCAST(entry->servant());
 
-    if( sa && etherealise ) {
+    if (sa && etherealise) {
       // We have to do these etherealisations in a separate thread
       // to ensure they are properly serialised.
       add_object_to_etherealisation_queue(entry, sa, 0);
@@ -3231,89 +3029,18 @@ omniOrbPOA::etherealise_objects(omniObjTableEntry* entry,
   }
 }
 
-OMNI_NAMESPACE_BEGIN(omni)
-
-class saTaskQueueCreateInfo
-  : public omniInterceptors::createThread_T::info_T {
-public:
-  saTaskQueueCreateInfo(omniServantActivatorTaskQueue* worker) :
-    pd_worker(worker), pd_elmt(omniInterceptorP::createThread) {}
-
-  void run();
-  
-private:
-  omniServantActivatorTaskQueue* pd_worker;
-  omniInterceptorP::elmT*        pd_elmt;
-};
-
 void
-saTaskQueueCreateInfo::run()
+omniServantActivatorTaskQueue::execute()
 {
-  if (pd_elmt) {
-    omniInterceptors::createThread_T::interceptFunc f =
-      (omniInterceptors::createThread_T::interceptFunc)pd_elmt->func;
-    pd_elmt = pd_elmt->next;
-    f(*this);
-  }
-  else
-    pd_worker->mid_run();
-}
-
-class saTaskQueueAssignInfo
-  : public omniInterceptors::assignUpcallThread_T::info_T {
-public:
-  saTaskQueueAssignInfo(omniServantActivatorTaskQueue* worker) :
-    pd_worker(worker), pd_elmt(omniInterceptorP::assignUpcallThread) {}
-
-  void run();
-  
-private:
-  omniServantActivatorTaskQueue* pd_worker;
-  omniInterceptorP::elmT*        pd_elmt;
-};
-
-void
-saTaskQueueAssignInfo::run()
-{
-  if (pd_elmt) {
-    omniInterceptors::assignUpcallThread_T::interceptFunc f =
-      (omniInterceptors::assignUpcallThread_T::interceptFunc)pd_elmt->func;
-    pd_elmt = pd_elmt->next;
-    f(*this);
-  }
-  else
-    pd_worker->real_run();
-}
-
-OMNI_NAMESPACE_END(omni)
-
-
-void*
-omniServantActivatorTaskQueue::run_undetached(void*)
-{
-  saTaskQueueCreateInfo info(this);
-  info.run();
-  return 0;
-}
-
-void
-omniServantActivatorTaskQueue::mid_run()
-{
-  saTaskQueueAssignInfo info(this);
-  info.run();
-}
-
-
-void
-omniServantActivatorTaskQueue::real_run()
-{
-  omniORB::logs(25, "Servant Activator task queue start");
-  while( 1 ) {
+  omniORB::logs(25, "Servant Activator task queue start.");
+  while (1) {
     pd_queue_lock.lock();
-    while( !pd_taskq ) {
-      if( pd_dying ) {
+    while (!pd_taskq) {
+      if (pd_dying) {
         pd_queue_lock.unlock();
-	omniORB::logs(15, "Servant Activator task queue exit");
+	omniORB::logs(15, "Servant Activator task queue exit.");
+        pd_dying = 2;
+        pd_cond.broadcast();
         return;
       }
       pd_cond.wait();
@@ -3391,11 +3118,11 @@ omniOrbPOA::add_object_to_etherealisation_queue(omniObjTableEntry* entry,
 					     entry->keysize() - pd_poaIdSize,
 					     cleanup_in_progress);
 
-  if( !detached )  detached_object();
+  if (!detached)  detached_object();
 
   omni::internalLock->lock();
 
-  if( !pd_servant_activator_queue )
+  if (!pd_servant_activator_queue)
     pd_servant_activator_queue = new omniServantActivatorTaskQueue;
 
   e->set_is_last(entry->servant()->_activations().empty());
@@ -3419,7 +3146,7 @@ omniOrbPOA::dispatch_to_ds(omniCallHandle& handle,
 			   const CORBA::Octet* key, int keysize)
 {
   pd_lock.lock();
-  if( !pd_defaultServant ) {
+  if (!pd_defaultServant) {
     pd_lock.unlock();
     OMNIORB_THROW(OBJ_ADAPTER, OBJ_ADAPTER_NoDefaultServant,
 		  CORBA::COMPLETED_NO);
@@ -3476,14 +3203,14 @@ omniOrbPOA::dispatch_to_sa(omniCallHandle& handle,
   entry = omniObjTable::newEntry(okey, hash);
   OMNIORB_ASSERT(entry);
 
-  if( !pd_servant_activator_queue )
+  if (!pd_servant_activator_queue)
     pd_servant_activator_queue = new omniServantActivatorTaskQueue;
 
   enterAdapter();
   omni::internalLock->unlock();
 
   pd_lock.lock();
-  if( pd_dying || !pd_servantActivator ) {
+  if (pd_dying || !pd_servantActivator) {
     omni::internalLock->lock();
     entry->setDead();
     exitAdapter(1,1);
@@ -3520,7 +3247,7 @@ omniOrbPOA::dispatch_to_sa(omniCallHandle& handle,
     throw omniORB::LOCATION_FORWARD(
 	               CORBA::Object::_duplicate(fr.forward_reference), 0);
   }
-#ifndef HAS_Cplusplus_catch_exception_by_base
+#ifndef OMNI_HAS_Cplusplus_catch_exception_by_base
 #define RETHROW_EXCEPTION(name)  \
   catch (CORBA::name& ex) {  \
     pd_servant_activator_queue->unlock();  \
@@ -3552,7 +3279,7 @@ omniOrbPOA::dispatch_to_sa(omniCallHandle& handle,
   }
   pd_servant_activator_queue->unlock();
 
-  if( !servant ) {
+  if (!servant) {
     omni::internalLock->lock();
     entry->setDead();
     exitAdapter(1,1);
@@ -3567,7 +3294,7 @@ omniOrbPOA::dispatch_to_sa(omniCallHandle& handle,
 
   pd_lock.lock();
   omni::internalLock->lock();
-  if( !pd_policy.multiple_id ) {
+  if (!pd_policy.multiple_id) {
     // Check the servant is not already active in this poa.
 
     omnivector<omniObjTableEntry*>::const_iterator i, last;
@@ -3581,7 +3308,7 @@ omniOrbPOA::dispatch_to_sa(omniCallHandle& handle,
 	omni::internalLock->unlock();
 	pd_lock.unlock();
 
-	if( omniORB::trace(2) ) {
+	if (omniORB::trace(2)) {
 	  omniORB::logger l;
 	  l << "A servant activator returned a servant which is already"
 	    " activated\n as " << (*i) << "\n to POA(" << (char*) pd_name << ")"
@@ -3598,7 +3325,7 @@ omniOrbPOA::dispatch_to_sa(omniCallHandle& handle,
   entry->setActive(servant, this);
   entry->insertIntoOAObjList(&pd_activeObjList);
 
-  if( pd_dying ) {
+  if (pd_dying) {
     // After all that, we're dying and we have to schedule the object
     // for etherealisation.
 
@@ -3626,13 +3353,13 @@ omniOrbPOA::dispatch_to_sl(omniCallHandle& handle,
 			   const CORBA::Octet* key, int keysize)
 {
   pd_lock.lock();
-  if( pd_dying ) {
+  if (pd_dying) {
     pd_lock.unlock();
     OMNIORB_THROW(OBJECT_NOT_EXIST,
 		  OBJECT_NOT_EXIST_POANotInitialised,
 		  CORBA::COMPLETED_NO);
   }
-  if( !pd_servantLocator ) {
+  if (!pd_servantLocator) {
     pd_lock.unlock();
     OMNIORB_THROW(OBJ_ADAPTER,
 		  OBJ_ADAPTER_NoServantManager,
@@ -3658,7 +3385,7 @@ omniOrbPOA::dispatch_to_sl(omniCallHandle& handle,
   try {
     servant = sl->preinvoke(oid, this, handle.operation_name(), cookie);
   }
-#ifndef HAS_Cplusplus_catch_exception_by_base
+#ifndef OMNI_HAS_Cplusplus_catch_exception_by_base
 #define RETHROW_EXCEPTION(name) catch(CORBA::name&) { exitAdapter(); throw; }
   OMNIORB_FOR_EACH_SYS_EXCEPTION(RETHROW_EXCEPTION)
 #undef RETHROW_EXCEPTION
@@ -3678,7 +3405,7 @@ omniOrbPOA::dispatch_to_sl(omniCallHandle& handle,
     OMNIORB_THROW(UNKNOWN, UNKNOWN_UserException, CORBA::COMPLETED_NO);
   }
 
-  if( !servant ) {
+  if (!servant) {
     exitAdapter();
     omniORB::logs(5, "ServantLocator::preinvoke() returned 0 (zero)!");
 
@@ -3744,7 +3471,7 @@ omniOrbPOA::attempt_to_activate_adapter(const char* name)
   //  Check that some other thread isn't trying to activate
   // said POA.  If so wait until it is finished, and if it
   // suceeded, return that POA or fail if it failed.
-  if( !start_adapteractivating_child_or_block(name) )
+  if (!start_adapteractivating_child_or_block(name))
     return find_child(name);
 
   // ?? NB. We could implement the above without any dynamic
@@ -3753,7 +3480,7 @@ omniOrbPOA::attempt_to_activate_adapter(const char* name)
 
   poa_lock.unlock();
 
-  if( omniORB::trace(10) ) {
+  if (omniORB::trace(10)) {
     omniORB::logger l;
     l << "Attempting to activate POA '" << name
       << "' using an AdapterActivator\n";
@@ -3763,7 +3490,7 @@ omniOrbPOA::attempt_to_activate_adapter(const char* name)
   try {
     ret = pd_adapterActivator->unknown_adapter(this, name);
   }
-#ifdef HAS_Cplusplus_catch_exception_by_base
+#ifdef OMNI_HAS_Cplusplus_catch_exception_by_base
   catch (CORBA::SystemException&) {
     poa_lock.lock();
     throw;
@@ -3788,9 +3515,9 @@ omniOrbPOA::attempt_to_activate_adapter(const char* name)
 
   finish_adapteractivating_child(name);
 
-  if( ret == 0 )  return 0;
+  if (ret == 0)  return 0;
   omniOrbPOA* p = find_child(name);
-  if( !p )  return 0;
+  if (!p)  return 0;
 
   // <p> was not attached to its manager at creation time (to
   // prevent state changes before initialisation was complete),
@@ -3806,10 +3533,10 @@ omniOrbPOA::start_adapteractivating_child_or_block(const char* name)
 {
   ASSERT_OMNI_TRACEDMUTEX_HELD(poa_lock, 1);
 
-  if( is_adapteractivating_child(name) ) {
+  if (is_adapteractivating_child(name)) {
     do {
       adapteractivator_signal.wait();
-    } while( is_adapteractivating_child(name) );
+    } while (is_adapteractivating_child(name));
     return 0;
   }
 
@@ -3828,7 +3555,7 @@ omniOrbPOA::finish_adapteractivating_child(const char* name)
   i = pd_adptrActvtnsInProgress.begin();
   last = pd_adptrActvtnsInProgress.end();
 
-  while( i != last && strcmp(*i, name) )  i++;
+  while (i != last && strcmp(*i, name))  i++;
 
   OMNIORB_ASSERT(i != last);
 
@@ -3847,7 +3574,7 @@ omniOrbPOA::is_adapteractivating_child(const char* name)
   i = pd_adptrActvtnsInProgress.begin();
   last = pd_adptrActvtnsInProgress.end();
 
-  while( i != last && strcmp(*i, name) )  i++;
+  while (i != last && strcmp(*i, name))  i++;
 
   return i != last;
 }
@@ -3869,7 +3596,7 @@ int omniOrbPOA::_classid;
 //////////////////////////////////////////////////////////////////////
 
 static void
-transfer_and_check_policies(omniOrbPOA::Policies& pout,
+transfer_and_check_policies(omniOrbPOA::Policies&    pout,
 			    const CORBA::PolicyList& pin)
 {
   // We expect <pout> to be initialised with default values.
@@ -3877,39 +3604,40 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
   // Keep track of which policies have been set, so we can detect
   // incompatibilities.
   omniOrbPOA::Policies seen;
-  seen.threading = 0;
-  seen.transient = 0;
-  seen.multiple_id = 0;
-  seen.user_assigned_id = 0;
-  seen.retain_servants = 0;
-  seen.req_processing = 0;
-  seen.implicit_activation = 0;
+  seen.threading            = 0;
+  seen.transient            = 0;
+  seen.multiple_id          = 0;
+  seen.user_assigned_id     = 0;
+  seen.retain_servants      = 0;
+  seen.req_processing       = 0;
+  seen.implicit_activation  = 0;
   seen.bidirectional_accept = 0;
-  seen.local_shortcut = 0;
+  seen.local_shortcut       = 0;
+  seen.plain_object_keys    = 0;
 
   // Check for policies which contradict one-another.
 
-  for( CORBA::ULong i = 0; i < pin.length(); i++ ) {
-    switch( pin[i]->policy_type() ) {
+  for (CORBA::ULong i = 0; i < pin.length(); i++) {
+    switch (pin[i]->policy_type()) {
 
     case /*THREAD_POLICY_ID*/ 16:
       {
 	PortableServer::ThreadPolicy_var p;
 	p = PortableServer::ThreadPolicy::_narrow(pin[i]);
 
-	if( seen.threading ) {
-	  if ( (pout.threading == omniOrbPOA::TP_ORB_CTRL &&
+	if (seen.threading) {
+	  if  ((pout.threading == omniOrbPOA::TP_ORB_CTRL &&
 		p->value() != PortableServer::ORB_CTRL_MODEL) ||
 
 	       (pout.threading == omniOrbPOA::TP_SINGLE_THREAD &&
 		p->value() != PortableServer::SINGLE_THREAD_MODEL) ||
 
 	       (pout.threading == omniOrbPOA::TP_MAIN_THREAD &&
-		p->value() != PortableServer::MAIN_THREAD_MODEL) )
+		p->value() != PortableServer::MAIN_THREAD_MODEL))
 
 	    throw PortableServer::POA::InvalidPolicy(i);
 	}
-	switch( p->value() ) {
+	switch (p->value()) {
 	case PortableServer::ORB_CTRL_MODEL:
 	  pout.threading = omniOrbPOA::TP_ORB_CTRL;
 	  break;
@@ -3930,8 +3658,8 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
       {
 	PortableServer::LifespanPolicy_var p;
 	p = PortableServer::LifespanPolicy::_narrow(pin[i]);
-	if( seen.transient &&
-	    pout.transient != (p->value() == PortableServer::TRANSIENT) )
+	if (seen.transient &&
+	    pout.transient != (p->value() == PortableServer::TRANSIENT))
 	  throw PortableServer::POA::InvalidPolicy(i);
 	pout.transient = p->value() == PortableServer::TRANSIENT;
 	seen.transient = 1;
@@ -3942,8 +3670,8 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
       {
 	PortableServer::IdUniquenessPolicy_var p;
 	p = PortableServer::IdUniquenessPolicy::_narrow(pin[i]);
-	if( seen.multiple_id &&
-	    pout.multiple_id != (p->value() == PortableServer::MULTIPLE_ID) )
+	if (seen.multiple_id &&
+	    pout.multiple_id != (p->value() == PortableServer::MULTIPLE_ID))
 	  throw PortableServer::POA::InvalidPolicy(i);
 	pout.multiple_id = p->value() == PortableServer::MULTIPLE_ID;
 	seen.multiple_id = 1;
@@ -3954,8 +3682,8 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
       {
 	PortableServer::IdAssignmentPolicy_var p;
 	p = PortableServer::IdAssignmentPolicy::_narrow(pin[i]);
-	if( seen.user_assigned_id &&
-	    pout.user_assigned_id != (p->value() == PortableServer::USER_ID) )
+	if (seen.user_assigned_id &&
+	    pout.user_assigned_id != (p->value() == PortableServer::USER_ID))
 	  throw PortableServer::POA::InvalidPolicy(i);
 	pout.user_assigned_id = p->value() == PortableServer::USER_ID;
 	seen.user_assigned_id = 1;
@@ -3966,8 +3694,8 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
       {
 	PortableServer::ImplicitActivationPolicy_var p;
 	p = PortableServer::ImplicitActivationPolicy::_narrow(pin[i]);
-	if( seen.implicit_activation && pout.implicit_activation !=
-	    (p->value() == PortableServer::IMPLICIT_ACTIVATION) )
+	if (seen.implicit_activation && pout.implicit_activation !=
+	    (p->value() == PortableServer::IMPLICIT_ACTIVATION))
 	  throw PortableServer::POA::InvalidPolicy(i);
 	pout.implicit_activation =
 	  p->value() == PortableServer::IMPLICIT_ACTIVATION;
@@ -3979,8 +3707,8 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
       {
 	PortableServer::ServantRetentionPolicy_var p;
 	p = PortableServer::ServantRetentionPolicy::_narrow(pin[i]);
-	if( seen.retain_servants &&
-	    pout.retain_servants != (p->value() == PortableServer::RETAIN) )
+	if (seen.retain_servants &&
+	    pout.retain_servants != (p->value() == PortableServer::RETAIN))
 	  throw PortableServer::POA::InvalidPolicy(i);
 	pout.retain_servants = p->value() == PortableServer::RETAIN;
 	seen.retain_servants = 1;
@@ -3991,20 +3719,19 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
       {
 	PortableServer::RequestProcessingPolicy_var p;
 	p = PortableServer::RequestProcessingPolicy::_narrow(pin[i]);
-	if( seen.req_processing ) {
-
-	  if( (pout.req_processing == omniOrbPOA::RPP_ACTIVE_OBJ_MAP &&
+	if (seen.req_processing) {
+	  if ((pout.req_processing == omniOrbPOA::RPP_ACTIVE_OBJ_MAP &&
 	       p->value() != PortableServer::USE_ACTIVE_OBJECT_MAP_ONLY) ||
 
 	      (pout.req_processing == omniOrbPOA::RPP_DEFAULT_SERVANT &&
 	       p->value() != PortableServer::USE_DEFAULT_SERVANT) ||
 
 	      (pout.req_processing == omniOrbPOA::RPP_SERVANT_MANAGER &&
-	       p->value() != PortableServer::USE_SERVANT_MANAGER) )
+	       p->value() != PortableServer::USE_SERVANT_MANAGER))
 
 	    throw PortableServer::POA::InvalidPolicy(i);
 	}
-	switch( p->value() ) {
+	switch (p->value()) {
 	case PortableServer::USE_ACTIVE_OBJECT_MAP_ONLY:
 	  pout.req_processing = omniOrbPOA::RPP_ACTIVE_OBJ_MAP;
 	  break;
@@ -4049,33 +3776,48 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
 	break;
       }
 
-#ifdef OMNIORB_ENABLE_ZIOP
+    case /*omniPolicy::PLAIN_OBJECT_KEYS_POLICY_TYPE*/ 0x41545403:
+      {
+	omniPolicy::PlainObjectKeysPolicy_var p;
+	p = omniPolicy::PlainObjectKeysPolicy::_narrow(pin[i]);
+	if (seen.plain_object_keys) {
+	  throw PortableServer::POA::InvalidPolicy(i);
+	}
+	seen.plain_object_keys = 1;
+	if (p->value() == omniPolicy::PLAIN_OBJECT_KEYS_ENABLE) {
+	  pout.plain_object_keys = 1;
+	}
+	break;
+      }
+
     case /*ZIOP::COMPRESSION_ENABLING_POLICY_ID*/     64:
     case /*ZIOP::COMPRESSOR_ID_LEVEL_LIST_POLICY_ID*/ 65:
     case /*ZIOP::COMPRESSION_LOW_VALUE_POLICY_ID*/    66:
     case /*ZIOP::COMPRESSION_MIN_RATIO_POLICY_ID*/    67:
+    case /*omniPolicy::ENDPOINT_PUBLISH_POLICY_TYPE*/ 0x41545402:
 
       // Allow these policies to pass here so they can be used in
       // encodeIOR interceptor.
       break;
-#endif
 
     default:
-      throw PortableServer::POA::InvalidPolicy(i);
-
+      if (omniORB::trace(10)) {
+        omniORB::logger log;
+        log << "Skip unknown POA policy type " << pin[i]->policy_type() << "\n";
+      }
     }
   }
 
   // Check for incompatible policy combinations.
 
-  if( (pout.req_processing == omniOrbPOA::RPP_ACTIVE_OBJ_MAP &&
+  if ((pout.req_processing == omniOrbPOA::RPP_ACTIVE_OBJ_MAP &&
        !pout.retain_servants) ||
       (pout.req_processing == omniOrbPOA::RPP_DEFAULT_SERVANT &&
-       !pout.multiple_id) ) {
+       !pout.multiple_id)) {
     // Find one of the policy objects which participated in
     // this flagrant flouting of the rules ...
-    for( CORBA::ULong i = 0; i < pin.length(); i++ )
-      if( pin[i]->policy_type() == /*REQUEST_PROCESSING_POLICY_ID*/ 22 )
+    for (CORBA::ULong i = 0; i < pin.length(); i++)
+      if (pin[i]->policy_type() == /*REQUEST_PROCESSING_POLICY_ID*/ 22)
 	throw PortableServer::POA::InvalidPolicy(i);
   }
 
@@ -4083,17 +3825,29 @@ transfer_and_check_policies(omniOrbPOA::Policies& pout,
       !(pout.req_processing == omniOrbPOA::RPP_DEFAULT_SERVANT ||
 	pout.req_processing == omniOrbPOA::RPP_SERVANT_MANAGER)) {
 
-    for( CORBA::ULong i = 0; i < pin.length(); i++ )
-      if( pin[i]->policy_type() == /*SERVANT_RETENTION_POLICY_ID*/ 21 )
+    for (CORBA::ULong i = 0; i < pin.length(); i++)
+      if (pin[i]->policy_type() == /*SERVANT_RETENTION_POLICY_ID*/ 21)
 	throw PortableServer::POA::InvalidPolicy(i);
   }
 
-
-  if( pout.implicit_activation &&
-      (pout.user_assigned_id || !pout.retain_servants) ) {
-    for( CORBA::ULong i = 0; i < pin.length(); i++ )
-      if( pin[i]->policy_type() == /*IMPLICIT_ACTIVATION_POLICY_ID*/ 20 )
+  if (pout.implicit_activation &&
+      (pout.user_assigned_id || !pout.retain_servants)) {
+    for (CORBA::ULong i = 0; i < pin.length(); i++)
+      if (pin[i]->policy_type() == /*IMPLICIT_ACTIVATION_POLICY_ID*/ 20)
 	throw PortableServer::POA::InvalidPolicy(i);
+  }
+
+  if (pout.plain_object_keys) {
+    if (!pout.user_assigned_id) {
+      for (CORBA::ULong i = 0; i < pin.length(); i++)
+        if (pin[i]->policy_type() == /*ID_ASSIGNMENT_POLICY_ID*/ 19)
+          throw PortableServer::POA::InvalidPolicy(i);
+    }
+    if (pout.req_processing != omniOrbPOA::RPP_ACTIVE_OBJ_MAP) {
+      for (CORBA::ULong i = 0; i < pin.length(); i++)
+        if (pin[i]->policy_type() == /*REQUEST_PROCESSING_POLICY_ID*/ 22)
+          throw PortableServer::POA::InvalidPolicy(i);
+    }
   }
 }
 
@@ -4103,29 +3857,29 @@ generateUniqueId(CORBA::Octet* k)
 {
   OMNIORB_ASSERT(k);
 
-  static omni_tracedmutex lock;
+  static omni_tracedmutex lock("generateUniqueId");
   omni_tracedmutex_lock sync(lock);
 
   static CORBA::ULong hi = 0;
   static CORBA::ULong lo = 0;
 
-  if( !hi && !lo ) {
+  if (!hi && !lo) {
 
     CORBA::Short pid;
 
-#ifdef HAVE_GETTIMEOFDAY
+#ifdef OMNI_HAVE_GETTIMEOFDAY
     // Use gettimeofday() to obtain the current time. Use this to
     // initialise the 32-bit field hi and med in the seed.
     // On unices, add the process id to med.
     // Initialise lo to 0.
     struct timeval v;
-# ifdef GETTIMEOFDAY_TIMEZONE
+# ifdef OMNI_GETTIMEOFDAY_TIMEZONE
     gettimeofday(&v,0);
 # else
     gettimeofday(&v);
 # endif
     hi = v.tv_sec;
-# ifdef HAVE_GETPID
+# ifdef OMNI_HAVE_GETPID
     pid = (CORBA::Short) getpid();
 # else
     pid = (CORBA::Short) v.tv_usec;
@@ -4191,7 +3945,7 @@ generateUniqueId(CORBA::Octet* k)
 static void
 destroyer_thread_fn(void* args)
 {
-  if( omniORB::trace(15) ) {
+  if (omniORB::trace(15)) {
     omniORB::logger l; l << "POA destroyer thread started.\n";
   }
 
@@ -4199,7 +3953,7 @@ destroyer_thread_fn(void* args)
   void** targs = (void**) args;
 
   omniOrbPOA* poa = (omniOrbPOA*) targs[0];
-  CORBA::Boolean etherealise = (CORBA::Boolean) (unsigned long) targs[1];
+  CORBA::Boolean etherealise = (CORBA::Boolean) (omni::ptr_arith_t) targs[1];
   delete[] targs;
 
   poa->do_destroy(etherealise);
@@ -4211,17 +3965,17 @@ omniOrbPOA::shutdown()
 {
   poa_lock.lock();
   omniOrbPOA* rp = theRootPOA;
-  if( rp )  rp->incrRefCount();
+  if (rp)  rp->incrRefCount();
   poa_lock.unlock();
 
   try {
-    if( rp )  rp->destroy(1, 1);
+    if (rp)  rp->destroy(1, 1);
   }
   catch(CORBA::OBJECT_NOT_EXIST&) {
     // That's okay -- someone else got there first.
   }
 
-  if( rp )  CORBA::release(rp);
+  if (rp)  CORBA::release(rp);
 }
 
 OMNI_NAMESPACE_BEGIN(omni)
@@ -4240,7 +3994,7 @@ public:
 			1,
 			"-ORBpoaHoldRequestTimeout < n >= 0 in msec >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
@@ -4268,7 +4022,7 @@ public:
 			1,
 			"-ORBpoaUniquePersistentSystemIds < 0 | 1 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -4291,8 +4045,8 @@ static poaUniquePersistentSystemIdsHandler poaUniquePersistentSystemIdsHandler_;
 //            Module initialiser                                           //
 /////////////////////////////////////////////////////////////////////////////
 
-static CORBA::Object_ptr resolveRootPOAFn(){ return omniOrbPOA::rootPOA(); }
-static CORBA::Object_ptr resolveINSPOAFn() { return omniOrbPOA::omniINSPOA(); }
+static CORBA::Object_ptr resolveRootPOAFn() { return omniOrbPOA::rootPOA(); }
+static CORBA::Object_ptr resolveINSPOAFn()  { return omniOrbPOA::omniINSPOA(); }
 
 class omni_poa_initialiser : public omniInitialiser {
 public:

@@ -9,12 +9,8 @@
 
 #include <anyExample.hh>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
 
 static void invokeOp(anyExample_ptr& tobj, const CORBA::Any& a)
@@ -47,7 +43,7 @@ static void hello(anyExample_ptr tobj)
   invokeOp(tobj,a);
     
   // Sending Double
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
   CORBA::Double d = 1.2345;
   a <<= d;
   cout << "Sending Any containing Double: " << d << endl; 
@@ -77,7 +73,7 @@ int main(int argc, char** argv)
   try {
     CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
 
-    if( argc != 2 ) {
+    if (argc != 2) {
       cerr << "usage:  anyExample_clt <object reference>" << endl;
       return 1;
     }
@@ -85,7 +81,7 @@ int main(int argc, char** argv)
     {
       CORBA::Object_var obj = orb->string_to_object(argv[1]);
       anyExample_var ref = anyExample::_narrow(obj);
-      if( CORBA::is_nil(ref) ) {
+      if (CORBA::is_nil(ref)) {
 	cerr << "Can't narrow reference to type anyExample (or it was nil)."
 	     << endl;
 	return 1;
@@ -94,21 +90,15 @@ int main(int argc, char** argv)
     }
     orb->destroy();
   }
-  catch(CORBA::TRANSIENT&) {
+  catch (CORBA::TRANSIENT&) {
     cerr << "Caught system exception TRANSIENT -- unable to contact the "
          << "server." << endl;
   }
-  catch(CORBA::SystemException& ex) {
+  catch (CORBA::SystemException& ex) {
     cerr << "Caught a CORBA::" << ex._name() << endl;
   }
-  catch(CORBA::Exception& ex) {
+  catch (CORBA::Exception& ex) {
     cerr << "Caught CORBA::Exception: " << ex._name() << endl;
-  }
-  catch(omniORB::fatalException& fe) {
-    cerr << "Caught omniORB::fatalException:" << endl;
-    cerr << "  file: " << fe.file() << endl;
-    cerr << "  line: " << fe.line() << endl;
-    cerr << "  mesg: " << fe.errmsg() << endl;
   }
   return 0;
 }

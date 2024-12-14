@@ -9,51 +9,21 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //	
-
-/*
-  $Log$
-  Revision 1.4.2.3  2004/07/04 23:53:36  dgrisby
-  More ValueType TypeCode and Any support.
-
-  Revision 1.4.2.2  2003/09/26 16:12:54  dgrisby
-  Start of valuetype support.
-
-  Revision 1.4.2.1  2003/03/23 21:02:51  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.2.2.3  2001/10/17 16:44:02  dpg1
-  Update DynAny to CORBA 2.5 spec, const Any exception extraction.
-
-  Revision 1.2.2.2  2000/09/27 17:25:40  sll
-  Changed include/omniORB3 to include/omniORB4.
-
-  Revision 1.2.2.1  2000/07/17 10:35:40  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.3  2000/07/13 15:26:03  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.1.2.1  1999/09/22 14:26:28  djr
-  Major rewrite of orbcore to support POA.
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -65,7 +35,7 @@
 OMNI_NAMESPACE_BEGIN(omni)
 
 // See the description of this variable in omniInternal.h
-const char* omniORB_4_1_dyn = "omniORB dynamic library version 4.1.x";
+const char* omniORB_4_3_dyn = "omniORB dynamic library version 4.3.x";
 
 OMNI_NAMESPACE_END(omni)
 

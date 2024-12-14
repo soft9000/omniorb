@@ -59,6 +59,8 @@
 
 #include "ifparser.h"
 #include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
 
 /****************************************************************************
 		   Internal Macros and Utilities for Parser
@@ -71,10 +73,7 @@
 
 
 static const char *
-parse_variable (g, cp, varp)
-    IfParser *g;
-    const char *cp;
-    const char **varp;
+parse_variable (IfParser *g, const char *cp, const char **varp)
 {
     SKIPSPACE (cp);
 
@@ -89,10 +88,7 @@ parse_variable (g, cp, varp)
 
 
 static const char *
-parse_number (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_number (IfParser *g, const char *cp, int *valp)
 {
     SKIPSPACE (cp);
 
@@ -105,10 +101,7 @@ parse_number (g, cp, valp)
 
 
 static const char *
-parse_value (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_value (IfParser *g, const char *cp, int *valp)
 {
     const char *var;
 
@@ -185,10 +178,7 @@ parse_value (g, cp, valp)
 
 
 static const char *
-parse_product (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_product (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -216,10 +206,7 @@ parse_product (g, cp, valp)
 
 
 static const char *
-parse_sum (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_sum (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -242,10 +229,7 @@ parse_sum (g, cp, valp)
 
 
 static const char *
-parse_shift (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_shift (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -272,10 +256,7 @@ parse_shift (g, cp, valp)
 
 
 static const char *
-parse_inequality (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_inequality (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -308,10 +289,7 @@ parse_inequality (g, cp, valp)
 
 
 static const char *
-parse_equality (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_equality (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -338,10 +316,7 @@ parse_equality (g, cp, valp)
 
 
 static const char *
-parse_band (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_band (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -361,10 +336,7 @@ parse_band (g, cp, valp)
 
 
 static const char *
-parse_bor (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_bor (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -384,10 +356,7 @@ parse_bor (g, cp, valp)
 
 
 static const char *
-parse_land (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_land (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -407,10 +376,7 @@ parse_land (g, cp, valp)
 
 
 static const char *
-parse_lor (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+parse_lor (IfParser *g, const char *cp, int *valp)
 {
     int rightval;
 
@@ -434,10 +400,7 @@ parse_lor (g, cp, valp)
  ****************************************************************************/
 
 const char *
-ParseIfExpression (g, cp, valp)
-    IfParser *g;
-    const char *cp;
-    int *valp;
+ParseIfExpression (IfParser *g, const char *cp, int *valp)
 {
     return parse_lor (g, cp, valp);
 }

@@ -38,11 +38,43 @@ extern boolean warn_multiple;
 
 void remove_dotdot(char* path);
 
+static int isdot(char *p)
+{
+	if(p && *p++ == '.' && *p++ == '\0')
+		return(TRUE);
+	return(FALSE);
+}
 
-struct inclist *inc_path(file, include, dot)
-	register char	*file,
-			*include;
-	boolean	dot;
+static int isdotdot(char *p)
+{
+	if(p && *p++ == '.' && *p++ == '.' && *p++ == '\0')
+		return(TRUE);
+	return(FALSE);
+}
+
+static int issymbolic(char *dir, char *component)
+{
+#ifdef S_IFLNK
+	struct stat	st;
+	char	buf[ BUFSIZ ], **pp;
+
+	sprintf(buf, "%s%s%s", dir, *dir ? "/" : "", component);
+	for (pp=notdotdot; *pp; pp++)
+		if (strcmp(*pp, buf) == 0)
+			return (TRUE);
+	if (lstat(buf, &st) == 0
+	&& (st.st_mode & S_IFMT) == S_IFLNK) {
+		*pp++ = copy(buf);
+		if (pp >= &notdotdot[ MAXDIRS ])
+			fatalerr("out of .. dirs, increase MAXDIRS\n");
+		return(TRUE);
+	}
+#endif
+	return(FALSE);
+}
+
+
+struct inclist *inc_path(char *file, char *include, boolean dot)
 {
 	static char	path[ BUFSIZ ];
 	register char		**pp, *p;
@@ -129,8 +161,7 @@ struct inclist *inc_path(file, include, dot)
  * Any of the 'x/..' sequences within the name can be eliminated.
  * (but only if 'x' is not a symbolic link!!)
  */
-void remove_dotdot(path)
-	char	*path;
+void remove_dotdot(char *path)
 {
 	register char	*end, *from, *to, **cp;
 	char		*components[ MAXFILES ],
@@ -198,49 +229,10 @@ void remove_dotdot(path)
 	strcpy(path, newpath);
 }
 
-isdot(p)
-	register char	*p;
-{
-	if(p && *p++ == '.' && *p++ == '\0')
-		return(TRUE);
-	return(FALSE);
-}
-
-isdotdot(p)
-	register char	*p;
-{
-	if(p && *p++ == '.' && *p++ == '.' && *p++ == '\0')
-		return(TRUE);
-	return(FALSE);
-}
-
-issymbolic(dir, component)
-	register char	*dir, *component;
-{
-#ifdef S_IFLNK
-	struct stat	st;
-	char	buf[ BUFSIZ ], **pp;
-
-	sprintf(buf, "%s%s%s", dir, *dir ? "/" : "", component);
-	for (pp=notdotdot; *pp; pp++)
-		if (strcmp(*pp, buf) == 0)
-			return (TRUE);
-	if (lstat(buf, &st) == 0
-	&& (st.st_mode & S_IFMT) == S_IFLNK) {
-		*pp++ = copy(buf);
-		if (pp >= &notdotdot[ MAXDIRS ])
-			fatalerr("out of .. dirs, increase MAXDIRS\n");
-		return(TRUE);
-	}
-#endif
-	return(FALSE);
-}
-
 /*
  * Add an include file to the list of those included by 'file'.
  */
-struct inclist *newinclude(newfile, incstring)
-	register char	*newfile, *incstring;
+struct inclist *newinclude(char *newfile, char *incstring)
 {
 	register struct inclist	*ip;
 
@@ -260,10 +252,9 @@ struct inclist *newinclude(newfile, incstring)
 	return(ip);
 }
 
-void included_by(ip, newfile)
-	register struct inclist	*ip, *newfile;
+void included_by(struct inclist *ip, struct inclist *newfile)
 {
-	register i;
+	register int i;
 
 	if (ip == NULL)
 		return;

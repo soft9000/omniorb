@@ -3,169 +3,28 @@
 // GIOP_S.cc                  Created on: 05/01/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2002-2008 Apasphere Ltd
+//    Copyright (C) 2002-2011 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //
-
-/*
-  $Log$
-  Revision 1.1.6.14  2008/12/29 17:31:16  dgrisby
-  Properly handle message size being exceeded in request header.
-
-  Revision 1.1.6.13  2008/08/08 16:52:56  dgrisby
-  Option to validate untransformed UTF-8; correct data conversion minor
-  codes; better logging for MessageErrors.
-
-  Revision 1.1.6.12  2008/07/15 10:59:39  dgrisby
-  Clarity of behaviour if inConScanPeriod / outConScanPeriod are <=
-  scanGranularity.
-
-  Revision 1.1.6.11  2007/04/05 15:37:32  dgrisby
-  Minor fix to log message formatting.
-
-  Revision 1.1.6.10  2007/04/05 15:05:24  dgrisby
-  Finished call could be selected by a CancelRequest, leading to an
-  infinite loop failing to handle it.
-
-  Revision 1.1.6.9  2006/11/09 15:36:17  dgrisby
-  Code formatting fix.
-
-  Revision 1.1.6.8  2006/08/07 13:49:13  dgrisby
-  Allow serverReceiveRequest interceptor to throw user exceptions.
-
-  Revision 1.1.6.7  2006/07/02 22:52:05  dgrisby
-  Store self thread in task objects to avoid calls to self(), speeding
-  up Current. Other minor performance tweaks.
-
-  Revision 1.1.6.6  2005/11/17 17:03:26  dgrisby
-  Merge from omni4_0_develop.
-
-  Revision 1.1.6.5  2005/04/08 00:35:46  dgrisby
-  Merging again.
-
-  Revision 1.1.6.4  2005/01/06 23:10:11  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.6.3  2003/11/06 11:56:56  dgrisby
-  Yet more valuetype. Plain valuetype and abstract valuetype are now working.
-
-  Revision 1.1.6.2  2003/05/20 16:53:15  dgrisby
-  Valuetype marshalling support.
-
-  Revision 1.1.6.1  2003/03/23 21:02:32  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.4.24  2002/11/26 16:54:34  dgrisby
-  Fix exception interception.
-
-  Revision 1.1.4.23  2002/11/26 14:51:49  dgrisby
-  Implement missing interceptors.
-
-  Revision 1.1.4.22  2002/07/04 15:14:40  dgrisby
-  Correct usage of MessageErrors, fix log messages.
-
-  Revision 1.1.4.21  2002/05/22 15:56:33  dgrisby
-  IRIX, FreeBSD fixes.
-
-  Revision 1.1.4.20  2002/03/27 11:44:51  dpg1
-  Check in interceptors things left over from last week.
-
-  Revision 1.1.4.19  2002/03/18 12:38:25  dpg1
-  Lower trace(0) to trace(1), propagate fatalException.
-
-  Revision 1.1.4.18  2002/03/13 16:05:38  dpg1
-  Transport shutdown fixes. Reference count SocketCollections to avoid
-  connections using them after they are deleted. Properly close
-  connections when in thread pool mode.
-
-  Revision 1.1.4.17  2001/12/03 18:46:25  dpg1
-  Race condition in giopWorker destruction.
-
-  Revision 1.1.4.16  2001/11/12 13:47:09  dpg1
-  Minor fixes.
-
-  Revision 1.1.4.15  2001/10/17 16:33:27  dpg1
-  New downcast mechanism for cdrStreams.
-
-  Revision 1.1.4.14  2001/09/20 11:30:59  sll
-  On the server, the final state of a GIOP_S is ReplyCompleted instead of
-  Idle. This is necessary because the idle connection management code
-  treats Idle as a state where the idle counter can be restarted.
-
-  Revision 1.1.4.13  2001/09/10 17:44:34  sll
-  Added stopIdleCounter() call inside dispatcher when the header has been
-  received.
-
-  Revision 1.1.4.12  2001/09/04 14:38:51  sll
-  Added the boolean argument to notifyCommFailure to indicate if
-  omniTransportLock is held by the caller.
-
-  Revision 1.1.4.11  2001/08/15 10:26:11  dpg1
-  New object table behaviour, correct POA semantics.
-
-  Revision 1.1.4.10  2001/08/03 17:41:17  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.1.4.9  2001/07/31 16:28:01  sll
-  Added GIOP BiDir support.
-
-  Revision 1.1.4.8  2001/07/13 15:22:45  sll
-  Call notifyWkPreUpCall at the right time and determine if there are
-  buffered data to be served by another thread.
-
-  Revision 1.1.4.7  2001/06/29 16:26:01  dpg1
-  Reinstate tracing messages for new connections and handling locate
-  requests.
-
-  Revision 1.1.4.6  2001/05/31 16:18:12  dpg1
-  inline string matching functions, re-ordered string matching in
-  _ptrToInterface/_ptrToObjRef
-
-  Revision 1.1.4.5  2001/05/29 17:03:50  dpg1
-  In process identity.
-
-  Revision 1.1.4.4  2001/05/04 13:55:27  sll
-  When a system exception is raised, send the exception before skipping rest
-  of the input message. Helpful if the client sends a message shorter than
-  the header indicates. Otherwise the server will sit there waiting for the
-  remaining bytes that will never come. Eventually the server side timeout
-  mechanism kicks in but by then the server will just close the connection
-  rather than telling the client it has detected a marshalling exception.
-
-  Revision 1.1.4.3  2001/05/02 14:22:05  sll
-  Cannot rely on the calldescriptor still being there when a user exception
-  is raised.
-
-  Revision 1.1.4.2  2001/05/01 16:07:32  sll
-  All GIOP implementations should now work with fragmentation and abitrary
-  sizes non-copy transfer.
-
-  Revision 1.1.4.1  2001/04/18 18:10:51  sll
-  Big checkin with the brand new internal APIs.
-
-  */
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/callDescriptor.h>
@@ -185,10 +44,9 @@
 #include <omniORB4/omniInterceptors.h>
 #include <interceptors.h>
 #include <poaimpl.h>
+#include <orbParameters.h>
 
-#ifdef HAVE_STD
 #include <memory>
-#endif
 
 OMNI_NAMESPACE_BEGIN(omni)
 
@@ -249,6 +107,19 @@ GIOP_S::ptrToClass(int* cptr)
 }
 int GIOP_S::_classid;
 
+
+////////////////////////////////////////////////////////////////////////
+static inline void
+setServerDeadline(GIOP_S* giop_s)
+{
+  if (orbParameters::serverCallTimeOutPeriod) {
+
+    omni_time_t deadline;
+    omni_thread::get_time(deadline, orbParameters::serverCallTimeOutPeriod);
+    giop_s->setDeadline(deadline);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////
 CORBA::Boolean
 GIOP_S::dispatcher() {
@@ -274,6 +145,7 @@ GIOP_S::dispatcher() {
 	return 0;
       }
     }
+    setServerDeadline(this);
 
     if (pd_requestType == GIOP::Request) {
       return handleRequest();
@@ -299,7 +171,7 @@ GIOP_S::dispatcher() {
     return 0;
   }
 
-#ifndef HAS_Cplusplus_catch_exception_by_base
+#ifndef OMNI_HAS_Cplusplus_catch_exception_by_base
 #  define CATCH_AND_HANDLE(name) \
   catch(CORBA::name& ex) { \
     impl()->sendMsgErrorMessage(this, &ex); \
@@ -415,6 +287,7 @@ GIOP_S::handleRequest() {
       SkipRequestBody();
     }
     if (response_expected()) {
+      setServerDeadline(this);
       impl()->sendLocationForwardReply(this,release_it,ex.is_permanent());
     }
     // If the client does not expect a response, we quietly drop
@@ -428,6 +301,7 @@ GIOP_S::handleRequest() {
     SkipRequestBody(); \
   } \
   if (response_expected()) { \
+    setServerDeadline(this); \
     if (calldescriptor()) { \
       int i, repoid_size;  \
       const char* repoid = ex._NP_repoId(&repoid_size); \
@@ -439,9 +313,9 @@ GIOP_S::handleRequest() {
       if( i == pd_n_user_excns ) { \
 	if( omniORB::trace(1) ) { \
 	  omniORB::logger l; \
-	  l << "WARNING -- method \'" << operation() \
-	    << "\' on: " << pd_key \
-	    << "\n raised the exception: " << repoid << '\n'; \
+	  l << "Warning: method '" << operation() \
+	    << "' on: " << pd_key \
+	    << " raised the exception: " << repoid << '\n'; \
 	} \
 	CORBA::UNKNOWN sex(UNKNOWN_UserException, \
 			   (CORBA::CompletionStatus) completion()); \
@@ -455,6 +329,7 @@ GIOP_S::handleRequest() {
 } while (0)
 
 #define MARSHAL_SYSTEM_EXCEPTION() do { \
+    setServerDeadline(this); \
     if (pd_state == RequestIsBeingProcessed) { \
       SkipRequestBody(); \
     } \
@@ -467,7 +342,7 @@ GIOP_S::handleRequest() {
     } \
 } while (0) 
 
-# ifndef HAS_Cplusplus_catch_exception_by_base
+# ifndef OMNI_HAS_Cplusplus_catch_exception_by_base
 
   // We have to catch each type of system exception separately
   // here to support compilers which cannot catch more derived
@@ -505,10 +380,9 @@ GIOP_S::handleRequest() {
     throw;
   }
 
-#ifdef HAVE_STD
   catch (const std::bad_alloc&) {
     // We keep logging as simple as possible to avoid too much allocation.
-    omniORB::logs(1, "ERROR -- upcall raised std::bad_alloc.");
+    omniORB::logs(1, "Error: upcall raised std::bad_alloc.");
 
     if (response_expected()) {
       CORBA::NO_MEMORY ex(NO_MEMORY_BadAlloc,
@@ -520,8 +394,8 @@ GIOP_S::handleRequest() {
   catch (const std::exception& std_ex) {
     if (omniORB::trace(1)) {
       omniORB::logger l;
-      l << "WARNING -- method '" << operation() << "' raised an unexpected\n"
-	<< " std::exception (not a CORBA exception):\n "
+      l << "Warning: method '" << operation() << "' raised an unexpected "
+	<< "std::exception (not a CORBA exception): "
 	<< std_ex.what() << "\n";
     }
     if (response_expected()) {
@@ -530,12 +404,11 @@ GIOP_S::handleRequest() {
       impl()->sendSystemException(this,ex);
     }
   }
-#endif // HAVE_STD
 
   catch (const omni_thread_fatal& thr_ex) {
     if (omniORB::trace(1)) {
       omniORB::logger l;
-      l << "WARNING -- method '" << operation() << "' raised an "
+      l << "Warning: method '" << operation() << "' raised an "
 	<< "omni_thread_fatal exception (error " << thr_ex.error << ").\n";
     }
     if (response_expected()) {
@@ -546,18 +419,22 @@ GIOP_S::handleRequest() {
   }
 
   catch(...) {
-    if( omniORB::traceLevel > 1 ) {
+    if (omniORB::trace(1)) {
       omniORB::logger l;
-      l << "WARNING -- method \'" << operation() << "\' raised an unexpected\n"
-	" exception (not a CORBA exception).\n";
+      l << "Warning: method '" << operation() << "' raised an unexpected "
+	"exception (not a CORBA exception).\n";
     }
     if (response_expected()) {
       CORBA::UNKNOWN ex(UNKNOWN_UserException,
 			(CORBA::CompletionStatus) completion());
+      setServerDeadline(this);
       impl()->sendSystemException(this,ex);
     }
   }
   pd_state = ReplyCompleted;
+
+  clearValueTracker();
+  clearDeadline();
   return 1;
 }
 
@@ -583,7 +460,7 @@ GIOP_S::handleLocateRequest() {
       // too much stuff out of the connection and these data belong to
       // other requests. If that is the case, we notify the giopServer
       // that there are already buffers waiting to be read.
-      giopStrand& s = (giopStrand&) *this;
+      giopStrand& s = strand();
       data_in_buffer = ((s.head) ? 1 : 0);
     }
     pd_worker->server()->notifyWkPreUpCall(pd_worker,data_in_buffer);
@@ -619,10 +496,12 @@ GIOP_S::handleLocateRequest() {
       status = GIOP::OBJECT_HERE;
     }
 
+    setServerDeadline(this);
     impl()->sendLocateReply(this,status,CORBA::Object::_nil(),0);
   }
   catch (omniORB::LOCATION_FORWARD& lf) {
     CORBA::Object_var release_it(lf.get_obj());
+    setServerDeadline(this);
     impl()->sendLocateReply(this,
 			    lf.is_permanent() ? GIOP::OBJECT_FORWARD_PERM :
 			                        GIOP::OBJECT_FORWARD,
@@ -630,6 +509,7 @@ GIOP_S::handleLocateRequest() {
   }
 
 #define MARSHAL_SYSTEM_EXCEPTION() do { \
+    setServerDeadline(this); \
     if (pd_state == RequestIsBeingProcessed) { \
       SkipRequestBody(); \
     } \
@@ -642,7 +522,7 @@ GIOP_S::handleLocateRequest() {
     } \
 } while (0) 
 
-# ifndef HAS_Cplusplus_catch_exception_by_base
+# ifndef OMNI_HAS_Cplusplus_catch_exception_by_base
 
   // We have to catch each type of system exception separately
   // here to support compilers which cannot catch more derived
@@ -662,6 +542,9 @@ GIOP_S::handleLocateRequest() {
   }
 
   pd_state = ReplyCompleted;
+
+  clearValueTracker();
+  clearDeadline();
   return 1;
 }
 
@@ -675,6 +558,7 @@ GIOP_S::handleCancelRequest() {
   omniORB::logs(5, "Received a CancelRequest message.");
   pd_state = WaitingForReply;
   response_expected(0);
+  clearDeadline();
   return 1;
 }
 
@@ -713,7 +597,7 @@ GIOP_S::ReceiveRequest(omniCallDescriptor& desc) {
     // too much stuff out of the connection and these data belong to
     // other requests. If that is the case, we notify the giopServer
     // that there are already buffers waiting to be read.
-    giopStrand& s = (giopStrand&) *this;
+    giopStrand& s = strand();
     data_in_buffer = ((s.head) ? 1 : 0);
   }
   pd_worker->server()->notifyWkPreUpCall(pd_worker,data_in_buffer);
@@ -723,8 +607,8 @@ GIOP_S::ReceiveRequest(omniCallDescriptor& desc) {
 
   // Check if this call comes in from a bidirectional connection.
   // If so check if the servant's POA policy allows this.
-  giopStrand& g = (giopStrand&)((giopStream&)(*this));
-  if (g.biDir && g.isClient()) {
+  giopStrand& g = strand();
+  if (g.isBiDir() && g.isClient()) {
     if (!(pd_calldescriptor->poa() &&
 	  pd_calldescriptor->poa()->acceptBiDirectional())) {
       OMNIORB_THROW(OBJ_ADAPTER,OBJ_ADAPTER_BiDirNotAllowed,
@@ -743,7 +627,7 @@ GIOP_S::SkipRequestBody() {
 
   CORBA::Boolean data_in_buffer = 0;
   if (pd_rdlocked) {
-    giopStrand& s = (giopStrand&) *this;
+    giopStrand& s  = strand();
     data_in_buffer = ((s.head) ? 1 : 0);
   }
   pd_worker->server()->notifyWkPreUpCall(pd_worker,data_in_buffer);
@@ -759,10 +643,13 @@ GIOP_S::SendReply() {
 
   if (!response_expected()) {
     pd_state = ReplyCompleted;
+    clearDeadline();
     return;
   }
 
   pd_service_contexts.length(0);
+
+  setServerDeadline(this);
 
   if (omniInterceptorP::serverSendReply) {
     omniInterceptors::serverSendReply_T::info_T info(*this);
@@ -776,6 +663,7 @@ GIOP_S::SendReply() {
   pd_state = ReplyCompleted;
 
   clearValueTracker();
+  clearDeadline();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -785,6 +673,8 @@ GIOP_S::SendException(CORBA::Exception* ex) {
   OMNIORB_ASSERT(pd_state == WaitingForReply);
 
   if (!response_expected()) throw terminateProcessing();
+
+  setServerDeadline(this);
 
   int idsize;
   const char* repoid = ex->_NP_repoId(&idsize);
@@ -808,6 +698,7 @@ GIOP_S::SendException(CORBA::Exception* ex) {
   pd_state = ReplyCompleted;
 
   clearValueTracker();
+  clearDeadline();
 }
 
 ////////////////////////////////////////////////////////////////////////

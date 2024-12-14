@@ -3,25 +3,23 @@
 // CORBA_sysdep.h             Created on: 30/1/96
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2003-2008 Apasphere Ltd
+//    Copyright (C) 2003-2022 Apasphere Ltd
 //    Copyright (C) 1996-1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -30,62 +28,6 @@
 // 	Define a set of flags in C++ macros. These flags provide information
 //      about the system and the compiler used.
 // 
-
-/*
- $Log$
- Revision 1.5.2.10  2008/03/24 20:17:20  dgrisby
- Sun's compiler doesn't like the <: in const_cast<::CORBA...>.
-
- Revision 1.5.2.9  2007/02/05 17:39:17  dgrisby
- Later Sun compilers require a dummy return.
-
- Revision 1.5.2.8  2007/01/12 10:19:51  dgrisby
- Support for MontaVista ARM Linux.
-
- Revision 1.5.2.7  2006/04/28 18:40:46  dgrisby
- Merge from omni4_0_develop.
-
- Revision 1.5.2.6  2006/01/10 12:24:04  dgrisby
- Merge from omni4_0_develop pre 4.0.7 release.
-
- Revision 1.5.2.5  2005/11/17 17:03:27  dgrisby
- Merge from omni4_0_develop.
-
- Revision 1.5.2.4  2005/07/22 17:18:40  dgrisby
- Another merge from omni4_0_develop.
-
- Revision 1.5.2.3  2005/07/11 17:47:31  dgrisby
- VMS changes from Bruce Visscher.
-
- Revision 1.5.2.2  2005/01/06 23:08:07  dgrisby
- Big merge from omni4_0_develop.
-
- Revision 1.5.2.1  2003/03/23 21:04:22  dgrisby
- Start of omniORB 4.1.x development branch.
-
- Revision 1.2.2.23  2003/03/02 17:10:40  dgrisby
- AIX patches integrated in main tree.
-
- Revision 1.2.2.22  2003/02/17 02:03:07  dgrisby
- vxWorks port. (Thanks Michael Sturm / Acterna Eningen GmbH).
-
- Revision 1.2.2.21  2003/01/16 12:47:08  dgrisby
- Const cast macro. Thanks Matej Kenda.
-
- Revision 1.2.2.20  2003/01/16 11:08:26  dgrisby
- Patches to support Digital Mars C++. Thanks Christof Meerwald.
-
- Revision 1.2.2.19  2002/02/18 11:59:12  dpg1
- Full autoconf support.
-
- Revision 1.2.2.18  2002/01/15 16:38:09  dpg1
- On the road to autoconf. Dependencies refactored, configure.ac
- written. No makefiles yet.
-
-
- Log truncated.
-
-*/
 
 #ifndef __CORBA_SYSDEP_H__
 #define __CORBA_SYSDEP_H__
@@ -115,6 +57,24 @@
 
 
 //
+// Pointer arithmetic type
+//
+
+#if OMNI_SIZEOF_PTR == OMNI_SIZEOF_LONG
+typedef unsigned long omni_ptr_arith_t;
+typedef long omni_s_size_t;
+#elif OMNI_SIZEOF_PTR == OMNI_SIZEOF_INT
+typedef unsigned int omni_ptr_arith_t;
+typedef int omni_s_size_t;
+#elif defined (_WIN64)
+typedef size_t omni_ptr_arith_t;
+typedef __int64 omni_s_size_t;
+#else
+#error "No suitable type to do pointer arithmetic"
+#endif
+
+
+//
 // Dependencies that are always hard-coded
 //
 
@@ -132,7 +92,7 @@
 // __VFP_FP__ means that the floating point format in use is that of the ARM 
 // VFP unit, which is native-endian IEEE-754.
 #if defined(__arm__)
-#  if defined(__armv5teb__) || defined(__VFP_FP__)
+#  if defined(__armv5teb__) || defined(__VFP_FP__) || defined(__aarch64__) || defined(__arm64__)
 #    define NO_OMNI_MIXED_ENDIAN_DOUBLE
 #  else
 #    define OMNI_MIXED_ENDIAN_DOUBLE
@@ -141,9 +101,22 @@
 
 
 //
+// Attributes
+// 
+
+#if __cplusplus >= 201703L
+#  define OMNI_MAYBE_UNUSED [[maybe_unused]]
+
+#else
+#  define OMNI_MAYBE_UNUSED
+
+#endif
+
+
+//
 // Macro to provide const_cast functionality on all platforms.
 //
-#ifdef HAS_Cplusplus_const_cast
+#ifdef OMNI_HAS_Cplusplus_const_cast
 #  define OMNI_CONST_CAST(_t, _v) const_cast< _t >(_v)
 #  define OMNI_CONST_VOID_CAST(_v) const_cast<void*>(static_cast<const void*>(_v))
 #else
@@ -151,7 +124,7 @@
 #  define OMNI_CONST_VOID_CAST(_v) (void*)(_t)
 #endif
 
-#ifdef HAS_Cplusplus_reinterpret_cast
+#ifdef OMNI_HAS_Cplusplus_reinterpret_cast
 #  define OMNI_REINTERPRET_CAST(_t, _v) reinterpret_cast< _t const& >(_v)
 #else
 #  define OMNI_REINTERPRET_CAST(_t, _v) (*(_t*)(&_v))
@@ -160,8 +133,7 @@
 
 #if defined(__GNUG__)
 // GNU G++ compiler
-#  define EGCS_WORKAROUND
-#  define NEED_DUMMY_RETURN
+#  define OMNI_NEED_DUMMY_RETURN
 #endif
 
 #if defined(__DECCXX)
@@ -174,9 +146,8 @@
 //    this pragma wasn't implemented until 6.something on Unix).
 #     ifdef __VMS
 #       pragma message disable CANTCOMPLETE
-#       define OMNIORB_THROW_VISIBLE_THROW
 #     endif
-#     define NEED_DUMMY_RETURN
+#     define OMNI_NEED_DUMMY_RETURN
 #     define OMNI_OPERATOR_REFPTR_REQUIRES_TYPEDEF
 #     define OMNI_PREMATURE_INSTANTIATION
 //    Extra macros from the Compaq C++ 5.x patch (in <top>/patches/) to be
@@ -189,7 +160,7 @@
 
 #if defined(__SUNPRO_CC) 
 // SUN C++ compiler
-#  define NEED_DUMMY_RETURN
+#  define OMNI_NEED_DUMMY_RETURN
 
 // XXX
 // This is a hack to work around a bug in SUN C++ compiler (seen on 4.2).
@@ -211,7 +182,7 @@
 #endif
 
 #if defined(__HP_aCC) || ( defined(__hpux__) && !defined(__GNUG__) )
-#  define NEED_DUMMY_RETURN
+#  define OMNI_NEED_DUMMY_RETURN
 #endif
 
 #if defined(__hpux__) && __OSVERSION__ < 11
@@ -228,7 +199,7 @@
 
 #if defined(__aix__) && defined(__xlC__)
 #  define OMNI_NO_INLINE_FRIENDS
-#  define NEED_DUMMY_RETURN
+#  define OMNI_NEED_DUMMY_RETURN
 #endif
 
 
@@ -243,7 +214,7 @@
 
 #if defined(_MSC_VER)
 
-#  define NEED_DUMMY_RETURN
+#  define OMNI_NEED_DUMMY_RETURN
 
 // VC.NET 2003 (v. 7.1) has problems recognizing inline friend
 // operators.
@@ -294,7 +265,7 @@
 #  pragma warning(disable: 4250)
 
 #elif defined(__DMC__)
-#  define NEED_DUMMY_RETURN
+#  define OMNI_NEED_DUMMY_RETURN
 
 #  ifdef _WINSTATIC
 #    define _OMNIORB_NTDLL_IMPORT
@@ -322,91 +293,95 @@
 // Module mapping using namespaces or classes
 //
 
-#ifdef HAS_Cplusplus_Namespace
-
-#ifndef _CORBA_MODULE
-#define _CORBA_MODULE namespace
-#else
-#error "Name conflict: _CORBA_MODULE is already defined."
+#ifdef _CORBA_MODULE
+#  error "Name conflict: _CORBA_MODULE is already defined."
 #endif
 
-#ifndef _CORBA_MODULE_BEG
-#define _CORBA_MODULE_BEG {
-#else
-#error "Name conflict: _CORBA_MODULE_BEG is already defined."
+#ifdef _CORBA_MODULE_BEG
+#  error "Name conflict: _CORBA_MODULE_BEG is already defined."
 #endif
 
-#ifndef _CORBA_MODULE_END
-#define _CORBA_MODULE_END }
-#else
-#error "Name conflict: _CORBA_MODULE_END is already defined."
+#ifdef _CORBA_MODULE_END
+#  error "Name conflict: _CORBA_MODULE_END is already defined."
 #endif
 
-#ifndef _CORBA_MODULE_OP
-#define _CORBA_MODULE_OP
-#else
-#error "Name conflict: _CORBA_MODULE_OP is already defined."
+#ifdef _CORBA_MODULE_OP
+#  error "Name conflict: _CORBA_MODULE_OP is already defined."
 #endif
 
-#ifndef _CORBA_MODULE_FN
-#define _CORBA_MODULE_FN
-#else
-#error "Name conflict: _CORBA_MODULE_FN is already defined."
+#ifdef _CORBA_MODULE_FN
+#  error "Name conflict: _CORBA_MODULE_FN is already defined."
 #endif
 
-#ifndef _CORBA_MODULE_VAR
-#define _CORBA_MODULE_VAR extern
-#else
-#error "Name conflict: _CORBA_MODULE_VAR is already defined."
+#ifdef _CORBA_MODULE_VAR
+#  error "Name conflict: _CORBA_MODULE_VAR is already defined."
 #endif
 
-#ifndef _CORBA_MODULE_INLINE
-#define _CORBA_MODULE_INLINE inline
-#else
-#error "Name conflict: _CORBA_MODULE_INLINE is already defined."
+#ifdef _CORBA_MODULE_INLINE
+#  error "Name conflict: _CORBA_MODULE_INLINE is already defined."
 #endif
 
-#ifndef _CORBA_GLOBAL_VAR
-#define _CORBA_GLOBAL_VAR extern
-#else
-#error "Name conflict: _CORBA_GLOBAL_VAR is already defined."
+#ifdef _CORBA_GLOBAL_VAR
+#  error "Name conflict: _CORBA_GLOBAL_VAR is already defined."
 #endif
 
-#ifndef _CORBA_MODULE_VARINT
-#define _CORBA_MODULE_VARINT
-#else
-#error "Name conflict: _CORBA_MODULE_VARINT is already defined."
+#ifdef _CORBA_MODULE_VARINT
+#  error "Name conflict: _CORBA_MODULE_VARINT is already defined."
 #endif
 
-#ifndef _CORBA_GLOBAL_VARINT
-#define _CORBA_GLOBAL_VARINT
-#else
-#error "Name conflict: _CORBA_GLOBAL_VARINT is already defined."
+#ifdef _CORBA_GLOBAL_VARINT
+#  error "Name conflict: _CORBA_GLOBAL_VARINT is already defined."
 #endif
 
-#ifndef OMNI_NAMESPACE_BEGIN
-#define OMNI_NAMESPACE_BEGIN(name) namespace name {
-#else
-#error "Name conflict: OMNI_NAMESPACE_BEGIN is already defined."
+#ifdef OMNI_NAMESPACE_BEGIN
+#  error "Name conflict: OMNI_NAMESPACE_BEGIN is already defined."
 #endif
 
-#ifndef OMNI_NAMESPACE_END
-#define OMNI_NAMESPACE_END(name) }
-#else
-#error "Name conflict: OMNI_NAMESPACE_END is already defined."
+#ifdef OMNI_NAMESPACE_END
+#  error "Name conflict: OMNI_NAMESPACE_END is already defined."
 #endif
 
-#ifndef OMNI_USING_NAMESPACE
-#define OMNI_USING_NAMESPACE(name) using namespace name;
-#else
-#error "Name conflict: OMNI_USING_NAMESPACE is already defined."
+#ifdef OMNI_USING_NAMESPACE
+#  error "Name conflict: OMNI_USING_NAMESPACE is already defined."
 #endif
 
-#ifndef _OMNI_NS
-#define _OMNI_NS(x) omni::x
-#else
-#error "Name conflict: _OMNI_NS is already defined."
+#ifdef _OMNI_NS
+#  error "Name conflict: _OMNI_NS is already defined."
 #endif
+
+#ifdef _init_in_decl_
+#  error "Name conflict: _init_in_decl_ is already defined."
+#endif
+
+#ifdef _init_in_def_
+#  error "Name conflict: _init_in_def_ is already defined."
+#endif
+
+#ifdef _init_in_cldecl_
+#  error "Name conflict: _init_in_cldecl_ is already defined."
+#endif
+
+#ifdef _init_in_cldef_
+#  error "Name conflict: _init_in_cldef_ is already defined."
+#endif
+
+
+#ifdef OMNI_HAS_Cplusplus_Namespace
+
+#  define _CORBA_MODULE        namespace
+#  define _CORBA_MODULE_BEG    {
+#  define _CORBA_MODULE_END    }
+#  define _CORBA_MODULE_OP
+#  define _CORBA_MODULE_FN
+#  define _CORBA_MODULE_VAR    extern
+#  define _CORBA_MODULE_INLINE inline
+#  define _CORBA_GLOBAL_VAR    extern
+#  define _CORBA_MODULE_VARINT
+#  define _CORBA_GLOBAL_VARINT
+#  define OMNI_NAMESPACE_BEGIN(name) namespace name {
+#  define OMNI_NAMESPACE_END(name)   }
+#  define OMNI_USING_NAMESPACE(name) using namespace name;
+#  define _OMNI_NS(x) omni::x
 
 // Integral and enumeration constants are declared in the stub headers as:
 //    e.g.  class A {
@@ -423,174 +398,68 @@
 // be specified with a constant-initializer whereas ARM does not.
 // The _init_in_decl_ and _init_in_def_ macros are defined so that the same 
 // stub will compile on both FD and ARM compilers.
-// MSVC++ 5.0 (and 6.0) is somewhere between FD and ARM.
+// Older MSVC++ are somewhere between FD and ARM. 
 //  _MSC_VER = 1100 for 5.0, 1200 for 6.0.
-//
-#ifndef _init_in_decl_
-#define _init_in_decl_(x) x
-#else
-#error "Name conflict: _init_in_decl_ is already defined."
-#endif
 
-#ifndef _init_in_def_
-#define _init_in_def_(x)
-#else
-#error "Name conflict: _init_in_def_ is already defined."
-#endif
+#  define _init_in_decl_(x) x
+#  define _init_in_def_(x)
 
-#ifndef _init_in_cldecl_
-#  if !defined(_MSC_VER) || defined(__INTEL_COMPILER)
+#  if defined(__INTEL_COMPILER)
+#    define _init_in_cldecl_(x)
+#    define _init_in_cldef_(x) x
+#  elif defined (_MSC_VER) && (_MSC_VER < 1500)
+#    define _init_in_cldecl_(x)
+#    define _init_in_cldef_(x) x
+#  else
 #    define _init_in_cldecl_(x) x
-#  else
-#    define _init_in_cldecl_(x) 
-#  endif
-#else
-#error "Name conflict: _init_in_cldecl_ is already defined."
-#endif
-
-#ifndef _init_in_cldef_
-#  if !defined(_MSC_VER) || defined(__INTEL_COMPILER)
 #    define _init_in_cldef_(x)
-#  else
-#    define _init_in_cldef_(x) x 
 #  endif
-#else
-#error "Name conflict: _init_in_cldef_ is already defined."
-#endif
 
-#else
+#else // No namespace support
 
-#ifndef _CORBA_MODULE
-#define _CORBA_MODULE class
-#else
-#error "Name conflict: _CORBA_MODULE is already defined."
-#endif
+#  define _CORBA_MODULE        class
+#  define _CORBA_MODULE_BEG    { public:
+#  define _CORBA_MODULE_END    };
+#  define _CORBA_MODULE_OP     friend
+#  define _CORBA_MODULE_FN     static
+#  define _CORBA_MODULE_VAR    static
+#  define _CORBA_MODULE_INLINE static inline
+#  define _CORBA_GLOBAL_VAR    extern
+#  define _CORBA_MODULE_VARINT static _core_attr
+#  define _CORBA_GLOBAL_VARINT extern _core_attr
+#  define OMNI_NAMESPACE_BEGIN(name)
+#  define OMNI_NAMESPACE_END(name)
+#  define OMNI_USING_NAMESPACE(name)
+#  define _OMNI_NS(x) x
 
-#ifndef _CORBA_MODULE_BEG
-#define _CORBA_MODULE_BEG { public:
-#else
-#error "Name conflict: _CORBA_MODULE_BEG is already defined."
-#endif
+#  define _init_in_decl_(x)
+#  define _init_in_def_(x) x
+#  define _init_in_cldecl_(x)
+#  define _init_in_cldef_(x) x
 
-#ifndef _CORBA_MODULE_END
-#define _CORBA_MODULE_END };
-#else
-#error "Name conflict: _CORBA_MODULE_END is already defined."
-#endif
-
-#ifndef _CORBA_MODULE_OP
-#define _CORBA_MODULE_OP friend
-#else
-#error "Name conflict: _CORBA_MODULE_OP is already defined."
-#endif
-
-#ifndef _CORBA_MODULE_FN
-#define _CORBA_MODULE_FN static
-#else
-#error "Name conflict: _CORBA_MODULE_FN is already defined."
-#endif
-
-#ifndef _CORBA_MODULE_VAR
-#define _CORBA_MODULE_VAR static
-#else
-#error "Name conflict: _CORBA_MODULE_VAR is already defined."
-#endif
-
-#ifndef _CORBA_MODULE_INLINE
-#define _CORBA_MODULE_INLINE static inline
-#else
-#error "Name conflict: _CORBA_MODULE_INLINE is already defined."
-#endif
-
-#ifndef _CORBA_GLOBAL_VAR
-#define _CORBA_GLOBAL_VAR extern
-#else
-#error "Name conflict: _CORBA_GLOBAL_VAR is already defined."
-#endif
-
-#ifndef _CORBA_MODULE_VARINT
-#define _CORBA_MODULE_VARINT static _core_attr
-#else
-#error "Name conflict: _CORBA_MODULE_VARINT is already defined."
-#endif
-
-#ifndef _CORBA_GLOBAL_VARINT
-#define _CORBA_GLOBAL_VARINT extern _core_attr
-#else
-#error "Name conflict: _CORBA_GLOBAL_VARINT is already defined."
-#endif
-
-#ifndef OMNI_NAMESPACE_BEGIN
-#define OMNI_NAMESPACE_BEGIN(name)
-#else
-#error "Name conflict: OMNI_NAMESPACE_BEGIN is already defined."
-#endif
-
-#ifndef OMNI_NAMESPACE_END
-#define OMNI_NAMESPACE_END(name)
-#else
-#error "Name conflict: OMNI_NAMESPACE_END is already defined."
-#endif
-
-#ifndef OMNI_USING_NAMESPACE
-#define OMNI_USING_NAMESPACE(name)
-#else
-#error "Name conflict: OMNI_USING_NAMESPACE is already defined."
-#endif
-
-#ifndef _OMNI_NS
-#define _OMNI_NS(x) x
-#else
-#error "Name conflict: _OMNI_NS is already defined."
-#endif
-
-#ifndef _init_in_decl_
-#define _init_in_decl_(x)
-#else
-#error "Name conflict: _init_in_decl_ is already defined."
-#endif
-
-#ifndef _init_in_def_
-#define _init_in_def_(x) x
-#else
-#error "Name conflict: _init_in_def_ is already defined."
-#endif
-
-#ifndef _init_in_cldecl_
-#define _init_in_cldecl_(x)
-#else
-#error "Name conflict: _init_in_cldecl_ is already defined."
-#endif
-
-#ifndef _init_in_cldef_
-#define _init_in_cldef_(x) x
-#else
-#error "Name conflict: _init_in_cldef_ is already defined."
-#endif
-
-#endif // HAS_Cplusplus_Namespace
+#endif // OMNI_HAS_Cplusplus_Namespace
 
 
 #ifdef OMNI_REQUIRES_FQ_BASE_CTOR
-# define OMNIORB_BASE_CTOR(a)   a
+#  define OMNIORB_BASE_CTOR(a)   a
 #else
-# define OMNIORB_BASE_CTOR(a)
+#  define OMNIORB_BASE_CTOR(a)
 #endif
 
 #ifndef OMNI_OPERATOR_REFPTR
 // Only used when the source tree is patched with DEC C++ 5.6 workarounds
-#define OMNI_OPERATOR_REFPTR(T) inline operator T*&()
+#  define OMNI_OPERATOR_REFPTR(T) inline operator T*&()
 #endif
 
 #ifndef OMNI_CONSTRTYPE_FIX_VAR_MEMBER
 // Only used when the source tree is patched with DEC C++ 5.6 workarounds
-#define OMNI_CONSTRTYPE_FIX_VAR_MEMBER(T) \
+#  define OMNI_CONSTRTYPE_FIX_VAR_MEMBER(T) \
    typedef _CORBA_ConstrType_Fix_Var<T> _var_type;
 #endif
 
 #ifndef OMNI_CONSTRTYPE_FIX_VAR
 // Only used when the source tree is patched with DEC C++ 5.6 workarounds
-#define OMNI_CONSTRTYPE_FIX_VAR(T) typedef T::_var_type T##_var;
+#  define OMNI_CONSTRTYPE_FIX_VAR(T) typedef T::_var_type T##_var;
 #endif
 
 // #define ENABLE_CLIENT_IR_SUPPORT

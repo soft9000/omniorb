@@ -1,11 +1,7 @@
 #include <omniORB4/CORBA.h>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
 #include "value.hh"
 #include "valimpl.h"
@@ -17,8 +13,8 @@ int main(int argc, char** argv)
   OneFactory* onef = new OneFactory();
   orb->register_value_factory("IDL:ValueTest/One:1.0", onef);
 
-  if( argc != 2 ) {
-    cerr << "usage:  vclient <object reference>" << endl;
+  if (argc != 2) {
+    cerr << "usage: vclient <object reference>" << endl;
     return 1;
   }
 

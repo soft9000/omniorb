@@ -8,34 +8,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Primitive types
 //
-
-/*
-  $Log$
-  Revision 1.1.2.2  2001/11/06 15:41:34  dpg1
-  Reimplement Context. Remove CORBA::Status. Tidying up.
-
-  Revision 1.1.2.1  2001/08/17 13:39:49  dpg1
-  Split CORBA.h into separate bits.
-
-*/
 
 #ifndef INSIDE_OMNIORB_CORBA_MODULE
 #  error "Must only be #included by CORBA.h"
@@ -52,15 +40,15 @@ typedef _CORBA_Short      Short;
 typedef _CORBA_UShort     UShort;
 typedef _CORBA_Long       Long;
 typedef _CORBA_ULong      ULong;
-# ifdef HAS_LongLong
+# ifdef OMNI_HAS_LongLong
 typedef _CORBA_LongLong   LongLong;
 typedef _CORBA_ULongLong  ULongLong;
 # endif
 typedef _CORBA_WChar      WChar;
-# ifndef NO_FLOAT
+# ifndef OMNI_NO_FLOAT
 typedef _CORBA_Float      Float;
 typedef _CORBA_Double     Double;
-# ifdef HAS_LongDouble
+# ifdef OMNI_HAS_LongDouble
 typedef _CORBA_LongDouble LongDouble;
 # endif
 # endif
@@ -72,15 +60,15 @@ typedef _CORBA_Short&      Short_out;
 typedef _CORBA_UShort&     UShort_out;
 typedef _CORBA_Long&       Long_out;
 typedef _CORBA_ULong&      ULong_out;
-# ifdef HAS_LongLong
+# ifdef OMNI_HAS_LongLong
 typedef _CORBA_LongLong&   LongLong_out;
 typedef _CORBA_ULongLong&  ULongLong_out;
 # endif
 typedef _CORBA_WChar&      WChar_out;
-# ifndef NO_FLOAT
+# ifndef OMNI_NO_FLOAT
 typedef _CORBA_Float&      Float_out;
 typedef _CORBA_Double&     Double_out;
-# ifdef HAS_LongDouble
+# ifdef OMNI_HAS_LongDouble
 typedef _CORBA_LongDouble& LongDouble_out;
 # endif
 # endif

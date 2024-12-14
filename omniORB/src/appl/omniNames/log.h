@@ -2,7 +2,7 @@
 //                          Package   : omniNames
 // log.h                    Author    : Tristan Richardson (tjr)
 //
-//    Copyright (C) 2003-2008 Apasphere Ltd
+//    Copyright (C) 2003-2013 Apasphere Ltd
 //    Copyright (C) 1997-1999 AT&T Laboratories Cambridge
 //
 //  This file is part of omniNames.
@@ -18,9 +18,7 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
-//  USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 
 #ifndef _log_h_
@@ -28,25 +26,40 @@
 
 #include <omniORB4/CORBA.h>
 
-#ifdef HAVE_STD
-#  include <fstream>
-   using namespace std;
-#else
-#  include <fstream.h>
+#include <fstream>
+using namespace std;
+
+#ifndef DATADIR_ENV_VAR
+#  define DATADIR_ENV_VAR "OMNINAMES_DATADIR"
 #endif
 
 #ifndef LOGDIR_ENV_VAR
 #  define LOGDIR_ENV_VAR "OMNINAMES_LOGDIR"
 #endif
 
+// Tracing/logging
+
+#define LOG(level, msg) \
+  do { \
+    if (omniORB::trace(level)) { \
+      omniORB::logger _log("omniNames: "); \
+      _log << msg << '\n'; \
+    } \
+  } while(0)
+
+
 class omniNameslog {
 
   CORBA::ORB_ptr orb;
   PortableServer::POA_ptr poa;
   PortableServer::POA_ptr ins_poa;
+
   CORBA::String_var active;
   CORBA::String_var backup;
   CORBA::String_var checkpt;
+  CORBA::String_var active_new;
+  CORBA::String_var active_old;
+
   ofstream logf;
 
   int port;
@@ -123,7 +136,7 @@ public:
 	    CosNaming::BindingType t);
   void unbind(CosNaming::NamingContext_ptr nc, const CosNaming::Name& n);
 
-  void checkpoint(void);
+  void checkpoint();
 
 };
 

@@ -9,44 +9,21 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //	*** PROPRIETARY INTERFACE ***
-//
-
-// $Log$
-// Revision 1.1.4.2  2005/01/06 23:10:12  dgrisby
-// Big merge from omni4_0_develop.
-//
-// Revision 1.1.4.1  2003/03/23 21:02:24  dgrisby
-// Start of omniORB 4.1.x development branch.
-//
-// Revision 1.1.2.4  2001/10/17 16:33:28  dpg1
-// New downcast mechanism for cdrStreams.
-//
-// Revision 1.1.2.3  2001/06/13 20:12:32  sll
-// Minor updates to make the ORB compiles with MSVC++.
-//
-// Revision 1.1.2.2  2001/05/10 15:03:50  dpg1
-// Update cdrStreamAdapter to modified cdrStream interface.
-//
-// Revision 1.1.2.1  2001/01/09 17:17:00  dpg1
-// New cdrStreamAdapter class to allow omniORBpy to intercept buffer
-// management.
 //
 
 #include <omniORB4/CORBA.h>
@@ -146,14 +123,14 @@ maybeReserveOutputSpace(omni::alignment_t align, size_t required)
   return pd_actual.maybeReserveOutputSpace(align, required);
 }
 
-_CORBA_ULong
+size_t
 cdrStreamAdapter::currentInputPtr() const
 {
   copyStateToActual();
   return pd_actual.currentInputPtr();
 }
 
-_CORBA_ULong
+size_t
 cdrStreamAdapter::currentOutputPtr() const
 {
   copyStateToActual();

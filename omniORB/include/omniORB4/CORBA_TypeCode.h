@@ -9,53 +9,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    CORBA::TypeCode
 //
-
-/*
-  $Log$
-  Revision 1.1.4.4  2004/05/25 14:20:50  dgrisby
-  ValueType TypeCode support.
-
-  Revision 1.1.4.3  2004/04/02 13:26:25  dgrisby
-  Start refactoring TypeCode to support value TypeCodes, start of
-  abstract interfaces support.
-
-  Revision 1.1.4.2  2003/05/20 16:53:12  dgrisby
-  Valuetype marshalling support.
-
-  Revision 1.1.4.1  2003/03/23 21:04:23  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.4  2001/10/29 17:42:35  dpg1
-  Support forward-declared structs/unions, ORB::create_recursive_tc().
-
-  Revision 1.1.2.3  2001/10/17 16:44:00  dpg1
-  Update DynAny to CORBA 2.5 spec, const Any exception extraction.
-
-  Revision 1.1.2.2  2001/09/19 17:29:04  dpg1
-  Cosmetic changes.
-
-  Revision 1.1.2.1  2001/08/17 13:39:48  dpg1
-  Split CORBA.h into separate bits.
-
-*/
 
 #ifndef INSIDE_OMNIORB_CORBA_MODULE
 #  error "Must only be #included by CORBA.h"
@@ -71,7 +40,7 @@ struct PR_structMember {
   TypeCode_ptr type;
 };
 
-#ifndef HAS_LongLong
+#ifndef OMNI_HAS_LongLong
 typedef ULong PR_unionDiscriminator;
 typedef Long  PR_unionDiscriminatorSigned;
 #else
@@ -326,11 +295,11 @@ public:
   static TypeCode_ptr PR_Object_tc();
   static TypeCode_ptr PR_string_tc();
   static TypeCode_ptr PR_wstring_tc();
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   static TypeCode_ptr PR_longlong_tc();
   static TypeCode_ptr PR_ulonglong_tc();
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   static TypeCode_ptr PR_longdouble_tc();
 #endif
 
@@ -346,7 +315,7 @@ protected:
   // These operators are placed here to avoid them being used externally
   TypeCode(const TypeCode& tc);
   TypeCode& operator=(const TypeCode& tc);
-  TypeCode() { pd_magic = PR_magic; };
+  TypeCode() { pd_magic = PR_magic; }
 
   _CORBA_ULong pd_magic;
 };
@@ -375,11 +344,11 @@ _CORBA_MODULE_VAR _dyn_attr TypeCode_ptr _tc_Object;
 _CORBA_MODULE_VAR _dyn_attr TypeCode_ptr _tc_string;
 _CORBA_MODULE_VAR _dyn_attr TypeCode_ptr _tc_wstring;
 _CORBA_MODULE_VAR _dyn_attr TypeCode_ptr _tc_NamedValue;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 _CORBA_MODULE_VAR _dyn_attr TypeCode_ptr _tc_longlong;
 _CORBA_MODULE_VAR _dyn_attr TypeCode_ptr _tc_ulonglong;
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 _CORBA_MODULE_VAR _dyn_attr TypeCode_ptr _tc_longdouble;
 #endif
 

@@ -24,6 +24,7 @@ GIOP_SRCS = \
             SocketCollection.cc
 
 TRANSPORT_SRCS = \
+            tcpSocket.cc \
             tcpTransportImpl.cc \
             tcpConnection.cc \
             tcpEndpoint.cc \
@@ -69,6 +70,7 @@ endif
 ORB_SRCS =  \
 	    anonObject.cc \
 	    callDescriptor.cc \
+	    connectionInfo.cc \
 	    constants.cc \
 	    corbaObject.cc \
 	    corbaBoa.cc \
@@ -260,6 +262,9 @@ ifdef OPEN_SSL_ROOT
 SUBDIRS += ssl
 
   endif
+
+SUBDIRS += http
+
 endif
 
 all::

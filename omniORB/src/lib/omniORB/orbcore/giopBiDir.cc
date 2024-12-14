@@ -3,121 +3,34 @@
 // giopBiDir.cc               Created on: 17/7/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2002-2009 Apasphere Ltd
+//    Copyright (C) 2002-2013 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //
-
-/*
-  $Log$
-  Revision 1.1.4.10  2009/02/25 11:56:16  dgrisby
-  Correct log message.
-
-  Revision 1.1.4.9  2006/06/22 13:53:49  dgrisby
-  Add flags to strand.
-
-  Revision 1.1.4.8  2006/06/05 11:28:04  dgrisby
-  Change clientSendRequest interceptor members to a single GIOP_C.
-
-  Revision 1.1.4.7  2006/06/02 12:48:32  dgrisby
-  Small code cleanups.
-
-  Revision 1.1.4.6  2006/04/09 19:52:31  dgrisby
-  More IPv6, endPointPublish parameter.
-
-  Revision 1.1.4.5  2006/01/10 13:59:37  dgrisby
-  New clientConnectTimeOutPeriod configuration parameter.
-
-  Revision 1.1.4.4  2005/03/02 13:33:42  dgrisby
-  Variable name clash.
-
-  Revision 1.1.4.3  2005/03/02 12:39:18  dgrisby
-  Merge from omni4_0_develop.
-
-  Revision 1.1.4.2  2005/01/06 23:10:15  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.4.1  2003/03/23 21:02:17  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.15  2003/02/03 16:53:14  dgrisby
-  Force type in constructor argument to help confused compilers.
-
-  Revision 1.1.2.14  2002/11/26 14:51:50  dgrisby
-  Implement missing interceptors.
-
-  Revision 1.1.2.13  2002/08/23 14:15:02  dgrisby
-  Avoid exception with bidir when no POA.
-
-  Revision 1.1.2.12  2002/08/21 06:23:15  dgrisby
-  Properly clean up bidir connections and ropes. Other small tweaks.
-
-  Revision 1.1.2.11  2002/01/16 11:31:59  dpg1
-  Race condition in use of registerNilCorbaObject/registerTrackedObject.
-  (Reported by Teemu Torma).
-
-  Revision 1.1.2.10  2001/11/08 16:31:19  dpg1
-  Minor tweaks.
-
-  Revision 1.1.2.9  2001/09/19 17:26:49  dpg1
-  Full clean-up after orb->destroy().
-
-  Revision 1.1.2.8  2001/09/10 17:45:22  sll
-  Call stopIdleCounter when a strand is switched to bidirectional in
-  getBiDirServiceContext.
-
-  Revision 1.1.2.7  2001/09/03 17:32:05  sll
-  Make sure that acquireClient honours the deadline set in the calldescriptor.
-
-  Revision 1.1.2.6  2001/08/29 17:52:03  sll
-  Consult serverTransportRule to decide whether to accept the switch to
-  bidirectional on the server side.
-
-  Revision 1.1.2.5  2001/08/23 10:11:53  sll
-  Initialise BiDirPolicy constants properly for compilers with no namespace
-  support.
-
-  Revision 1.1.2.4  2001/08/21 11:02:14  sll
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.1.2.3  2001/08/17 17:12:36  sll
-  Modularise ORB configuration parameters.
-
-  Revision 1.1.2.2  2001/07/31 17:31:40  sll
-  strchr returns const char*.
-
-  Revision 1.1.2.1  2001/07/31 16:10:38  sll
-  Added GIOP BiDir support.
-
-  */
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/minorCode.h>
 #include <omniORB4/omniInterceptors.h>
 #include <omniORB4/objTracker.h>
 #include <omniORB4/callDescriptor.h>
-#include <omniORB4/omniInterceptors.h>
 #include <exceptiondefs.h>
 #include <giopStrand.h>
 #include <giopRope.h>
@@ -133,7 +46,6 @@
 #include <orbOptions.h>
 #include <orbParameters.h>
 #include <transportRules.h>
-#include <interceptors.h>
 
 OMNI_USING_NAMESPACE(omni)
 
@@ -159,7 +71,7 @@ CORBA::Boolean orbParameters::offerBiDirectionalGIOP = 0;
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
-#if defined(HAS_Cplusplus_Namespace) && defined(_MSC_VER)
+#if defined(OMNI_HAS_Cplusplus_Namespace) && defined(_MSC_VER)
 // MSVC++ does not give the variables external linkage otherwise. Its a bug.
 namespace BiDirPolicy {
 
@@ -259,7 +171,7 @@ RopeLink BiDirServerRope::ropes;
 
 ////////////////////////////////////////////////////////////////////////
 BiDirServerRope::BiDirServerRope(giopStrand* strand, giopAddress* addr) : 
-  giopRope(addr,0), 
+  giopRope(addr),
   pd_sendfrom((const char*)strand->connection->peeraddress()) 
 {
   pd_maxStrands = 1;
@@ -285,7 +197,7 @@ BiDirServerRope::addRope(giopStrand* strand, const giopAddressList& addrlist) {
 
   ASSERT_OMNI_TRACEDMUTEX_HELD(*omniTransportLock,1);
 
-  OMNIORB_ASSERT(!strand->isClient() && strand->biDir == 1);
+  OMNIORB_ASSERT(!strand->isClient() && strand->isBiDir());
 
   const char* sendfrom = strand->connection->peeraddress();
 
@@ -345,7 +257,7 @@ BiDirServerRope::addRope(giopStrand* strand, const giopAddressList& addrlist) {
 int
 BiDirServerRope::selectRope(const giopAddressList& addrlist,
 			    omniIOR::IORInfo* info,
-			    Rope*& r) {
+			    Rope*& rope) {
 
   ASSERT_OMNI_TRACEDMUTEX_HELD(*omniTransportLock,1);
 
@@ -373,7 +285,7 @@ BiDirServerRope::selectRope(const giopAddressList& addrlist,
     br = (BiDirServerRope*)p;
     if (br->match(sendfrom,addrlist)) {
       br->realIncrRefCount();
-      r = (Rope*)br;
+      rope = (Rope*)br;
       return 1;
     }
     else if (br->pd_refcount == 0 &&
@@ -495,7 +407,7 @@ BiDirServerRope::decrRefCount() {
     for (; p != &pd_strands; p = p->next) {
       giopStrand* g = (giopStrand*)p;
       if (g->state() != giopStrand::DYING) {
-	if (omniORB::trace(30)) {
+	if (omniORB::trace(25)) {
 	  omniORB::logger l;
 	  l << "Bi-directional rope is no longer referenced; strand "
 	    << (void*)g << " is a candidate for scavenging.\n";
@@ -520,21 +432,41 @@ BiDirServerRope::realIncrRefCount() {
 
 ////////////////////////////////////////////////////////////////////////
 BiDirClientRope::BiDirClientRope(const giopAddressList& addrlist,
-				 const omnivector<CORBA::ULong>& preferred) :
-  giopRope(addrlist,preferred)
+                                 omniIOR::IORInfo*      info) :
+  giopRope(addrlist, info),
+  pd_lock("BiDirClientRope::pd_lock")
 {
-  pd_maxStrands = 1;
-  pd_oneCallPerConnection = 0;
 }
+
+
+////////////////////////////////////////////////////////////////////////
+void
+BiDirClientRope::filterAndSortAddressList()
+{
+  giopRope::filterAndSortAddressList();
+  
+  if (pd_flags & GIOPSTRAND_BIDIR) {
+    omniORB::logs(25, "Enable rope for bidirectional GIOP.");
+
+    pd_maxStrands           = 1;
+    pd_oneCallPerConnection = 0;
+  }
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 IOP_C*
-BiDirClientRope::acquireClient(const omniIOR* ior,
+BiDirClientRope::acquireClient(const omniIOR*      ior,
 			       const CORBA::Octet* key,
-			       CORBA::ULong keysize,
+			       CORBA::ULong        keysize,
 			       omniCallDescriptor* calldesc) {
 
   GIOP_C* giop_c = (GIOP_C*) giopRope::acquireClient(ior,key,keysize,calldesc);
+
+  if (!(pd_flags & GIOPSTRAND_BIDIR)) {
+    // Bidir not enabled for this rope
+    return giop_c;
+  }
 
   // Bidirectional is only supported in GIOP 1.2 and above
   GIOP::Version v = ior->getIORInfo()->version();
@@ -548,91 +480,44 @@ BiDirClientRope::acquireClient(const omniIOR* ior,
   }
 
   omni_tracedmutex_lock sync(pd_lock);
-  giopStrand& s = (giopStrand&)((giopStream&)(*giop_c));
-  if (s.connection == 0 && s.state() != giopStrand::DYING) {
+  giopStrand& s = giop_c->strand();
+
+  if (!s.connection) {
+    giopActiveConnection* c;
+
+    try {
+      c = giop_c->openConnection();
+    }
+    catch (...) {
+      giopRope::releaseClient(giop_c);
+      throw;
+    }
+
+    // Make the connection managed by the giopServer.
+    s.flags = s.flags | GIOPSTRAND_BIDIR;
+    s.gatekeeper_checked = 1;
+    giopActiveCollection* watcher = c->registerMonitor();
     if (omniORB::trace(20)) {
       omniORB::logger log;
-      log << "Bidirectional client attempt to connect to "
-	  << s.address->address() << "\n";
+      log << "Client registered bidirectional connection to " 
+	  << s.connection->peeraddress() << "\n";
     }
-    unsigned long s_deadline_secs, s_deadline_nanosecs;
-    giop_c->getDeadline(s_deadline_secs,s_deadline_nanosecs);
-
-    unsigned long deadline_secs, deadline_nanosecs;
-    if (orbParameters::clientConnectTimeOutPeriod.secs ||
-	orbParameters::clientConnectTimeOutPeriod.nanosecs) {
-
-      omni_thread::
-	get_time(&deadline_secs,
-		 &deadline_nanosecs,
-		 orbParameters::clientConnectTimeOutPeriod.secs,
-		 orbParameters::clientConnectTimeOutPeriod.nanosecs);
-
-      if ((s_deadline_secs && deadline_secs > s_deadline_secs) ||
-	  (deadline_secs == s_deadline_secs &&
-	   deadline_nanosecs > s_deadline_nanosecs)) {
-
-	giop_c->setDeadline(deadline_secs, deadline_nanosecs);
-	calldesc->setDeadline(deadline_secs, deadline_nanosecs);
+    if (!giopServer::singleton()->addBiDirStrand(&s,watcher)) {
+      {
+	omni_tracedmutex_lock sync(*omniTransportLock);
+	s.connection->decrRefCount();
       }
-    }
-    else {
-      deadline_secs     = s_deadline_secs;
-      deadline_nanosecs = s_deadline_nanosecs;
-    }
-
-    giopActiveConnection* c = s.address->Connect(deadline_secs,
-						 deadline_nanosecs,
-						 s.flags);
-    if (c) s.connection = &(c->getConnection());
-    if (!s.connection) {
-      s.state(giopStrand::DYING);
-    }
-    else {
-      CORBA::ULong minor_code = 0;
-
-      if (omniInterceptorP::clientOpenConnection) {
-	omniInterceptors::clientOpenConnection_T::info_T info(*giop_c);
-	omniInterceptorP::visit(info);
-	if (info.reject) {
-	  if (omniORB::trace(5)) {
-	    omniORB::logger log;
-	    log << "Interceptor rejected new bidirectional client connection";
-	    if (info.why)
-	      log << " : " << info.why;
-	    log << "\n";
-	  }
-	  minor_code = TRANSIENT_ConnectFailed;
-	}
-      }
-
-      if (!minor_code) {
-	// now make the connection managed by the giopServer.
-	s.biDir = 1;
-	s.gatekeeper_checked = 1;
-	giopActiveCollection* watcher = c->registerMonitor();
-	if (omniORB::trace(20)) {
-	  omniORB::logger log;
-	  log << "Client opened bidirectional connection to " 
-	      << s.connection->peeraddress() << "\n";
-	}
-	if (!giopServer::singleton()->addBiDirStrand(&s,watcher))
-	  minor_code = TRANSIENT_BiDirConnUsedWithNoPOA;
-      }
-      if (minor_code) {
-	{
-	  omni_tracedmutex_lock sync(*omniTransportLock);
-	  s.connection->decrRefCount();
-	}
-	s.connection = 0;
-	s.biDir = 0;
-	giopRope::releaseClient(giop_c);
-	OMNIORB_THROW(TRANSIENT, minor_code, CORBA::COMPLETED_NO);
-      }
+      s.connection = 0;
+      s.flags = s.flags & ~GIOPSTRAND_BIDIR;
+      giopRope::releaseClient(giop_c);
+      OMNIORB_THROW(TRANSIENT,
+		    TRANSIENT_BiDirConnUsedWithNoPOA,
+		    CORBA::COMPLETED_NO);
     }
   }
   return giop_c;
 }
+
 
 /////////////////////////////////////////////////////////////////////////////
 //            Server side interceptor for code set service context         //
@@ -648,9 +533,8 @@ getBiDirServiceContext(omniInterceptors::serverReceiveRequest_T::info_T& info)
     return 1;
   }
 
-  GIOP::Version ver = info.giop_s.version();
-
-  giopStrand& strand = (giopStrand&)((giopStream&)info.giop_s);
+  GIOP::Version ver    = info.giop_s.version();
+  giopStrand&   strand = info.giop_s.strand();
 
   if (ver.minor != 2 || strand.isClient()) {
     // Only parse service context if the GIOP version is 1.2, on the
@@ -709,7 +593,7 @@ getBiDirServiceContext(omniInterceptors::serverReceiveRequest_T::info_T& info)
       // Check serverTransportRule to see if we should allow bidir from
       // this client.
       {
-	transportRules::sequenceString actions;
+	CORBA::StringSeq actions;
 	CORBA::ULong matchedRule;
 	CORBA::Boolean acceptbidir;
 	CORBA::Boolean dumprule = 0;
@@ -768,14 +652,14 @@ getBiDirServiceContext(omniInterceptors::serverReceiveRequest_T::info_T& info)
 
 	omni_tracedmutex_lock sync(*omniTransportLock);
 
-	if (!strand.biDir) {
-	  strand.biDir = 1;
+	if (!strand.isBiDir()) {
+	  strand.flags = strand.flags | GIOPSTRAND_BIDIR;
 	  strand.stopIdleCounter();
 	  if (!strand.server->notifySwitchToBiDirectional(strand.connection))
 	    return 1;
 	}
 
-	BiDirServerRope* r = BiDirServerRope::addRope(&strand,addrList);
+	BiDirServerRope* rope = BiDirServerRope::addRope(&strand,addrList);
       }
       
       giopAddressList::const_iterator addr, last;
@@ -802,10 +686,10 @@ setBiDirServiceContext(omniInterceptors::clientSendRequest_T::info_T& info) {
     return 1;
   }
 
-  giopStrand& g = (giopStrand&)info.giop_c;
+  giopStrand&   g   = info.giop_c.strand();
   GIOP::Version ver = info.giop_c.version();
 
-  if (ver.minor != 2 || !g.biDir || !g.isClient() || g.biDir_initiated) {
+  if (ver.minor != 2 || !g.isBiDir() || !g.isClient() || g.biDir_initiated) {
     // Only send service context if the GIOP version is 1.2, this is
     // a bidirectional connection, on the client side and it has not
     // been used yet.
@@ -867,7 +751,7 @@ public:
 			1,
 			"-ORBacceptBiDirectionalGIOP < 0 | 1 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -896,7 +780,7 @@ public:
 			1,
 			"-ORBofferBiDirectionalGIOP < 0 | 1 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {

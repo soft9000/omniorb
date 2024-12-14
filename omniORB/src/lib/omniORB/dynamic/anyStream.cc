@@ -9,19 +9,17 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -33,11 +31,11 @@
 
 OMNI_USING_NAMESPACE(omni)
 
-cdrAnyMemoryStream::cdrAnyMemoryStream() : cdrMemoryStream() {}
+cdrAnyMemoryStream::cdrAnyMemoryStream() : cdrMemoryStream(), pd_refCount(1) {}
 
 cdrAnyMemoryStream::cdrAnyMemoryStream(const cdrAnyMemoryStream& s,
 				       CORBA::Boolean read_only)
-  : cdrMemoryStream(s, read_only)
+  : cdrMemoryStream(s, read_only), pd_refCount(1)
 {
   cdrAnyMemoryStream* ns = OMNI_CONST_CAST(cdrAnyMemoryStream*, &s);
 
@@ -58,22 +56,17 @@ cdrAnyMemoryStream::cdrAnyMemoryStream(const cdrAnyMemoryStream& s,
 }
 
 cdrAnyMemoryStream::cdrAnyMemoryStream(void* d, CORBA::Boolean release)
-  : cdrMemoryStream(d)
+  : cdrMemoryStream(d), pd_refCount(1)
 {
   if (release)
     pd_readonly_and_external_buffer = 0;
 }
 
-cdrAnyMemoryStream& 
-cdrAnyMemoryStream::operator=(const cdrMemoryStream& s)
+
+cdrAnyMemoryStream::~cdrAnyMemoryStream()
 {
-  clearValueSeq();
-  cdrMemoryStream::operator=(s);
-  return *this;
+  OMNIORB_ASSERT(pd_refCount.value() <= 1);
 }
-
-
-cdrAnyMemoryStream::~cdrAnyMemoryStream() {}
 
 
 void*
@@ -86,3 +79,6 @@ cdrAnyMemoryStream::ptrToClass(int* cptr)
 }
 
 int cdrAnyMemoryStream::_classid;
+
+cdrAnyMemoryStream the_empty;
+cdrAnyMemoryStream* cdrAnyMemoryStream::_empty = &the_empty;

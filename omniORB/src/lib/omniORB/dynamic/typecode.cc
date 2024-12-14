@@ -4,336 +4,28 @@
 //                            Author1   : James Weatherall (jnw)
 //                            Author2   : Duncan Grisby (dgrisby)
 //
-//    Copyright (C) 2002-2008 Apasphere Ltd.
+//    Copyright (C) 2002-2012 Apasphere Ltd.
 //    Copyright (C) 1996-1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //      Implementation of the CORBA::TypeCode psuedo object
 //
-
-/*
- * $Log$
- * Revision 1.40.2.18  2007/10/15 14:07:19  dgrisby
- * Enum TypeCodes not marked as complete, leading to an assertion
- * failure receiving a struct containing an enum.
- *
- * Revision 1.40.2.17  2007/06/10 18:43:08  dgrisby
- * Incorrect alignment table build for recursive struct.
- *
- * Revision 1.40.2.16  2007/06/06 17:31:01  dgrisby
- * Enum discriminators were returned as ulongs from
- * TypeCode::member_label, rather than as the proper enums.
- *
- * Revision 1.40.2.15  2007/03/08 09:17:11  dgrisby
- * Union discriminator bug is really fixed now.
- *
- * Revision 1.40.2.14  2007/03/07 18:30:24  dgrisby
- * Bug creating union TypeCode with an enum discriminator. Thanks Peter
- * S. Housel.
- *
- * Revision 1.40.2.13  2006/12/28 18:10:24  dgrisby
- * When releasing children of a struct, union or value TypeCode, a
- * reference to the parent must be held to prevent its premature
- * deletion.
- *
- * Revision 1.40.2.12  2006/11/28 00:09:41  dgrisby
- * TypeCode collector could access deleted data when freeing TypeCodes
- * with multiple loops.
- *
- * Revision 1.40.2.11  2006/06/14 10:34:19  dgrisby
- * Add missing TypeCode_member in(), inout(), out().
- *
- * Revision 1.40.2.10  2006/05/20 16:23:36  dgrisby
- * Minor cdrMemoryStream and TypeCode performance tweaks.
- *
- * Revision 1.40.2.9  2005/11/09 12:22:18  dgrisby
- * Local interfaces support.
- *
- * Revision 1.40.2.8  2005/01/06 23:09:46  dgrisby
- * Big merge from omni4_0_develop.
- *
- * Revision 1.40.2.7  2005/01/06 16:39:24  dgrisby
- * DynValue and DynValueBox implementations; misc small fixes.
- *
- * Revision 1.40.2.6  2004/10/13 17:58:20  dgrisby
- * Abstract interfaces support; values support interfaces; value bug fixes.
- *
- * Revision 1.40.2.5  2004/07/23 10:29:58  dgrisby
- * Completely new, much simpler Any implementation.
- *
- * Revision 1.40.2.4  2004/07/04 23:53:37  dgrisby
- * More ValueType TypeCode and Any support.
- *
- * Revision 1.40.2.3  2004/05/25 14:20:51  dgrisby
- * ValueType TypeCode support.
- *
- * Revision 1.40.2.2  2004/04/02 13:26:23  dgrisby
- * Start refactoring TypeCode to support value TypeCodes, start of
- * abstract interfaces support.
- *
- * Revision 1.40.2.1  2003/03/23 21:02:44  dgrisby
- * Start of omniORB 4.1.x development branch.
- *
- * Revision 1.38.2.30  2003/03/10 11:13:52  dgrisby
- * BAD_PARAM with invalid fixed limits.
- *
- * Revision 1.38.2.29  2003/03/05 15:26:54  dgrisby
- * Missing Fixed typecode unmarshal. Thanks Renzo Tomaselli.
- *
- * Revision 1.38.2.28  2002/12/18 15:59:15  dgrisby
- * Proper clean-up of recursive TypeCodes.
- *
- * Revision 1.38.2.27  2002/12/10 17:17:07  dgrisby
- * Yet another indirection problem.
- *
- * Revision 1.38.2.26  2002/12/05 12:22:22  dgrisby
- * More indirection problems.
- *
- * Revision 1.38.2.25  2002/09/06 14:35:55  dgrisby
- * Work around long long literal bug in MSVC.
- *
- * Revision 1.38.2.24  2002/02/25 11:17:12  dpg1
- * Use tracedmutexes everywhere.
- *
- * Revision 1.38.2.23  2002/01/16 11:31:57  dpg1
- * Race condition in use of registerNilCorbaObject/registerTrackedObject.
- * (Reported by Teemu Torma).
- *
- * Revision 1.38.2.22  2001/11/01 12:04:56  dpg1
- * Don't return void in void function.
- *
- * Revision 1.38.2.21  2001/10/29 17:42:36  dpg1
- * Support forward-declared structs/unions, ORB::create_recursive_tc().
- *
- * Revision 1.38.2.20  2001/10/17 16:44:03  dpg1
- * Update DynAny to CORBA 2.5 spec, const Any exception extraction.
- *
- * Revision 1.38.2.19  2001/09/24 10:41:09  dpg1
- * Minor codes for Dynamic library and omniORBpy.
- *
- * Revision 1.38.2.18  2001/09/19 17:26:45  dpg1
- * Full clean-up after orb->destroy().
- *
- * Revision 1.38.2.17  2001/08/29 13:41:03  dpg1
- * jnw's fix for compilers with variable sizeof(enum)
- *
- * Revision 1.38.2.16  2001/08/17 17:09:16  sll
- * Modularise ORB configuration parameters.
- *
- * Revision 1.38.2.15  2001/08/17 13:47:30  dpg1
- * Small bug fixes.
- *
- * Revision 1.38.2.14  2001/07/25 13:39:46  dpg1
- * Missing wstring case in TypeCode unmarshalling.
- *
- * Revision 1.38.2.13  2001/06/13 20:10:04  sll
- * Minor update to make the ORB compiles with MSVC++.
- *
- * Revision 1.38.2.12  2001/06/08 17:12:10  dpg1
- * Merge all the bug fixes from omni3_develop.
- *
- * Revision 1.38.2.11  2001/04/19 09:14:12  sll
- * Scoped where appropriate with the omni namespace.
- *
- * Revision 1.38.2.10  2001/03/13 10:32:06  dpg1
- * Fixed point support.
- *
- * Revision 1.38.2.9  2000/12/05 17:41:00  dpg1
- * New cdrStream functions to marshal and unmarshal raw strings.
- *
- * Revision 1.38.2.8  2000/11/22 14:39:01  dpg1
- * Missed out PR_wstring_tc() function.
- *
- * Revision 1.38.2.7  2000/11/20 14:40:04  sll
- * Added TypeCode::PR_wstring_tc(CORBA::ULong bound).
- *
- * Revision 1.38.2.6  2000/11/17 19:09:38  dpg1
- * Support codeset conversion in any.
- *
- * Revision 1.38.2.5  2000/11/09 12:27:54  dpg1
- * Huge merge from omni3_develop, plus full long long from omni3_1_develop.
- *
- * Revision 1.38.2.4  2000/11/03 19:07:32  sll
- * Use new marshalling functions for byte, octet and char. Use get_octet_array
- * instead of get_char_array.
- *
- * Revision 1.38.2.3  2000/10/06 16:40:54  sll
- * Changed to use cdrStream.
- *
- * Revision 1.38.2.2  2000/09/27 17:25:44  sll
- * Changed include/omniORB3 to include/omniORB4.
- *
- * Revision 1.38.2.1  2000/07/17 10:35:42  sll
- * Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
- *
- * Revision 1.39  2000/07/13 15:26:02  dpg1
- * Merge from omni3_develop for 3.0 release.
- *
- * Revision 1.33.6.10  2000/06/27 16:23:25  sll
- * Merged OpenVMS port.
- *
- * Revision 1.33.6.9  2000/03/20 15:09:30  djr
- * Fixed signed/unsigned mismatch.
- *
- * Revision 1.33.6.8  2000/02/21 10:59:13  djr
- * Another TypeCode_union w aliased discriminator fix.
- *
- * Revision 1.33.6.7  2000/02/17 14:43:57  djr
- * Another fix for TypeCode_union when discriminator tc contains an alias.
- *
- * Revision 1.33.6.6  2000/02/15 13:43:42  djr
- * Fixed bug in create_union_tc() -- problem if discriminator was an alias.
- *
- * Revision 1.33.6.5  1999/10/29 13:18:12  djr
- * Changes to ensure mutexes are constructed when accessed.
- *
- * Revision 1.33.6.4  1999/10/26 20:18:20  sll
- * DynAny no longer do alias expansion on the typecode. In other words, all
- * aliases in the typecode are preserved.
- *
- * Revision 1.33.6.3  1999/10/14 17:31:31  djr
- * Minor corrections.
- *
- * Revision 1.33.6.2  1999/10/14 16:22:01  djr
- * Implemented logging when system exceptions are thrown.
- *
- * Revision 1.33.6.1  1999/09/22 14:26:37  djr
- * Major rewrite of orbcore to support POA.
- *
- * Revision 1.32  1999/08/20 11:41:12  djr
- * Yet another TypeCode alias-expand bug.
- *
- * Revision 1.31  1999/08/06 16:55:17  sll
- * Added missing break statement in extractLabel. This bug affects enum
- * discriminator.
- *
- * Revision 1.30  1999/07/05 09:29:34  sll
- * member_label should return an octet if it is the default member.
- *
- * Revision 1.29  1999/07/01 10:27:38  djr
- * Fixed NP_aliasExpand().
- * Added omg.org to a few IR repo IDs.
- *
- * Revision 1.28  1999/06/22 15:02:07  sll
- * Corrected bug in TypeCode_alias::NP_extendedEqual.
- *
- * Revision 1.27  1999/06/18 21:00:22  sll
- * Updated to CORBA 2.3 mapping.
- *
- * Revision 1.26  1999/05/25 17:54:48  sll
- * Added check for invalid arguments using magic numbers.
- * Perform casting of integer label values in union members.
- *
- * Revision 1.25  1999/04/21 13:24:57  djr
- * Fixed bug in generation of typecode alignment tables.
- *
- * Revision 1.24  1999/03/19 15:15:39  djr
- * Now accept indirections to fundamental TypeCodes. Option to accept
- * misaligned indirections.
- *
- * Revision 1.23  1999/03/11 16:25:59  djr
- * Updated copyright notice
- *
- * Revision 1.22  1999/03/04 09:54:24  djr
- * Disabled cached parameter lists - they have a bug.
- *
- * Revision 1.22  1999/02/26 09:57:51  djr
- * Disabled cached parameter lists, as they have a bug.
- *
- * Revision 1.21  1999/02/23 11:46:07  djr
- * Fixed bugs in size calculation for TypeCodes.
- *
- * Revision 1.21  1999/02/22 09:32:34  djr
- * Bug in size calculation for array and sequence TypeCodes.
- *
- * Revision 1.20  1999/02/18 15:51:23  djr
- * Option to not use indirections in on-the-wire TypeCodes.
- *
- * Revision 1.19  1999/02/12 11:52:12  djr
- * Typecodes for arrays were marshalled/unmarshalled incorrectly.
- *
- * Revision 1.18  1999/02/09 17:45:34  djr
- * Fixed bug in TypeCode_alignTable generation for structures and exceptions.
- *
- * Revision 1.17  1999/02/08 18:55:45  djr
- * Fixed bug in marshalling of TypeCodes for sequences. The sequence
- * bound and the content TypeCode were marshalled in the wrong order.
- *
- * Revision 1.16  1999/01/18 13:54:51  djr
- * Fixed bugs in implementation of unions.
- *
- * Revision 1.15  1999/01/11 15:45:23  djr
- * New implementation.
- *
- * Revision 1.14  1998/09/03 17:38:23  sll
- * CORBA::TypeCode::_nil() called the wrong ctor when compiled with DEC cxx
- * 5.5. fixed.
- *
- * Revision 1.13  1998/08/19 15:46:03  sll
- * operator<<= (CORBA::DefinitionKind,NetBufferedStream&) and friends are now
- * defined in the global scope. Previously they are defined in namespace COR
- * if the compiler support for namespace is used.
- *
- * Revision 1.12  1998/08/15 14:33:47  sll
- * Added NEED_DUMMY_RETURN macros to avoid better compiler to complain about
- * unreachable code.
- * Moved from CORBA.h inline member functions and operators.
- *
- * Revision 1.11  1998/08/14 13:55:01  sll
- * Added pragma hdrstop to control pre-compile header if the compiler feature
- * is available.
- *
- * Revision 1.10  1998/08/11 11:48:49  sll
- * Extended workaround in CORBA::TypeCode::_nil() to cover up to DEC Cxx
- * v5.5-015.
- *
- * Revision 1.9  1998/08/05 18:01:12  sll
- * Fixed bugs caused by typos in TypeCode::TypeCode(TCKind,ULong) and
- * TypeCode::_nil().
- *
- * Revision 1.8  1998/04/18 10:11:17  sll
- * Corrected signature of one TypeCode ctor.
- *
- * Revision 1.7  1998/04/08 16:07:50  sll
- * Minor change to help some compiler to find the right TypeCode ctor.
- *
- * Revision 1.6  1998/04/08 14:07:26  sll
- * Added workaround in CORBA::TypeCode::_nil() for a bug in DEC Cxx v5.5.
- *
- * Revision 1.5  1998/04/07 19:40:53  sll
- * Moved inline member functions to this module.
- *
- * Revision 1.4  1998/03/17 12:52:19  sll
- * Corrected typo.
- *
- * Revision 1.3  1998/03/17 12:12:31  ewc
- * Bug fix to NP_aliasExpand()
- *
-// Revision 1.2  1998/02/20  14:45:43  ewc
-// Changed to compile with aCC on HPUX
-//
-// Revision 1.1  1998/01/27  15:41:24  ewc
-// Initial revision
-//
- */
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/objTracker.h>
@@ -1218,7 +910,7 @@ CORBA::TypeCode_ptr CORBA::TypeCode::PR_wstring_tc() {
   check_static_data_is_initialised();
   return CORBA::_tc_wstring;
 }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 CORBA::TypeCode_ptr CORBA::TypeCode::PR_longlong_tc() {
   check_static_data_is_initialised();
   return CORBA::_tc_longlong;
@@ -1228,7 +920,7 @@ CORBA::TypeCode_ptr CORBA::TypeCode::PR_ulonglong_tc() {
   return CORBA::_tc_ulonglong;
 }
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 CORBA::TypeCode_ptr CORBA::TypeCode::PR_longdouble_tc() {
   check_static_data_is_initialised();
   return CORBA::_tc_longdouble;
@@ -1292,7 +984,7 @@ TypeCode_base::TypeCode_base(CORBA::TCKind tck)
     break;
 
   case CORBA::tk_double:
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
   case CORBA::tk_ulonglong:
 #endif
@@ -1301,7 +993,7 @@ TypeCode_base::TypeCode_base(CORBA::TCKind tck)
     pd_aliasExpandedTc = pd_compactTc = this;
     break;
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   case CORBA::tk_longdouble:
     pd_alignmentTable.setNumEntries(1);
     pd_alignmentTable.addSimple(omni::ALIGN_8, 16);
@@ -1431,7 +1123,7 @@ const char*
 TypeCode_base::NP_id() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1440,7 +1132,7 @@ const char*
 TypeCode_base::NP_name() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1449,7 +1141,7 @@ CORBA::ULong
 TypeCode_base::NP_member_count() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1458,7 +1150,7 @@ const char*
 TypeCode_base::NP_member_name(CORBA::ULong index) const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1467,7 +1159,7 @@ TypeCode_base*
 TypeCode_base::NP_member_type(CORBA::ULong index) const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1476,7 +1168,7 @@ CORBA::Any*
 TypeCode_base::NP_member_label(CORBA::ULong index) const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1485,7 +1177,7 @@ TypeCode_base*
 TypeCode_base::NP_discriminator_type() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1494,7 +1186,7 @@ CORBA::Long
 TypeCode_base::NP_default_index() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1503,7 +1195,7 @@ CORBA::ULong
 TypeCode_base::NP_length() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1513,7 +1205,7 @@ TypeCode_base*
 TypeCode_base::NP_content_type() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1522,7 +1214,7 @@ CORBA::UShort
 TypeCode_base::NP_fixed_digits() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1531,7 +1223,7 @@ CORBA::Short
 TypeCode_base::NP_fixed_scale() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1547,7 +1239,7 @@ CORBA::Any*
 TypeCode_base::NP_parameter(CORBA::Long) const
 {
   throw CORBA::TypeCode::Bounds();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1556,7 +1248,7 @@ CORBA::Short
 TypeCode_base::NP_member_visibility(CORBA::ULong) const
 {
   throw CORBA::TypeCode::Bounds();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1565,7 +1257,7 @@ CORBA::ValueModifier
 TypeCode_base::NP_type_modifier() const
 {
   throw CORBA::TypeCode::Bounds();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1574,7 +1266,7 @@ TypeCode_base*
 TypeCode_base::NP_concrete_base_type() const
 {
   throw CORBA::TypeCode::BadKind();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -1599,7 +1291,7 @@ TypeCode_base::NP_aliasExpand(TypeCode_pairlist*)
 {
   throw omniORB::fatalException(__FILE__,__LINE__,
      "TypeCode_base::NP_aliasExpand() - should not have been called");
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -2795,6 +2487,10 @@ TypeCode_struct::NP_unmarshalComplexParams(cdrStream& s,
     _ptr->pd_name   = s.unmarshalRawString();
     _ptr->pd_nmembers <<= s;
 
+    if (!s.checkInputOverrun(1, _ptr->pd_nmembers))
+      OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                    (CORBA::CompletionStatus)s.completion());
+    
     // We need to initialised the members of <pd_members> to zero
     // to ensure we can destroy this properly in the case of an
     // exception being thrown.
@@ -3184,7 +2880,16 @@ TypeCode_except::TypeCode_except(char* repositoryId, char* name,
   NP_complete_recursive_sequences(this, 0);
   NP_complete_recursive(this, repositoryId);
 
-  generateAlignmentTable();
+  pd_alignmentTable.setNumEntries(1);
+  pd_alignmentTable.addNasty(this);
+}
+
+TypeCode_except::TypeCode_except()
+  : TypeCode_base(CORBA::tk_except),
+    pd_members(0), pd_nmembers(0)
+{
+  pd_alignmentTable.setNumEntries(1);
+  pd_alignmentTable.addNasty(this);
 }
 
 
@@ -3227,6 +2932,10 @@ TypeCode_except::NP_unmarshalComplexParams(cdrStream& s,
     _ptr->pd_name   = s.unmarshalRawString();
     _ptr->pd_nmembers <<= s;
 
+    if (!s.checkInputOverrun(1, _ptr->pd_nmembers))
+      OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                    (CORBA::CompletionStatus)s.completion());
+    
     // We need to initialised the members of <pd_members> to zero
     // to ensure we can destroy this properly in the case of an
     // exception being thrown.
@@ -3247,7 +2956,6 @@ TypeCode_except::NP_unmarshalComplexParams(cdrStream& s,
   }
 
   _ptr->pd_complete = 1;
-  _ptr->generateAlignmentTable();
   return _ptr;
 }
 
@@ -3396,97 +3104,6 @@ TypeCode_except::NP_parameter(CORBA::Long index) const
 }
 
 
-void
-TypeCode_except::generateAlignmentTable()
-{
-  unsigned num_entries = 0;
-  int simple_size = 0;
-  omni::alignment_t simple_alignment = omni::ALIGN_8;
-
-  // Determine how many table entries we will need.
-  for( CORBA::ULong i = 0; i < pd_nmembers; i++ ) {
-    TypeCode_base* mtc = ToTcBase(pd_members[i].type);
-    const TypeCode_alignTable& mat = mtc->alignmentTable();
-
-    for( unsigned j = 0; j < mat.entries(); j++ ) {
-      switch( mat[j].type ) {
-      case TypeCode_alignTable::it_simple:
-	if( simple_size % mat[j].simple.alignment == 0 &&
-	    mat[j].simple.alignment <= simple_alignment ) {
-	  // If can add onto existing simple ...
-	  if( simple_size == 0 )  simple_alignment = mat[j].simple.alignment;
-	  simple_size += mat[j].simple.size;
-	}
-	else {
-	  simple_size = mat[j].simple.size;
-	  simple_alignment = mat[j].simple.alignment;
-	  num_entries++;
-	}
-	break;
-
-      default:
-	if( simple_size > 0 ) {
-	  simple_size = 0;
-	  simple_alignment = omni::ALIGN_8;
-	  num_entries++;
-	}
-	num_entries++;
-	break;
-      }
-    }
-  }
-  // And there may be an extra simple one at the end ...
-  if( simple_size > 0 )  num_entries++;
-
-  // Generate the entries.
-  if( num_entries == 0 ) {
-    pd_alignmentTable.setNumEntries(1);
-    pd_alignmentTable.addSimple(omni::ALIGN_1, 0);
-  }
-  else {
-    pd_alignmentTable.setNumEntries(num_entries);
-    simple_size = 0;
-    simple_alignment = omni::ALIGN_8;
-
-    for( CORBA::ULong ii = 0; ii < pd_nmembers; ii++ ) {
-      TypeCode_base* mtc = ToTcBase(pd_members[ii].type);
-      const TypeCode_alignTable& mat = mtc->alignmentTable();
-
-      for( unsigned j = 0; j < mat.entries(); j++ ) {
-	switch( mat[j].type ) {
-	case TypeCode_alignTable::it_simple:
-	  if( simple_size % mat[j].simple.alignment == 0 &&
-	      mat[j].simple.alignment <= simple_alignment ) {
-	    // If can add onto existing simple ...
-	    if( simple_size == 0 )  simple_alignment = mat[j].simple.alignment;
-	    simple_size += mat[j].simple.size;
-	  }
-	  else {
-	    pd_alignmentTable.addSimple(simple_alignment, simple_size);
-	    simple_size = mat[j].simple.size;
-	    simple_alignment = mat[j].simple.alignment;
-	  }
-	  break;
-
-	default:
-	  if( simple_size > 0 ) {
-	    pd_alignmentTable.addSimple(simple_alignment, simple_size);
-	    simple_size = 0;
-	    simple_alignment = omni::ALIGN_8;
-	  }
-	  pd_alignmentTable.add(mat, j);
-	  break;
-	}
-      }
-    }
-    // And there may be an extra simple one at the end ...
-    if( simple_size > 0 ) {
-      pd_alignmentTable.addSimple(simple_alignment, simple_size);
-    }
-  }
-}
-
-
 CORBA::Boolean
 TypeCode_except::NP_containsAnAlias()
 {
@@ -3522,7 +3139,6 @@ TypeCode_except::NP_aliasExpand(TypeCode_pairlist* tcpl)
   }
 
   tc->pd_complete = 1;
-  tc->generateAlignmentTable();
 
   return tc;
 }
@@ -3623,6 +3239,10 @@ TypeCode_enum::NP_unmarshalComplexParams(cdrStream &s,
   CORBA::ULong len;
   len <<= s;
 
+  if (!s.checkInputOverrun(1, len))
+    OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                  (CORBA::CompletionStatus)s.completion());
+  
   _ptr->pd_members.length(len);
   char** buffer = _ptr->pd_members.get_buffer(0);
 
@@ -3940,6 +3560,10 @@ TypeCode_union::NP_unmarshalComplexParams(cdrStream &s,
   CORBA::ULong memberCount;
   memberCount <<= s;
 
+  if (!s.checkInputOverrun(1, memberCount))
+    OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                  (CORBA::CompletionStatus)s.completion());
+  
   _ptr->pd_members.length(memberCount);
 
   // Read in the different labels, names and types
@@ -4449,6 +4073,10 @@ TypeCode_value::NP_unmarshalComplexParams(cdrStream& s,
     }
     _ptr->pd_nmembers <<= s;
 
+    if (!s.checkInputOverrun(1, _ptr->pd_nmembers))
+      OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                    (CORBA::CompletionStatus)s.completion());
+    
     // We need to initialise the members of <pd_members> to zero
     // to ensure we can destroy this properly in the case of an
     // exception being thrown.
@@ -5170,7 +4798,7 @@ TypeCode_offsetTable::~TypeCode_offsetTable()
 
 // Routine to create a child, encapsulating offsetTable
 TypeCode_offsetTable::TypeCode_offsetTable(TypeCode_offsetTable* parent,
-					   CORBA::Long base_offset)
+					   omni::s_size_t        base_offset)
   : pd_table(0), pd_curr_offset(base_offset),
     pd_parent_table(parent),
     pd_parent_base_offset(parent->currentOffset() - base_offset)
@@ -5180,19 +4808,20 @@ TypeCode_offsetTable::TypeCode_offsetTable(TypeCode_offsetTable* parent,
 
 // Routine to add an offset->typecode mapping
 void
-TypeCode_offsetTable::addEntry(CORBA::Long offset, TypeCode_base* typecode)
+TypeCode_offsetTable::addEntry(omni::s_size_t offset, TypeCode_base* typecode)
 {
   // If this table is a wrapper round another then correct the offset and
   // pass on the request
-  if (pd_parent_table != 0)
+  if (pd_parent_table != 0) {
     pd_parent_table->addEntry(offset + pd_parent_base_offset, typecode);
+  }
   else
     {
       // Otherwise, just look in this table directly
       TypeCode_offsetEntry* new_entry = new TypeCode_offsetEntry;
 
-      new_entry->pd_next = pd_table;
-      new_entry->pd_offset = offset;
+      new_entry->pd_next     = pd_table;
+      new_entry->pd_offset   = offset;
       new_entry->pd_typecode = typecode;
 
       pd_table = new_entry;
@@ -5202,7 +4831,7 @@ TypeCode_offsetTable::addEntry(CORBA::Long offset, TypeCode_base* typecode)
 
 // Routines to retrieve typecode by offset or vica versa
 TypeCode_base*
-TypeCode_offsetTable::lookupOffset(CORBA::Long offset)
+TypeCode_offsetTable::lookupOffset(omni::s_size_t offset)
 {
   // If this table is a wrapper round another then correct
   // the offset and pass on the request
@@ -5212,23 +4841,21 @@ TypeCode_offsetTable::lookupOffset(CORBA::Long offset)
   // Visibroker's Java ORB gives out TypeCode indirections which are not
   // a multiple of 4. Rounding them up seems to solve the problem ...
 
-  if( orbParameters::acceptMisalignedTcIndirections && (offset & 0x3) ) {
-    if( omniORB::traceLevel > 1 ) {
-      omniORB::logger log;
-      log << "omniORB: WARNING - received TypeCode with mis-aligned indirection.\n";
-    }
-    offset = (offset + 3) & 0xfffffffc;
+  if (orbParameters::acceptMisalignedTcIndirections && (offset & 0x3)) {
+    omniORB::logs(1, "Warning: received TypeCode with "
+                  "mis-aligned indirection.");
+    offset = ((offset + 3) >> 2) << 2;
   }
 
   // Otherwise, just look in this table directly
   TypeCode_offsetEntry* entry = pd_table;
 
-  while (entry != 0)
-    {
-      if( (CORBA::Long)entry->pd_offset == offset )
-	return entry->pd_typecode;
-      entry = entry->pd_next;
-    }
+  while (entry != 0) {
+    if ((omni::s_size_t)entry->pd_offset == offset)
+      return entry->pd_typecode;
+
+    entry = entry->pd_next;
+  }
 
   return 0;
 }
@@ -5236,7 +4863,7 @@ TypeCode_offsetTable::lookupOffset(CORBA::Long offset)
 
 CORBA::Boolean
 TypeCode_offsetTable::lookupTypeCode(const TypeCode_base*  tc,
-				     CORBA::Long &offset)
+				     omni::s_size_t&       offset)
 {
   // If this table is a wrapper round another then correct
   // the offset and pass on the request
@@ -5253,15 +4880,13 @@ TypeCode_offsetTable::lookupTypeCode(const TypeCode_base*  tc,
   // Otherwise, just look in this table directly
   TypeCode_offsetEntry* entry = pd_table;
 
-  while (entry != 0)
-    {
-      if (entry->pd_typecode == tc)
-	{
-	  offset = entry->pd_offset;
-	  return 1;
-	}
-      entry = entry->pd_next;
+  while (entry != 0) {
+    if (entry->pd_typecode == tc) {
+      offset = entry->pd_offset;
+      return 1;
     }
+    entry = entry->pd_next;
+  }
 
   return 0;
 }
@@ -5320,7 +4945,8 @@ TypeCode_marshaller::marshal(TypeCode_base* tc,
 
   // If this _exact_ typecode has already been marshalled into the stream
   // then just put in an indirection
-  CORBA::Long tc_offset;
+  omni::s_size_t tc_offset;
+
   if( orbParameters::useTypeCodeIndirections &&
       otbl->lookupTypeCode(tc, tc_offset) )
     {
@@ -5329,7 +4955,7 @@ TypeCode_marshaller::marshal(TypeCode_base* tc,
       tck_indirect >>= s;
 
       // Now write out the offset
-      CORBA::Long offset = tc_offset - (s.currentOutputPtr());
+      CORBA::Long offset = (CORBA::Long)(tc_offset - s.currentOutputPtr());
       offset >>= s;
     }
   else
@@ -5422,14 +5048,14 @@ TypeCode_marshaller::unmarshal(cdrStream& s,
       // Indirection typecode
     case 0xffffffff:
       {
-	CORBA::Long currpos = s.currentInputPtr();
-	CORBA::Long offset;
+        omni::s_size_t currpos = s.currentInputPtr();
+	CORBA::Long    offset;
 
 	// Read in the offset within the GIOP message
 	offset <<= s;
 
 	// Now look it up in the table
-	TypeCode_base* tc = otbl->lookupOffset(offset+currpos);
+	TypeCode_base* tc = otbl->lookupOffset(currpos + offset);
 	if (tc == 0)
 	  OMNIORB_THROW(MARSHAL,
 			MARSHAL_InvalidIndirection,
@@ -5484,7 +5110,7 @@ TypeCode_marshaller::unmarshal(cdrStream& s,
     case CORBA::tk_Principal:
       otbl->addEntry(otbl->currentOffset(), ToTcBase(CORBA::_tc_Principal));
       return TypeCode_collector::duplicateRef(ToTcBase(CORBA::_tc_Principal));
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
     case CORBA::tk_longlong:
       otbl->addEntry(otbl->currentOffset(), ToTcBase(CORBA::_tc_longlong));
       return TypeCode_collector::duplicateRef(ToTcBase(CORBA::_tc_longlong));
@@ -5492,7 +5118,7 @@ TypeCode_marshaller::unmarshal(cdrStream& s,
       otbl->addEntry(otbl->currentOffset(), ToTcBase(CORBA::_tc_ulonglong));
       return TypeCode_collector::duplicateRef(ToTcBase(CORBA::_tc_ulonglong));
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
     case CORBA::tk_longdouble:
       otbl->addEntry(otbl->currentOffset(), ToTcBase(CORBA::_tc_longdouble));
       return TypeCode_collector::duplicateRef(ToTcBase(CORBA::_tc_longdouble));
@@ -5600,7 +5226,7 @@ TypeCode_marshaller::unmarshal(cdrStream& s,
     // Never reach here
   };
 
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -5653,7 +5279,7 @@ TypeCode_marshaller::paramListType(CORBA::ULong kind)
     return plt[kind];
 
   OMNIORB_THROW(MARSHAL, MARSHAL_InvalidTypeCodeKind, CORBA::COMPLETED_NO);
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return plt_None;
 #endif
 }
@@ -5675,8 +5301,6 @@ TypeCode_base*
 TypeCode_collector::duplicateRef(TypeCode_base* tc)
 {
   omni_tracedmutex_lock l(*refcount_lock);
-
-  //  if (tc->pd_tck == CORBA::tk_null) abort();
 
   tc->pd_ref_count++;
 
@@ -6094,7 +5718,7 @@ TypeCode_union_helper::extractLabel(const CORBA::Any& label,
 	lbl_value = c;
 	break;
       }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
     case CORBA::tk_longlong:
       {
 	CORBA::LongLong c;
@@ -6165,7 +5789,7 @@ TypeCode_union_helper::extractLabel(const CORBA::Any& label,
       OMNIORB_THROW(BAD_PARAM,
 		    BAD_PARAM_IllegitimateDiscriminatorType,
 		    CORBA::COMPLETED_NO);
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
    // The unlikely looking constant -1 is to work around a bug in MSVC
    // that incorrectly deals with large negative literals :-( .
    if (sign &&
@@ -6183,7 +5807,7 @@ TypeCode_union_helper::extractLabel(const CORBA::Any& label,
       OMNIORB_THROW(BAD_PARAM,
 		    BAD_PARAM_IllegitimateDiscriminatorType,
 		    CORBA::COMPLETED_NO);
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
     if (lbl_value > 0xffffffff)
       OMNIORB_THROW(BAD_PARAM,
 		    BAD_PARAM_IllegitimateDiscriminatorType,
@@ -6191,7 +5815,7 @@ TypeCode_union_helper::extractLabel(const CORBA::Any& label,
 #endif
     break;
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
     if (!sign && (lbl_value > _CORBA_LONGLONG_CONST(0x7fffffffffffffff)))
       OMNIORB_THROW(BAD_PARAM,
@@ -6256,7 +5880,7 @@ TypeCode_union_helper::insertLabel(CORBA::Any& label,
   case CORBA::tk_ulong:
     label <<= CORBA::ULong(c);
     break;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
     label <<= CORBA::LongLong(c);
     break;
@@ -6337,7 +5961,7 @@ TypeCode_union_helper::marshalLabel(TypeCode_union::Discriminator l,
       c >>= s;
       break;
     }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
     {
       CORBA::LongLong c = CORBA::LongLong(l);
@@ -6407,7 +6031,7 @@ TypeCode_union_helper::unmarshalLabel(CORBA::TypeCode_ptr tc,
       c <<= s;
       return TypeCode_union::Discriminator(c);
     }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
     {
       CORBA::LongLong c;
@@ -6428,7 +6052,7 @@ TypeCode_union_helper::unmarshalLabel(CORBA::TypeCode_ptr tc,
        "TypeCode_union_helper::unmarshalLabel() - illegal disciminator type");
   }
 
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return 0;
 #endif
 }
@@ -6460,7 +6084,7 @@ TypeCode_union_helper::has_implicit_default(TypeCode_base* tc)
   case CORBA::tk_octet:
     npossible = 256;
     break;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
   case CORBA::tk_ulonglong:
     // Not likely to have this many cases!
@@ -6624,8 +6248,8 @@ checkValidTypeCode(const CORBA::TypeCode_ptr tc)
   CORBA::TCKind k = ToConstTcBase_Checked(tc)->NP_kind();
   if (k == CORBA::tk_null || k == CORBA::tk_void || k == CORBA::tk_except)
     OMNIORB_THROW(BAD_TYPECODE,
-		  BAD_TYPECODE_IllegitimateMember,
-		  CORBA::COMPLETED_NO);
+         	  BAD_TYPECODE_IllegitimateMember,
+                  CORBA::COMPLETED_NO);
 }
 
 CORBA::TypeCode_ptr
@@ -6862,7 +6486,7 @@ CORBA::ORB::create_recursive_tc(const char* id)
 ///////////////////////// TypeCode constants /////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-#if defined(HAS_Cplusplus_Namespace) && defined(_MSC_VER)
+#if defined(OMNI_HAS_Cplusplus_Namespace) && defined(_MSC_VER)
 // MSVC++ does not give the constants external linkage otherwise. Its a bug.
 namespace CORBA {
 TypeCode_ptr         _tc_null;
@@ -6884,11 +6508,11 @@ TypeCode_ptr         _tc_Object;
 TypeCode_ptr         _tc_string;
 TypeCode_ptr         _tc_wstring;
 TypeCode_ptr         _tc_NamedValue;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 TypeCode_ptr         _tc_longlong;
 TypeCode_ptr         _tc_ulonglong;
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 TypeCode_ptr         _tc_longdouble;
 #endif
 }
@@ -6912,11 +6536,11 @@ CORBA::TypeCode_ptr         CORBA::_tc_Object;
 CORBA::TypeCode_ptr         CORBA::_tc_string;
 CORBA::TypeCode_ptr         CORBA::_tc_wstring;
 CORBA::TypeCode_ptr         CORBA::_tc_NamedValue;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 CORBA::TypeCode_ptr         CORBA::_tc_longlong;
 CORBA::TypeCode_ptr         CORBA::_tc_ulonglong;
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 CORBA::TypeCode_ptr         CORBA::_tc_longdouble;
 #endif
 
@@ -6981,8 +6605,8 @@ static void check_static_data_is_initialised()
   registerTrackedObject(the_typecodes);
 
   // Mutexes
-  aliasExpandedTc_lock  = new omni_tracedmutex();
-  refcount_lock         = new omni_tracedmutex();
+  aliasExpandedTc_lock  = new omni_tracedmutex("aliasExpandedTc_lock");
+  refcount_lock         = new omni_tracedmutex("TypeCode::refcount_lock");
 
   // Primitive TypeCodes
   CORBA::_tc_null      	= new TypeCode_base(CORBA::tk_null);
@@ -7024,14 +6648,14 @@ static void check_static_data_is_initialised()
   the_typecodes->track(CORBA::_tc_string);
   the_typecodes->track(CORBA::_tc_wstring);
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   CORBA::_tc_longlong   = new TypeCode_base(CORBA::tk_longlong);
   CORBA::_tc_ulonglong  = new TypeCode_base(CORBA::tk_ulonglong);
 
   the_typecodes->track(CORBA::_tc_longlong);
   the_typecodes->track(CORBA::_tc_ulonglong);
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   CORBA::_tc_longdouble = new TypeCode_base(CORBA::tk_longdouble);
   the_typecodes->track(CORBA::_tc_longdouble);
 #endif

@@ -1,22 +1,19 @@
 all:: clwrapper.exe libwrapper.exe linkwrapper.exe oidlwrapper.exe
 
 define CompileWrapper
-cat $< >tmp.c
-CL.EXE tmp.c advapi32.lib
-mv tmp.exe $@
-rm tmp.obj tmp.c
+CL.EXE $< advapi32.lib
 endef
 
-clwrapper.exe: clwrapper.c
+clwrapper.exe: clwrapper.c pathmapping.h
 	$(CompileWrapper)
 
-libwrapper.exe: libwrapper.c
+libwrapper.exe: libwrapper.c pathmapping.h
 	$(CompileWrapper)
 
-linkwrapper.exe: linkwrapper.c
+linkwrapper.exe: linkwrapper.c pathmapping.h
 	$(CompileWrapper)
 
-oidlwrapper.exe: oidlwrapper.c
+oidlwrapper.exe: oidlwrapper.c pathmapping.h
 	$(CompileWrapper)
 
 export:: clwrapper.exe libwrapper.exe linkwrapper.exe oidlwrapper.exe

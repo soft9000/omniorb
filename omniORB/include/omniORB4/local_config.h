@@ -10,7 +10,7 @@
 // it to map to a 16-bit entity, uncomment the following two lines:
 
 // #define _CORBA_WCHAR_DECL unsigned short
-// #define SIZEOF_WCHAR      2
+// #define OMNI_SIZEOF_WCHAR      2
 
 
 // If you want operators for wide strings in wide streams, uncomment

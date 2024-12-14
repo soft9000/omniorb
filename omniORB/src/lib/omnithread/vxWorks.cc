@@ -5,52 +5,6 @@
 // Description: vxWorks adaptation of the omnithread wrapper classes
 // Notes:		 Munching strategy is imperative
 //////////////////////////////////////////////////////////////////////////////
-// $Log$
-// Revision 1.1.4.4  2005/07/08 17:04:56  dgrisby
-// Merge from omni4_0_develop again.
-//
-// Revision 1.1.4.3  2005/04/25 18:24:23  dgrisby
-// Always release per thread data in the thread it belongs to.
-//
-// Revision 1.1.4.2  2005/01/06 23:11:01  dgrisby
-// Big merge from omni4_0_develop.
-//
-// Revision 1.1.4.1  2003/03/23 21:01:54  dgrisby
-// Start of omniORB 4.1.x development branch.
-//
-// Revision 1.1.2.1  2003/02/17 02:03:11  dgrisby
-// vxWorks port. (Thanks Michael Sturm / Acterna Eningen GmbH).
-//
-// Revision 1.1.1.1  2002/11/19 14:58:04  sokcevti
-// OmniOrb4.0.0 VxWorks port
-//
-// Revision 1.4  2002/10/15 07:54:09  kuttlest
-// change semaphore from SEM_FIFO to SEM_PRIO
-// ---
-//
-// Revision 1.3  2002/07/05 07:38:52  engeln
-// made priority redefinable on load time by defining int variables
-// 	omni_thread_prio_low = 220;
-// 	omni_thread_prio_normal = 110;
-// 	omni_thread_prio_high = 55;
-// the default priority is prio_normal.
-// The normal priority default has been increased from 200 to 110 and the
-//     high priority from 100 to 55.
-// ---
-//
-// Revision 1.2  2002/06/14 12:44:57  engeln
-// replaced possibly unsafe wakeup procedure in broadcast.
-// ---
-//
-// Revision 1.1.1.1  2002/04/02 10:09:34  sokcevti
-// omniORB4 initial realease
-//
-// Revision 1.0	2001/10/23 14:22:45	sokcevti
-// Initial Version 4.00
-// ---
-//
-//////////////////////////////////////////////////////////////////////////////
-
 
 //////////////////////////////////////////////////////////////////////////////
 // Include files
@@ -97,9 +51,9 @@ omni_mutex::omni_mutex(void):m_bConstructed(false)
 {
 	mutexID = semMCreate(SEM_Q_PRIORITY | SEM_INVERSION_SAFE);
 
-	DBG_ASSERT(assert(mutexID != NULL));
+	DBG_ASSERT(assert(mutexID != 0));
 
-	if(mutexID==NULL)
+	if(mutexID==0)
 	{
 		DBG_TRACE(cout<<"Exception: omni_mutex::omni_mutex()  tid: "<<(int)taskIdSelf()<<endl);
 		DBG_THROW(throw omni_thread_fatal(-1));
@@ -166,7 +120,7 @@ omni_condition::omni_condition(omni_mutex* m) : mutex(m)
 	DBG_TRACE(cout<<"omni_condition::omni_condition  mutexID: "<<(int)mutex->mutexID<<" tid:"<<(int)taskIdSelf()<<endl);
 
 	sema_ = semCCreate(SEM_Q_PRIORITY, 0);
-	if(sema_ == NULL)
+	if(sema_ == 0)
 	{
 		DBG_TRACE(cout<<"Exception: omni_condition::omni_condition()  tid: "<<(int)taskIdSelf()<<endl);
 		DBG_THROW(throw omni_thread_fatal(errno));
@@ -300,9 +254,9 @@ omni_semaphore::omni_semaphore(unsigned int initial)
 
 	semID = semCCreate(SEM_Q_PRIORITY, (int)initial);
 
-	DBG_ASSERT(assert(semID!=NULL));
+	DBG_ASSERT(assert(semID!=0));
 
-	if(semID==NULL)
+	if(semID==0)
 	{
 		DBG_TRACE(cout<<"Exception: omni_semaphore::omni_semaphore"<<endl);
 		DBG_THROW(throw omni_thread_fatal(-1));
@@ -445,13 +399,13 @@ extern "C" void omni_thread_wrapper(void* ptr)
 	//
 	// Now invoke the thread function with the given argument.
 	//
-	if(me->fn_void != NULL)
+	if(me->fn_void != 0)
 	{
 		(*me->fn_void)(me->thread_arg);
 		omni_thread::exit();
 	}
 
-	if(me->fn_ret != NULL)
+	if(me->fn_ret != 0)
 	{
 		void* return_value = (*me->fn_ret)(me->thread_arg);
 		omni_thread::exit(return_value);
@@ -521,7 +475,7 @@ void omni_thread::detach(void)
 	// Invalidate the id NOW !
 	taskTcb(_tid)->spare1 = 0;
 
-	// Even if NULL, it is safe to delete the thread
+	// Even if 0, it is safe to delete the thread
 	omni_thread* t = (omni_thread*)taskTcb(_tid)->spare2;
 	// Fininsh cleaning the tcb structure
 	taskTcb(_tid)->spare2 = 0;
@@ -540,14 +494,14 @@ omni_thread::omni_thread(void (*fn)(void*), void* arg, priority_t pri)
 {
 	common_constructor(arg, pri, 1);
 	fn_void = fn;
-	fn_ret = NULL;
+	fn_ret = 0;
 }
 
 // construct an undetached thread running a given function.
 omni_thread::omni_thread(void* (*fn)(void*), void* arg, priority_t pri)
 {
 	common_constructor(arg, pri, 0);
-	fn_void = NULL;
+	fn_void = 0;
 	fn_ret = fn;
 }
 
@@ -556,8 +510,8 @@ omni_thread::omni_thread(void* (*fn)(void*), void* arg, priority_t pri)
 omni_thread::omni_thread(void* arg, priority_t pri)
 {
 	common_constructor(arg, pri, 1);
-	fn_void = NULL;
-	fn_ret = NULL;
+	fn_void = 0;
+	fn_ret = 0;
 }
 
 // common part of all constructors.
@@ -620,7 +574,7 @@ void omni_thread::start(void)
 
 	// Allocate memory for the task. (The returned id cannot be trusted by the task)
 	tid = taskSpawn(
-		NULL,				// Task name
+		0,				// Task name
 		vxworks_priority(_priority),	// Priority
 		VX_FP_TASK | VX_NO_STACK_FILL,	// Option
 		stack_size,			// Stack size
@@ -647,9 +601,9 @@ void omni_thread::start(void)
 //
 void omni_thread::start_undetached(void)
 {
-	DBG_ASSERT(assert(!((fn_void != NULL) || (fn_ret != NULL))));
+	DBG_ASSERT(assert(!((fn_void != 0) || (fn_ret != 0))));
 
-	if((fn_void != NULL) || (fn_ret != NULL))
+	if((fn_void != 0) || (fn_ret != 0))
 		DBG_THROW(throw omni_thread_invalid());
 
 	detached = 0;
@@ -795,9 +749,16 @@ void omni_thread::exit(void* return_value)
 omni_thread* omni_thread::self(void)
 {
 	if(taskTcb(taskIdSelf())->spare1 != OMNI_THREAD_ID)
-		return NULL;
+		return 0;
 
 	return (omni_thread*)taskTcb(taskIdSelf())->spare2;
+}
+
+
+unsigned long
+omni_thread::plat_id()
+{
+	return (unsigned long)taskIdSelf();
 }
 
 
@@ -891,7 +852,7 @@ void omni_thread::show(void)
 
 	if(s2 == 0)
 	{
-		printf("Spare 2 is NULL! - No thread object attached !!\n");
+		printf("Spare 2 is 0! - No thread object attached !!\n");
 
 		return;
 	}
@@ -946,8 +907,8 @@ public:
     // glblock -- added this to prevent problem with unitialized
     // running_cond the dummy thread never uses this and we dont want
     // the destructor to delete it.  vxWorks compiler seems to not set
-    // unitialized vars to NULL.
-    running_cond = NULL;
+    // unitialized vars to 0.
+    running_cond = 0;
 
     _dummy = 1;
     _state = STATE_RUNNING;
@@ -987,8 +948,3 @@ omni_thread::release_dummy()
   omni_thread_dummy* dummy = (omni_thread_dummy*)self;
   delete dummy;
 }
-
-
-#define INSIDE_THREAD_IMPL_CC
-#include "threaddata.cc"
-#undef INSIDE_THREAD_IMPL_CC

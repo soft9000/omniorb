@@ -3,25 +3,23 @@
 // transportRule.cc           Created on: 21/08/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2003-2013 Apasphere Ltd
+//    Copyright (C) 2003-2023 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -59,11 +57,12 @@ transportRules::~transportRules() {
 
 /////////////////////////////////////////////////////////////////////////////
 void
-transportRules::reset() {
-  omnivector<RuleActionPair*>::iterator i = pd_rules.begin();
-  omnivector<RuleActionPair*>::iterator last = pd_rules.end();
+transportRules::reset()
+{
+  RuleActionPairs::iterator i    = pd_rules.begin();
+  RuleActionPairs::iterator last = pd_rules.end();
 
-  for (; i != last; i++) {
+  for (; i != last; ++i) {
     delete (*i);
   }
   pd_rules.erase(pd_rules.begin(),last);
@@ -83,12 +82,12 @@ transportRules::clientRules() {
 
 /////////////////////////////////////////////////////////////////////////////
 CORBA::Boolean
-transportRules::match(const char* endpoint,
-		      transportRules::sequenceString& actions,
-		      CORBA::ULong& priority) {
-
-  omnivector<RuleActionPair*>::iterator i = pd_rules.begin();
-  omnivector<RuleActionPair*>::iterator last = pd_rules.end();
+transportRules::match(const char*       endpoint,
+		      CORBA::StringSeq& actions,
+		      CORBA::ULong&     priority)
+{
+  RuleActionPairs::iterator i    = pd_rules.begin();
+  RuleActionPairs::iterator last = pd_rules.end();
 
   while (i != last) {
     if ((*i)->rule_->match(endpoint)) {
@@ -105,11 +104,12 @@ transportRules::match(const char* endpoint,
 
 /////////////////////////////////////////////////////////////////////////////
 char*
-transportRules::dumpRule(CORBA::ULong index) {
-  omnivector<RuleActionPair*>::iterator i = pd_rules.begin();
-  omnivector<RuleActionPair*>::iterator last = pd_rules.end();
+transportRules::dumpRule(CORBA::ULong index)
+{
+  RuleActionPairs::iterator i    = pd_rules.begin();
+  RuleActionPairs::iterator last = pd_rules.end();
 
-  if ( (i+index) >= last ) return 0;
+  if ((i+index) >= last) return 0;
 
   return dumpRuleString((*(i+index)));
 }
@@ -117,21 +117,22 @@ transportRules::dumpRule(CORBA::ULong index) {
 
 /////////////////////////////////////////////////////////////////////////////
 static 
-omnivector<transportRules::RuleType*>*&
-ruleTypes() {
-  static omnivector<transportRules::RuleType*>* ruletypes_ = 0;
+transportRules::RuleTypes*&
+ruleTypes()
+{
+  static transportRules::RuleTypes* ruletypes_ = 0;
   if (!ruletypes_) {
-    ruletypes_ = new omnivector<transportRules::RuleType*>;
+    ruletypes_ = new transportRules::RuleTypes;
   }
   return ruletypes_;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 void
-transportRules::addRuleType(transportRules::RuleType* rt) {
+transportRules::addRuleType(transportRules::RuleType* rt)
+{
   ruleTypes()->push_back(rt);
 }
-
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -147,7 +148,8 @@ public:
 };
 
 /////////////////////////////////////////////////////////////////////////////
-static char* extractHost(const char* endpoint) {
+static char* extractHost(const char* endpoint)
+{
   // Returns the host address if there is one in the endpoint string.
 
   // Skip giop:tcp: or equivalent.
@@ -155,9 +157,14 @@ static char* extractHost(const char* endpoint) {
   if (p) p = strchr(p+1, ':');
   if (p) {
     ++p;
-    CORBA::UShort port;
-    CORBA::String_var host = omniURI::extractHostPort(p, port, 0);
+    CORBA::UShort     port;
+    const char*       rest;
+    CORBA::String_var host = omniURI::extractHostPort(p, port, &rest);
 
+    if (!(const char*)host ||
+        !(*rest == '\0' || *rest == '#'))
+      return 0;
+    
     if (LibcWrapper::isip4addr(host)) {
       return host._retn();
     }
@@ -189,16 +196,15 @@ public:
 
   ~builtinLocalHostRule() {}
 
-  CORBA::Boolean match(const char* endpoint) { 
-
-    if (strncmp(endpoint,"giop:unix",9) == 0) return 1;
+  CORBA::Boolean match(const char* endpoint)
+  {
+    if (strncmp(endpoint,"giop:unix:",10) == 0) return 1;
 
     // Otherwise, we want to check if this endpoint matches one of our
     // addresses.
-    CORBA::String_var host;
-    host = extractHost(endpoint);
+    CORBA::String_var host = extractHost(endpoint);
 
-    if ( (const char*)host )  {
+    if ((const char*)host)  {
       // Get this host's IP addresses and look for a match
       const omnivector<const char*>* ifaddrs;
       ifaddrs = giopTransportImpl::getInterfaceAddress("giop:tcp");
@@ -206,13 +212,12 @@ public:
       {
 	omnivector<const char*>::const_iterator i    = ifaddrs->begin();
 	omnivector<const char*>::const_iterator last = ifaddrs->end();
-	while ( i != last ) {
-	  if ( omni::strMatch((*i),host) ) return 1;
+	while (i != last) {
+	  if (omni::strMatch((*i),host)) return 1;
 	  i++;
 	}
       }
     }
-
     return 0; 
   }
 };
@@ -226,9 +231,18 @@ public:
 
   ~builtinIPv4Rule() {}
 
-  CORBA::Boolean match(const char* endpoint) { 
+  CORBA::Boolean matchAddr(const char* ipv4)
+  {
+    if (ipv4 && LibcWrapper::isip4addr(ipv4)) {
+      CORBA::ULong address = inet_addr((char*)ipv4);
+      return (network_ == (address & netmask_));
+    }
+    return 0;
+  }
 
-    if (strncmp(endpoint,"giop:unix",9) == 0) {
+  CORBA::Boolean match(const char* endpoint)
+  {
+    if (strncmp(endpoint,"giop:unix:",10) == 0) {
       // local transport. Does this rule apply to this host's 
       // IP address(es)? 
       const omnivector<const char*>* ifaddrs;
@@ -237,39 +251,23 @@ public:
       {
 	omnivector<const char*>::const_iterator i    = ifaddrs->begin();
 	omnivector<const char*>::const_iterator last = ifaddrs->end();
-	while ( i != last ) {
-	  if (LibcWrapper::isip4addr(*i)) {
-	    CORBA::ULong address = inet_addr((char*)(*i));
-	    if ( network_ == (address & netmask_) ) return 1;
-	  }
+	while (i != last) {
+          if (matchAddr(*i)) return 1;
 	  i++;
 	}
-	return 0;
       }
+      return 0;
     }
 
-    CORBA::String_var ipv4;
-    ipv4 = extractHost(endpoint);
-    if ((const char*)ipv4) {
-      if (LibcWrapper::isip4addr(ipv4)) {
-	CORBA::ULong address = inet_addr((char*)ipv4);
-	return (network_ == (address & netmask_));
-      }
-      else if (strncasecmp(ipv4, "::ffff:", 7) == 0 &&
-	       LibcWrapper::isip4addr((const char*)ipv4 + 7)) {
-
-	// IPv4 in IPv6
-	CORBA::ULong address = inet_addr((char*)ipv4 + 7);
-	return (network_ == (address & netmask_));
-      }
-    }
-    return 0;
+    CORBA::String_var ipv4 = extractHost(endpoint);
+    return matchAddr(ipv4);
   }
 
 private:
   CORBA::ULong network_;
   CORBA::ULong netmask_;
 };
+
 
 /////////////////////////////////////////////////////////////////////////////
 #if defined(OMNI_SUPPORT_IPV6)
@@ -290,30 +288,33 @@ public:
 
   CORBA::Boolean matchAddr(const char* ipv6)
   {
-    LibcWrapper::AddrInfo_var ai(LibcWrapper::getAddrInfo(ipv6,0));
-    if (!ai.in()) return 0;
+    if (ipv6 && LibcWrapper::isip6addr(ipv6)) {
 
-    sockaddr_in6* sa = (sockaddr_in6*)ai->addr();
-    CORBA::Octet* ip6_bytes = (CORBA::Octet*)&sa->sin6_addr.s6_addr;
+      LibcWrapper::AddrInfo_var ai(LibcWrapper::getAddrInfo(ipv6,0));
+      if (!ai.in()) return 0;
 
-    CORBA::ULong bits = prefix_;
-    CORBA::ULong i;
+      sockaddr_in6* sa        = (sockaddr_in6*)ai->addr();
+      CORBA::Octet* ip6_bytes = (CORBA::Octet*)&sa->sin6_addr.s6_addr;
+      CORBA::ULong  bits      = prefix_;
+      CORBA::ULong  i;
 
-    for (i=0; i < 16 && bits > 7; ++i, bits-=8) {
-      if (network_[i] != ip6_bytes[i])
-	return 0;
+      for (i=0; i < 16 && bits > 7; ++i, bits-=8) {
+        if (network_[i] != ip6_bytes[i])
+          return 0;
+      }
+      if (bits) {
+        CORBA::Octet mask = (0xff << (8 - bits)) & 0xff;
+        if ((network_[i] & mask) != (ip6_bytes[i] & mask))
+          return 0;
+      }
+      return 1;
     }
-    if (bits) {
-      CORBA::Octet mask = (0xff << (8 - bits)) & 0xff;
-      if ((network_[i] & mask) != (ip6_bytes[i] & mask))
-	return 0;
-    }
-    return 1;
+    return 0;
   }
 
   CORBA::Boolean match(const char* endpoint)
   {
-    if (strncmp(endpoint,"giop:unix",9) == 0) {
+    if (strncmp(endpoint,"giop:unix:",10) == 0) {
       // local transport. Does this rule apply to this host's 
       // IP address(es)? 
       const omnivector<const char*>* ifaddrs;
@@ -322,21 +323,15 @@ public:
       {
 	omnivector<const char*>::const_iterator i    = ifaddrs->begin();
 	omnivector<const char*>::const_iterator last = ifaddrs->end();
-	while ( i != last ) {
-	  if (LibcWrapper::isip6addr(*i) && matchAddr(*i))
-	    return 1;
-	  i++;
+	while (i != last) {
+          if (matchAddr(*i)) return 1;
 	}
       }
+      return 0;
     }
 
-    CORBA::String_var ipv6;
-    ipv6 = extractHost(endpoint);
-
-    if ((const char*)ipv6 && LibcWrapper::isip6addr(ipv6)) {
-      return matchAddr(ipv6);
-    }
-    return 0;
+    CORBA::String_var ipv6 = extractHost(endpoint);
+    return matchAddr(ipv6);
   }
 
 private:
@@ -355,61 +350,62 @@ public:
   }
   virtual ~builtinRuleType() {}
 
-  transportRules::Rule* createRule(const char* address_mask) {
-    
+  CORBA::Boolean createRules(const char*             address_mask,
+                             const CORBA::StringSeq& actions,
+                             transportRules&         tr)
+  {
     CORBA::ULong network = 0, netmask = 0;
 
 #if defined(OMNI_SUPPORT_IPV6)
     builtinIPv6Rule::Addr ip6network;
-    CORBA::ULong prefix;
+    CORBA::ULong          prefix;
 #endif
 
-    if ( omni::strMatch(address_mask,"*" ) ) {
-      return (transportRules::Rule*) new builtinMatchAllRule(address_mask);
+    if (omni::strMatch(address_mask,"*")) {
+      tr.addRule(new builtinMatchAllRule(address_mask), actions);
+      return 1;
     }
-    else if ( omni::strMatch(address_mask,"localhost") ) {
-      return (transportRules::Rule*) new builtinLocalHostRule(address_mask);
+    else if (omni::strMatch(address_mask, "localhost")) {
+      tr.addRule(new builtinLocalHostRule(address_mask), actions);
+      return 1;
     }
-    else if ( parseIPv4AddressMask(address_mask,network,netmask) ) {
-      return (transportRules::Rule*) new builtinIPv4Rule(address_mask,
-							 network,
-							 netmask);
+    else if (parseIPv4AddressMask(address_mask, network, netmask)) {
+      tr.addRule(new builtinIPv4Rule(address_mask, network, netmask), actions);
+      return 1;
     }
 #if defined(OMNI_SUPPORT_IPV6)
-    else if ( parseIPv6AddressMask(address_mask,ip6network,prefix) ) {
-      return (transportRules::Rule*) new builtinIPv6Rule(address_mask,
-							 ip6network,
-							 prefix);
+    else if (parseIPv6AddressMask(address_mask, ip6network, prefix)) {
+      tr.addRule(new builtinIPv6Rule(address_mask, ip6network, prefix),
+                 actions);
+      return 1;
     }
 #endif
     // Try to resolve as a hostname
-    LibcWrapper::AddrInfo_var ai(LibcWrapper::getAddrInfo(address_mask,0));
-    if (ai.in()) {
-      CORBA::String_var addr = ai->asString();
-      if (omniORB::trace(20)) {
-        omniORB::logger log;
-        log << "Name '" << address_mask << "' in transport rule resolved to '"
-            << addr << "'.\n";
+    CORBA::Boolean added = 0;
+
+    LibcWrapper::AddrInfo_var aiv(LibcWrapper::getAddrInfo(address_mask, 0));
+    if (aiv.in()) {
+      LibcWrapper::AddrInfo* ai = aiv;
+
+      while (ai) {
+        CORBA::String_var addr = ai->asString();
+        if (omniORB::trace(20)) {
+          omniORB::logger log;
+          log << "Name '" << address_mask << "' in transport rule resolved to '"
+              << addr << "'.\n";
+        }
+        added = createRules(addr, actions, tr) || added;
+
+        ai = ai->next();
       }
-      if ( parseIPv4AddressMask(addr,network,netmask) ) {
-        return (transportRules::Rule*) new builtinIPv4Rule(addr,
-                                                           network,
-                                                           netmask);
-      }
-#if defined(OMNI_SUPPORT_IPV6)
-      else if ( parseIPv6AddressMask(addr,ip6network,prefix) ) {
-        return (transportRules::Rule*) new builtinIPv6Rule(addr,
-                                                           ip6network,
-                                                           prefix);
-      }
-#endif
     }
-    return 0;
+    return added;
   }
 
-  static CORBA::Boolean parseIPv4AddressMask(const char* address,
+  static CORBA::Boolean parseIPv4AddressMask(const char*   address,
 					     CORBA::ULong& network,
-					     CORBA::ULong& netmask) {
+					     CORBA::ULong& netmask)
+  {
     CORBA::String_var cp(address);
     char* mask = strchr((char*)cp,'/');
     if (mask) {
@@ -420,10 +416,10 @@ public:
       mask = (char*) "255.255.255.255";
     }
 
-    if ( ! LibcWrapper::isip4addr(cp) ) return 0;
+    if (!LibcWrapper::isip4addr(cp)) return 0;
     network = inet_addr((char*)cp);
 
-    if ( LibcWrapper::isip4addr(mask) ) {
+    if (LibcWrapper::isip4addr(mask)) {
       netmask = inet_addr(mask);
     }
     else {
@@ -440,7 +436,8 @@ public:
 #if defined(OMNI_SUPPORT_IPV6)
   static CORBA::Boolean parseIPv6AddressMask(const char*            address,
 					     builtinIPv6Rule::Addr& network,
-					     CORBA::ULong&          prefix) {
+					     CORBA::ULong&          prefix)
+  {
     CORBA::String_var cp(address);
 
     char* mask = strchr((char*)cp,'/');
@@ -476,22 +473,21 @@ static builtinRuleType builtinRuleType_;
 /////////////////////////////////////////////////////////////////////////////
 static
 CORBA::Boolean
-parseAndAddRuleString(omnivector<transportRules::RuleActionPair*>& ruleStore,
-		      const char* rule_string) {
-
-  transportRules::sequenceString action(4);
+parseAndAddRuleString(transportRules& tr,
+		      const char*     rule_string)
+{
+  CORBA::StringSeq  actions(4);
   CORBA::String_var address_mask;
-  CORBA::Boolean reset_list = 0;
-
-  CORBA::String_var rs(rule_string);  // make a copy
+  CORBA::Boolean    reset_list = 0;
+  CORBA::String_var rs(rule_string); // make a copy
 
   // Extract address mask
   char* p = rs;
-  while ( isspace(*p) )
+  while (isspace(*p))
     p++;
 
   char* q = p;
-  while ( !isspace(*p) && *p != '\0' )
+  while (!isspace(*p) && *p != '\0')
     p++;
 
   if (*p == '\0')
@@ -499,7 +495,7 @@ parseAndAddRuleString(omnivector<transportRules::RuleActionPair*>& ruleStore,
 
   *p = '\0';
 
-  if ( *q == '^' ) {
+  if (*q == '^') {
     reset_list = 1;
     q++;
     if (*q == '\0') return 0;
@@ -509,23 +505,23 @@ parseAndAddRuleString(omnivector<transportRules::RuleActionPair*>& ruleStore,
 
   // Extract action list, one or more comma separated action.
   // There may also be white spaces between the actions and comma separators.
-  while ( isspace(*p) )
+  while (isspace(*p))
     p++;
   
   q = p;
   
   p = strchr(q,',');
-  while ( p && p != q ) {
+  while (p && p != q) {
     *p = '\0';
     char* t = q;
-    while ( !isspace(*t) && *t != '\0' )
+    while (!isspace(*t) && *t != '\0')
       t++;
     *t = '\0';
-    action.length(action.length()+1);
-    action[action.length()-1] = (const char*) q;
+    actions.length(actions.length()+1);
+    actions[actions.length()-1] = (const char*) q;
 
     p++;
-    while ( isspace(*p) )
+    while (isspace(*p))
       p++;
     q = p;
     p = strchr(q,',');
@@ -534,28 +530,24 @@ parseAndAddRuleString(omnivector<transportRules::RuleActionPair*>& ruleStore,
     return 0;
   if (*q != '\0') {
     p = q;
-    while ( !isspace(*p) && *p != '\0' )
+    while (!isspace(*p) && *p != '\0')
       p++;
     if (*p != '\0')
       *p = '\0';
-    action.length(action.length()+1);
-    action[action.length()-1] = (const char*) q;
+    actions.length(actions.length()+1);
+    actions[actions.length()-1] = (const char*) q;
   }
 
-  omnivector<transportRules::RuleType*>& ruletypes = *ruleTypes();
-  omnivector<transportRules::RuleType*>::iterator i = ruletypes.begin();
-  omnivector<transportRules::RuleType*>::iterator last = ruletypes.end();
+  if (reset_list)
+    tr.reset();
 
-  while (i != last) {
-    transportRules::Rule* rule = (*i)->createRule(address_mask);
-    if (rule) {
-      transportRules::RuleActionPair* ra;
-      ra = new transportRules::RuleActionPair(rule,action);
-      if (reset_list) ruleStore.erase(ruleStore.begin(),ruleStore.end());
-      ruleStore.push_back(ra);
+  transportRules::RuleTypes*          ruletypes = ruleTypes();
+  transportRules::RuleTypes::iterator i         = ruletypes->begin();
+  transportRules::RuleTypes::iterator last      = ruletypes->end();
+
+  for (; i != last; ++i) {
+    if ((*i)->createRules(address_mask, actions, tr))
       return 1;
-    }
-    i++;
   }
   return 0;
 }
@@ -563,10 +555,10 @@ parseAndAddRuleString(omnivector<transportRules::RuleActionPair*>& ruleStore,
 /////////////////////////////////////////////////////////////////////////////
 static
 char*
-dumpRuleString(transportRules::RuleActionPair* ra) {
-
-  transportRules::sequenceString& ss = ra->action_;
-  CORBA::ULong len = strlen(ra->rule_->addressMask()) + 1;
+dumpRuleString(transportRules::RuleActionPair* ra)
+{
+  CORBA::StringSeq& ss  = ra->action_;
+  CORBA::ULong      len = strlen(ra->rule_->addressMask()) + 1;
 
   CORBA::ULong i = 0;
   for (; i < ss.length(); i++) {
@@ -577,7 +569,7 @@ dumpRuleString(transportRules::RuleActionPair* ra) {
   sprintf(v,"%s ",ra->rule_->addressMask());
 
   i = 0;
-  while ( i < ss.length() ) {
+  while (i < ss.length()) {
     strcat(v,ss[i]);
     i++;
     if (i != ss.length()) strcat(v,",");
@@ -597,9 +589,9 @@ public:
 			"-ORBclientTransportRule \"<address mask>  [action]+\"") {}
 
   void visit(const char* value,
-	     orbOptions::Source)  throw (orbOptions::BadParam) {
+	     orbOptions::Source)  {
 
-    if (!parseAndAddRuleString(clientRules_.pd_rules,value)) {
+    if (!parseAndAddRuleString(clientRules_, value)) {
       throw orbOptions::BadParam(key(),value,"Unrecognised address mask");
     }
   }
@@ -610,7 +602,7 @@ public:
     omnivector<transportRules::RuleActionPair*>
       ::iterator last = clientRules_.pd_rules.end();
 
-    while ( i != last ) {
+    while (i != last) {
       CORBA::String_var v;
       v = dumpRuleString(*i);
       orbOptions::addKVString(key(),v,result);
@@ -632,9 +624,9 @@ public:
 			"-ORBserverTransportRule \"<address mask>  [action]+\"") {}
 
   void visit(const char* value,
-	     orbOptions::Source) throw (orbOptions::BadParam) {
+	     orbOptions::Source) {
 
-    if (!parseAndAddRuleString(serverRules_.pd_rules,value)) {
+    if (!parseAndAddRuleString(serverRules_, value)) {
       throw orbOptions::BadParam(key(),value,"Unrecognised address mask");
     }
   }
@@ -645,7 +637,7 @@ public:
     omnivector<transportRules::RuleActionPair*>
       ::iterator last = serverRules_.pd_rules.end();
 
-    while ( i != last ) {
+    while (i != last) {
       CORBA::String_var v;
       v = dumpRuleString(*i);
       orbOptions::addKVString(key(),v,result);
@@ -667,7 +659,7 @@ public:
     orbOptions::singleton().registerHandler(serverTransportRuleHandler_);
   }
   virtual ~omni_transportRules_initialiser() {
-    omnivector<transportRules::RuleType*>*& ruletypes = ruleTypes();
+    transportRules::RuleTypes*& ruletypes = ruleTypes();
     if (ruletypes) {
       delete ruletypes;
       ruletypes = 0;
@@ -676,13 +668,11 @@ public:
   void attach() { 
     if (clientRules_.pd_rules.size() == 0) {
       // Add a default rule
-      parseAndAddRuleString(clientRules_.pd_rules,
-                            "* unix,ssl,tcp");
+      parseAndAddRuleString(clientRules_, "* unix,ssl,tcp");
     }
     if (serverRules_.pd_rules.size() == 0) {
       // Add a default rule
-      parseAndAddRuleString(serverRules_.pd_rules,
-			    "* unix,ssl,tcp");
+      parseAndAddRuleString(serverRules_, "* unix,ssl,tcp");
     }
   }
   void detach() { 

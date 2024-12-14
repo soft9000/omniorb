@@ -3,236 +3,28 @@
 // omniInternal.cc            Created on: 25/2/99
 //                            Author    : David Riddoch (djr)
 //
-//    Copyright (C) 2002-2007 Apasphere Ltd
+//    Copyright (C) 2002-2012 Apasphere Ltd
 //    Copyright (C) 1996,1999 AT&T Research Cambridge
 //
 //    This file is part of the omniORB library.
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Implementation of methods defined in class omni.
 //      
-
-/*
-  $Log$
-  Revision 1.5.2.16  2007/04/14 17:56:52  dgrisby
-  Identity downcasting mechanism was broken by VC++ 8's
-  over-enthusiastic optimiser.
-
-  Revision 1.5.2.15  2006/07/19 09:27:18  dgrisby
-  Properly pass hints when handling persistent id.
-
-  Revision 1.5.2.14  2006/07/18 16:21:21  dgrisby
-  New experimental connection management extension; ORB core support
-  for it.
-
-  Revision 1.5.2.13  2006/06/02 12:48:32  dgrisby
-  Small code cleanups.
-
-  Revision 1.5.2.12  2006/04/28 18:40:46  dgrisby
-  Merge from omni4_0_develop.
-
-  Revision 1.5.2.11  2006/02/22 14:56:36  dgrisby
-  New endPointPublishHostname and endPointResolveNames parameters.
-
-  Revision 1.5.2.10  2006/01/23 16:05:41  dgrisby
-  Another merge from omni4_0_develop.
-
-  Revision 1.5.2.9  2006/01/10 12:24:03  dgrisby
-  Merge from omni4_0_develop pre 4.0.7 release.
-
-  Revision 1.5.2.8  2005/12/08 14:22:31  dgrisby
-  Better string marshalling performance; other minor optimisations.
-
-  Revision 1.5.2.7  2005/09/19 18:26:33  dgrisby
-  Merge from omni4_0_develop again.
-
-  Revision 1.5.2.6  2005/04/14 00:03:58  dgrisby
-  New traceInvocationReturns and traceTime options; remove logf function.
-
-  Revision 1.5.2.5  2005/04/08 00:35:46  dgrisby
-  Merging again.
-
-  Revision 1.5.2.4  2005/03/30 23:36:09  dgrisby
-  Another merge from omni4_0_develop.
-
-  Revision 1.5.2.3  2005/01/06 23:10:36  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.5.2.2  2003/05/20 16:53:17  dgrisby
-  Valuetype marshalling support.
-
-  Revision 1.5.2.1  2003/03/23 21:02:09  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.2.2.29  2003/01/16 11:08:26  dgrisby
-  Patches to support Digital Mars C++. Thanks Christof Meerwald.
-
-  Revision 1.2.2.28  2002/09/08 21:12:39  dgrisby
-  Properly handle IORs with no usable profiles.
-
-  Revision 1.2.2.27  2002/08/16 16:03:31  dgrisby
-  Interceptor tweaks.
-
-  Revision 1.2.2.26  2002/03/27 11:44:53  dpg1
-  Check in interceptors things left over from last week.
-
-  Revision 1.2.2.25  2002/03/18 15:13:08  dpg1
-  Fix bug with old-style ORBInitRef in config file; look for
-  -ORBtraceLevel arg before anything else; update Windows registry
-  key. Correct error message.
-
-  Revision 1.2.2.24  2001/09/24 14:26:02  dpg1
-  Safer static translation unit counts for omnithread and final clean-up.
-
-  Revision 1.2.2.23  2001/09/20 13:26:14  dpg1
-  Allow ORB_init() after orb->destroy().
-
-  Revision 1.2.2.22  2001/09/19 17:26:50  dpg1
-  Full clean-up after orb->destroy().
-
-  Revision 1.2.2.21  2001/08/21 11:02:16  sll
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.2.2.20  2001/08/20 13:27:43  dpg1
-  Correct description of objectTableSize configuration setting.
-
-  Revision 1.2.2.19  2001/08/17 17:12:40  sll
-  Modularise ORB configuration parameters.
-
-  Revision 1.2.2.18  2001/08/16 14:37:07  dpg1
-  Fix scoping of omni::internalLock.
-
-  Revision 1.2.2.17  2001/08/15 17:59:11  dpg1
-  Minor POA bugs.
-
-  Revision 1.2.2.16  2001/08/15 10:26:13  dpg1
-  New object table behaviour, correct POA semantics.
-
-  Revision 1.2.2.15  2001/08/03 17:41:23  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.2.2.14  2001/08/01 10:08:21  dpg1
-  Main thread policy.
-
-  Revision 1.2.2.13  2001/07/31 16:40:03  sll
-  Added argument to selectRope.
-
-  Revision 1.2.2.12  2001/07/13 15:29:59  sll
-  Use the variable omniORB::maxServerThreadPoolSize to control invoker thread
-  pool size.
-
-  Revision 1.2.2.11  2001/05/31 16:18:13  dpg1
-  inline string matching functions, re-ordered string matching in
-  _ptrToInterface/_ptrToObjRef
-
-  Revision 1.2.2.10  2001/05/29 17:03:52  dpg1
-  In process identity.
-
-  Revision 1.2.2.9  2001/05/10 15:08:37  dpg1
-  _compatibleServant() replaced with _localServantTarget().
-  createIdentity() now takes a target string.
-  djr's fix to deactivateObject().
-
-  Revision 1.2.2.8  2001/05/09 17:05:34  sll
-  createIdentity() now can deal with it being called more than once with the
-  same IOR.
-
-  Revision 1.2.2.7  2001/04/18 18:18:06  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.2.2.6  2000/11/09 12:27:57  dpg1
-  Huge merge from omni3_develop, plus full long long from omni3_1_develop.
-
-  Revision 1.2.2.5  2000/11/03 19:14:03  sll
-  Use _CORBA_Unbounded_Sequence_Octet instead of _CORBA_Unbounded_Sequence__Octet
-
-  Revision 1.2.2.4  2000/10/09 16:22:47  sll
-  Updated the usage of omniIOR duplicate and release to conform to the
-  current locking requirement.
-
-  Revision 1.2.2.3  2000/10/03 17:37:08  sll
-  Changed omniIOR synchronisation mutex from omni::internalLock to its own
-  mutex.
-
-  Revision 1.2.2.2  2000/09/27 18:39:33  sll
-  Updated to use omniIOR to store and pass the repository ID and IOP profiles
-  of an IOR.
-
-  Revision 1.1.2.16  2000/07/21 15:35:47  dpg1
-  Incorrectly rejected object references with incompatible target and
-  most-derived repoIds.
-
-  Revision 1.1.2.15  2000/06/27 15:40:57  sll
-  Workaround for Cygnus gcc's inability to recognise _CORBA_Octet*& and
-  CORBA::Octet*& are the same type.
-
-  Revision 1.1.2.14  2000/06/22 10:40:16  dpg1
-  exception.h renamed to exceptiondefs.h to avoid name clash on some
-  platforms.
-
-  Revision 1.1.2.13  2000/04/27 10:51:13  dpg1
-  Interoperable Naming Service
-
-  stringToObject() and objectToString() moved to uri.cc.
-
-  Revision 1.1.2.12  2000/04/13 17:48:58  djr
-  Minor improvement -- reduces times when need to verify object's type.
-
-  Revision 1.1.2.11  2000/03/01 17:57:41  dpg1
-  New omniObjRef::_compatibleServant() function to support object
-  references and servants written for languages other than C++.
-
-  Revision 1.1.2.10  2000/02/22 12:25:38  dpg1
-  A few things made `publicly' accessible so omniORBpy can get its hands
-  on them.
-
-  Revision 1.1.2.9  2000/01/27 16:31:33  djr
-  String_member now initialised to empty string by default.
-
-  Revision 1.1.2.8  2000/01/20 11:51:35  djr
-  (Most) Pseudo objects now used omni::poRcLock for ref counting.
-  New assertion check OMNI_USER_CHECK.
-
-  Revision 1.1.2.7  1999/12/06 14:03:00  djr
-  *** empty log message ***
-
-  Revision 1.1.2.6  1999/10/29 13:18:18  djr
-  Changes to ensure mutexes are constructed when accessed.
-
-  Revision 1.1.2.5  1999/10/27 17:32:13  djr
-  omni::internalLock and objref_rc_lock are now pointers.
-
-  Revision 1.1.2.4  1999/10/14 16:22:13  djr
-  Implemented logging when system exceptions are thrown.
-
-  Revision 1.1.2.3  1999/09/27 08:48:33  djr
-  Minor corrections to get rid of warnings.
-
-  Revision 1.1.2.2  1999/09/24 15:01:35  djr
-  Added module initialisers, and sll's new scavenger implementation.
-
-  Revision 1.1.2.1  1999/09/22 14:26:57  djr
-  Major rewrite of orbcore to support POA.
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -299,13 +91,18 @@ CORBA::Boolean  omniORB::traceInvocationReturns = 0;
 //
 //    Valid values = 0 or 1
 
-CORBA::Boolean  omniORB::traceThreadId = 0;
+CORBA::Boolean  omniORB::traceThreadId = 1;
 //    If true, then the log messages will contain the thread id.
 //
 //    Valid values = 0 or 1
 
-CORBA::Boolean  omniORB::traceTime = 0;
+CORBA::Boolean  omniORB::traceTime = 1;
 //    If true, then the log messages will contain the time.
+//
+//    Valid values = 0 or 1
+
+CORBA::Boolean  omniORB::traceLocking = 0;
+//    If true, trace lock operations.
 //
 //    Valid values = 0 or 1
 
@@ -357,10 +154,16 @@ static CORBA::Boolean abortOnNativeException = 0;
 //
 //  Valid values = 0 or 1
 
+CORBA::Boolean orbParameters::throwTransientOnTimeOut = 0;
+//  If true, CORBA::TRANSIENT is thrown when a timeout occurs. If
+//  false (the default), CORBA::TIMEOUT is thrown.
+//  
+//  Valid values = 0 or 1
+
 
 ////////////////////////////////////////////////////////////////////////////
 
-#if defined(HAS_Cplusplus_Namespace)
+#if defined(OMNI_HAS_Cplusplus_Namespace)
 #  ifndef __DMC__
 using omniORB::operator==;
 #  endif
@@ -411,7 +214,7 @@ omniObjTable::resize()
 {
   ASSERT_OMNI_TRACEDMUTEX_HELD(*omni::internalLock, 1);
 
-  OMNIORB_ASSERT(numObjectsInTable > maxNumObjects ||
+  OMNIORB_ASSERT((numObjectsInTable > maxNumObjects) ||
 		 (numObjectsInTable < minNumObjects && objectTableSizeI > 0));
 
   if (numObjectsInTable > maxNumObjects) {
@@ -489,7 +292,7 @@ omni::nilRefLock()
 
   static omni_tracedmutex* nil_ref_lock = 0;
 
-  if( !nil_ref_lock )  nil_ref_lock = new omni_tracedmutex;
+  if( !nil_ref_lock )  nil_ref_lock = new omni_tracedmutex("nil_ref_lock");
   return *nil_ref_lock;
 }
 
@@ -519,9 +322,9 @@ omni::releaseObjRef(omniObjRef* objref)
 
   if( rc < 0 ) {
     omniORB::logs(1,
-      "ERROR -- trying to release an object with reference count <= 0.\n"
-      " CORBA::release() may have been called too many times on an object\n"
-      " reference.");
+      "Error: trying to release an object with reference count <= 0. "
+      "CORBA::release() may have been called too many times on an object "
+      "reference.");
     return;
   }
 
@@ -714,11 +517,7 @@ omniObjTableEntry::setDeactivatingOA()
     l << "State " << this << " -> deactivating (OA destruction)\n";
   }
 
-  if (pd_nInvocations == 1)
-    pd_state = DEACTIVATING_OA;
-  else
-    pd_state = DEACTIVATING;
-
+  pd_state = DEACTIVATING_OA;
   --pd_nInvocations;
 
   if (pd_waiters)
@@ -788,7 +587,9 @@ omniObjTableEntry::wait(_CORBA_ULong set)
 
   if (pd_state & set) return pd_state;
 
-  if (!pd_cond) pd_cond = new omni_tracedcondition(omni::internalLock);
+  if (!pd_cond)
+    pd_cond = new omni_tracedcondition(omni::internalLock,
+				       "omniObjTableEntry::pd_cond");
 
   gainRef();
   ++pd_waiters;
@@ -890,7 +691,10 @@ omni::createIdentity(omniIOR* ior, const char* target, CORBA::Boolean locked)
 
     if (result) {
       holder._retn();
+
+      omni_optional_lock sync(*internalLock,locked,locked);
       result->gainRef();
+
       return result;
     }
   }
@@ -1337,7 +1141,7 @@ public:
 			1,
 			"-ORBtraceLevel < n >= 0 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
@@ -1369,7 +1173,7 @@ public:
 			"-ORBtraceExceptions < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -1398,7 +1202,7 @@ public:
 			"-ORBtraceInvocations < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -1427,7 +1231,7 @@ public:
 			"-ORBtraceInvocationReturns < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -1456,7 +1260,7 @@ public:
 			"-ORBtraceThreadId < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -1485,7 +1289,7 @@ public:
 			"-ORBtraceTime < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -1504,6 +1308,35 @@ public:
 static traceTimeHandler traceTimeHandler_;
 
 /////////////////////////////////////////////////////////////////////////////
+class traceLockingHandler : public orbOptions::Handler {
+public:
+
+  traceLockingHandler() : 
+    orbOptions::Handler("traceLocking",
+			"traceLocking = 0 or 1",
+			1,
+			"-ORBtraceLocking < 0 | 1 >") {}
+
+
+  void visit(const char* value,orbOptions::Source) {
+
+    CORBA::Boolean v;
+    if (!orbOptions::getBoolean(value,v)) {
+      throw orbOptions::BadParam(key(),value,
+				 orbOptions::expect_boolean_msg);
+    }
+    omniORB::traceLocking = v;
+  }
+
+  void dump(orbOptions::sequenceString& result) {
+    orbOptions::addKVBoolean(key(),omniORB::traceLocking,
+			     result);
+  }
+};
+
+static traceLockingHandler traceLockingHandler_;
+
+/////////////////////////////////////////////////////////////////////////////
 class traceFileHandler : public orbOptions::Handler {
 public:
 
@@ -1514,7 +1347,7 @@ public:
 			"-ORBtraceFile <filename>") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
     omniORB::setLogFilename(value);
   }
 
@@ -1536,7 +1369,7 @@ public:
 			1,
 			"-ORBobjectTableSize < n >= 0 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
@@ -1565,7 +1398,7 @@ public:
 			"-ORBabortOnInternalError < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -1595,7 +1428,7 @@ public:
 			"-ORBabortOnNativeException < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -1627,6 +1460,36 @@ static void abortOnNativeExceptionInterceptor(omniInterceptors::
 #endif
 
 /////////////////////////////////////////////////////////////////////////////
+class throwTransientOnTimeOutHandler : public orbOptions::Handler {
+public:
+
+  throwTransientOnTimeOutHandler() : 
+    orbOptions::Handler("throwTransientOnTimeOut",
+			"throwTransientOnTimeOut = 0 or 1",
+			1,
+			"-ORBthrowTransientOnTimeOut < 0 | 1 >") {}
+
+
+  void visit(const char* value,orbOptions::Source) {
+
+    CORBA::Boolean v;
+    if (!orbOptions::getBoolean(value,v)) {
+      throw orbOptions::BadParam(key(),value,
+				 orbOptions::expect_boolean_msg);
+    }
+    orbParameters::throwTransientOnTimeOut = v;
+  }
+
+  void dump(orbOptions::sequenceString& result) {
+    orbOptions::addKVBoolean(key(),orbParameters::throwTransientOnTimeOut,
+			     result);
+  }
+};
+
+static throwTransientOnTimeOutHandler throwTransientOnTimeOutHandler_;
+
+
+/////////////////////////////////////////////////////////////////////////////
 //            Module initialiser                                           //
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1642,16 +1505,23 @@ public:
     orbOptions::singleton().registerHandler(traceInvocationReturnsHandler_);
     orbOptions::singleton().registerHandler(traceThreadIdHandler_);
     orbOptions::singleton().registerHandler(traceTimeHandler_);
+    orbOptions::singleton().registerHandler(traceLockingHandler_);
     orbOptions::singleton().registerHandler(traceFileHandler_);
     orbOptions::singleton().registerHandler(objectTableSizeHandler_);
     orbOptions::singleton().registerHandler(abortOnInternalErrorHandler_);
     orbOptions::singleton().registerHandler(abortOnNativeExceptionHandler_);
+    orbOptions::singleton().registerHandler(throwTransientOnTimeOutHandler_);
   }
 
   void attach() {
-    if (!omni::internalLock)   omni::internalLock   = new omni_tracedmutex;
-    if (!omni::poRcLock)       omni::poRcLock       = new omni_tracedmutex;
-    if (!omni::objref_rc_lock) omni::objref_rc_lock = new omni_tracedmutex;
+    if (!omni::internalLock)
+      omni::internalLock   = new omni_tracedmutex("omni::internalLock");
+
+    if (!omni::poRcLock)
+      omni::poRcLock       = new omni_tracedmutex("omni::poRcLock");
+
+    if (!omni::objref_rc_lock)
+      omni::objref_rc_lock = new omni_tracedmutex("omni::objref_rc_lock");
 
     numObjectsInTable = 0;
     minNumObjects = 0;

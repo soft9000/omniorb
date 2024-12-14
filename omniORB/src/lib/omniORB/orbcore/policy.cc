@@ -3,81 +3,32 @@
 // policy.cc                  Created on: 11/5/99
 //                            Author    : David Riddoch (djr)
 //
+//    Copyright (C) 2013 Apasphere Ltd
 //    Copyright (C) 1996-1999 AT&T Research Cambridge
 //
 //    This file is part of the omniORB library.
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Implementation of CORBA::Policy.
 //
- 
-/*
-  $Log$
-  Revision 1.3.2.6  2002/02/25 11:17:14  dpg1
-  Use tracedmutexes everywhere.
-
-  Revision 1.3.2.5  2002/01/16 11:32:00  dpg1
-  Race condition in use of registerNilCorbaObject/registerTrackedObject.
-  (Reported by Teemu Torma).
-
-  Revision 1.3.2.4  2001/09/19 17:26:52  dpg1
-  Full clean-up after orb->destroy().
-
-  Revision 1.3.2.3  2001/05/31 16:18:15  dpg1
-  inline string matching functions, re-ordered string matching in
-  _ptrToInterface/_ptrToObjRef
-
-  Revision 1.3.2.2  2000/09/27 17:35:49  sll
-  Updated include/omniORB3 to include/omniORB4
-
-  Revision 1.3.2.1  2000/07/17 10:35:58  sll
-  Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-  Revision 1.4  2000/07/13 15:25:55  dpg1
-  Merge from omni3_develop for 3.0 release.
-
-  Revision 1.2.6.7  2000/01/20 11:51:38  djr
-  (Most) Pseudo objects now used omni::poRcLock for ref counting.
-  New assertion check OMNI_USER_CHECK.
-
-  Revision 1.2.6.6  1999/11/25 11:32:34  djr
-  CORBA::Policy::destroy() no longer throws an exception.
-
-  Revision 1.2.6.5  1999/10/29 13:18:20  djr
-  Changes to ensure mutexes are constructed when accessed.
-
-  Revision 1.2.6.4  1999/10/16 13:22:54  djr
-  Changes to support compiling on MSVC.
-
-  Revision 1.2.6.3  1999/09/27 08:48:33  djr
-  Minor corrections to get rid of warnings.
-
-  Revision 1.2.6.2  1999/09/24 10:29:34  djr
-  CORBA::Object::Object now requires an argument.
-
-  Revision 1.2.6.1  1999/09/22 14:27:03  djr
-  Major rewrite of orbcore to support POA.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/objTracker.h>
+#include <exceptiondefs.h>
 
 #ifdef HAS_pch
 #pragma hdrstop
@@ -88,9 +39,6 @@ OMNI_USING_NAMESPACE(omni)
 //////////////////////////////////////////////////////////////////////
 //////////////////////////// CORBA::Policy ///////////////////////////
 //////////////////////////////////////////////////////////////////////
-
-static omni_tracedmutex ref_count_lock;
-
 
 CORBA::Policy::~Policy() {}
 
@@ -213,3 +161,66 @@ CORBA::Policy::_NP_decrRefCount()
 
 const char*
 CORBA::Policy::_PD_repoId = "IDL:omg.org/CORBA/Policy:1.0";
+
+
+//////////////////////////////////////////////////////////////////////
+///////////////// CORBA::PolicyError user exception //////////////////
+//////////////////////////////////////////////////////////////////////
+
+#if defined(OMNI_HAS_Cplusplus_Namespace) && defined(_MSC_VER)
+// MSVC++ does not give the variables external linkage otherwise. Its a bug.
+namespace CORBA {
+
+_init_in_def_( const PolicyErrorCode BAD_POLICY               = 0; )
+_init_in_def_( const PolicyErrorCode UNSUPPORTED_POLICY       = 1; )
+_init_in_def_( const PolicyErrorCode BAD_POLICY_TYPE          = 2; )
+_init_in_def_( const PolicyErrorCode BAD_POLICY_VALUE         = 3; )
+_init_in_def_( const PolicyErrorCode UNSUPPORTED_POLICY_VALUE = 4; )
+
+}
+#else
+_init_in_def_( const PolicyErrorCode CORBA::BAD_POLICY               = 0; )
+_init_in_def_( const PolicyErrorCode CORBA::UNSUPPORTED_POLICY       = 1; )
+_init_in_def_( const PolicyErrorCode CORBA::BAD_POLICY_TYPE          = 2; )
+_init_in_def_( const PolicyErrorCode CORBA::BAD_POLICY_VALUE         = 3; )
+_init_in_def_( const PolicyErrorCode CORBA::UNSUPPORTED_POLICY_VALUE = 4; )
+#endif
+
+
+OMNIORB_DEFINE_USER_EX_COMMON_FNS(CORBA, PolicyError,
+				  "IDL:omg.org/CORBA/PolicyError:1.0")
+
+
+CORBA::PolicyError::PolicyError(const CORBA::PolicyError& _s) : CORBA::UserException(_s)
+{
+  reason = _s.reason;
+
+}
+
+CORBA::PolicyError::PolicyError(PolicyErrorCode _reason)
+{
+  pd_insertToAnyFn    = CORBA::PolicyError::insertToAnyFn;
+  pd_insertToAnyFnNCP = CORBA::PolicyError::insertToAnyFnNCP;
+  reason = _reason;
+
+}
+
+CORBA::PolicyError& CORBA::PolicyError::operator=(const CORBA::PolicyError& _s)
+{
+  ((CORBA::UserException*) this)->operator=(_s);
+  reason = _s.reason;
+
+  return *this;
+}
+
+void
+CORBA::
+PolicyError::operator>>=(cdrStream& _n) const {
+  reason >>= _n;
+}
+
+void
+CORBA::
+PolicyError::operator<<=(cdrStream& _n) {
+  (PolicyErrorCode&)reason <<= _n;
+}

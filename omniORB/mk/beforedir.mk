@@ -148,8 +148,10 @@ endif
 # omake passed to this make will be incorrectly passed down to the sub-make.
 #
 
+OMNI_MAKEFLAGS = $(filter --jobserver% -j%, $(MAKEFLAGS))
+
 define MakeSubdirs
-(unset MAKEFLAGS; \
+(MAKEFLAGS='$(OMNI_MAKEFLAGS)'; \
  set -e; \
  if [ "$$subdir_makeflags" = "" ]; then \
    subdir_makeflags='$(SUBDIR_MAKEFLAGS)'; \
@@ -187,7 +189,7 @@ unexport SUBDIRS
 
 define CreateDir
 if [ ! -d $$dir ]; then \
-   (umask 002; set -x; $(MKDIRHIER) $$dir); \
+   (umask 022; set -x; $(MKDIRHIER) $$dir); \
 fi
 endef
 

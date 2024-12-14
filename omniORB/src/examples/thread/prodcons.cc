@@ -8,25 +8,20 @@
 // the use of timed waits.
 //
 
-#include <omniORB4/CORBA_sysdep.h> // for HAVE_STD
+#include <iostream>
+using namespace std;
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
 #include <stdlib.h>
 #include <omnithread.h>
 
 static void producer(void*);
 static void consumer(void*);
 
-omni_mutex m;
-omni_condition full(&m);
-omni_condition empty(&m);
-int empty_flag = 1;
-const char* message;
+omni_mutex     m;
+omni_condition full_cond(&m);
+omni_condition empty_cond(&m);
+int            empty_flag = 1;
+const char*    message;
 
 static const char* msgs[] = { "wibble", "wobble", "jelly", "plate" };
 
@@ -78,10 +73,11 @@ static void consumer(void* arg)
 	while (empty_flag) {
 	    cout << name << ": waiting for message\n";
 
-	    if (!full.timedwait(s,n)) {
+	    if (!full_cond.timedwait(s,n)) {
 		cout << name << ": timed out, trying again\n";
 		omni_thread::get_time(&s,&n,0,500000000);
-	    } else if (empty_flag) {
+	    }
+            else if (empty_flag) {
 		cout << name << ": woken but message already comsumed\n";
 	    }
 	}
@@ -90,7 +86,7 @@ static void consumer(void* arg)
 
 	empty_flag = 1;
 
-	empty.signal();
+	empty_cond.signal();
 
 	m.unlock();
 
@@ -107,13 +103,13 @@ static void producer(void* arg)
 
 	while (!empty_flag) {
 	    cout << name << ": having to wait for consumer\n";
-	    empty.wait();
+	    empty_cond.wait();
 	}
 
 	message = msgs[random_l() % 4];
 	empty_flag = 0;
 
-	full.signal();
+	full_cond.signal();
 
 	cout << name << ": put message: '" << message << "'\n";
 

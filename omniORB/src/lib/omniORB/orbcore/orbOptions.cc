@@ -3,88 +3,28 @@
 // orbOptions.cc              Created on: 13/8/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2003-2007 Apasphere Ltd
+//    Copyright (C) 2003-2012 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //
-
-/*
-  $Log$
-  Revision 1.1.4.10  2007/06/10 18:41:59  dgrisby
-  Sort handlers before processing options in environment.
-
-  Revision 1.1.4.9  2007/02/26 15:16:31  dgrisby
-  New socketSendBuffer parameter, defaulting to 16384 on Windows.
-  Avoids a bug in Windows where select() on send waits for all sent data
-  to be acknowledged.
-
-  Revision 1.1.4.8  2006/09/01 16:03:47  dgrisby
-  Merge minor updates from omni4_0_develop.
-
-  Revision 1.1.4.6  2005/09/29 11:32:35  dgrisby
-  For loop scoping problem.
-
-  Revision 1.1.4.5  2005/09/19 18:26:33  dgrisby
-  Merge from omni4_0_develop again.
-
-  Revision 1.1.4.4  2005/09/08 14:49:40  dgrisby
-  Merge -ORBconfigFile argument.
-
-  Revision 1.1.4.3  2005/09/05 17:12:20  dgrisby
-  Merge again. Mainly SSL transport changes.
-
-  Revision 1.1.4.2  2005/01/06 23:10:37  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.4.1  2003/03/23 21:02:08  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.6  2002/03/18 15:13:09  dpg1
-  Fix bug with old-style ORBInitRef in config file; look for
-  -ORBtraceLevel arg before anything else; update Windows registry
-  key. Correct error message.
-
-  Revision 1.1.2.5  2001/10/29 17:44:59  dpg1
-  Missing loop increment.
-
-  Revision 1.1.2.4  2001/10/19 11:06:45  dpg1
-  Principal support for GIOP 1.0. Correct some spelling mistakes.
-
-  Revision 1.1.2.3  2001/08/21 11:03:38  sll
-  Environment variables to set the configuration parameters must now
-  prefix with "ORB". For instance, environment variable ORBtraceLevel
-  corresponds to parameter traceLevel.
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.1.2.2  2001/08/20 08:19:23  sll
-  Read the new ORB configuration file format. Can still read old format.
-  Can also set configuration parameters from environment variables.
-
-  Revision 1.1.2.1  2001/08/17 17:12:41  sll
-  Modularise ORB configuration parameters.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <orbOptions.h>
@@ -166,7 +106,7 @@ orbOptions::reset() {
 
 ////////////////////////////////////////////////////////////////////////
 void
-orbOptions::visit() throw(orbOptions::BadParam) {
+orbOptions::visit() {
 
   omnivector<HandlerValuePair*>::iterator i = pd_values.begin();
   omnivector<HandlerValuePair*>::iterator last = pd_values.end();
@@ -180,8 +120,7 @@ orbOptions::visit() throw(orbOptions::BadParam) {
 void
 orbOptions::addOption(const char* key,
 		      const char* value,
-		      orbOptions::Source source) throw (orbOptions::Unknown,
-							orbOptions::BadParam) {
+		      orbOptions::Source source) {
 
   if (!pd_handlers_sorted) sortHandlers();
 
@@ -208,8 +147,7 @@ orbOptions::addOption(const char* key,
 
 ////////////////////////////////////////////////////////////////////////
 void
-orbOptions::addOptions(const char* options[][2]) throw (orbOptions::Unknown,
-							orbOptions::BadParam) {
+orbOptions::addOptions(const char* options[][2]) {
 
   for (int i=0; options[i][0]; i++) {
     addOption(options[i][0],options[i][1],fromArray);
@@ -230,8 +168,7 @@ orbOptions::move_args(int& argc,char **argv,int idx,int nargs)
 
 ////////////////////////////////////////////////////////////////////////
 void
-orbOptions::extractInitOptions(int& argc,char** argv) 
-  throw (orbOptions::Unknown,orbOptions::BadParam) {
+orbOptions::extractInitOptions(int& argc,char** argv) {
 
   if (!pd_handlers_sorted) sortHandlers();
 
@@ -295,8 +232,7 @@ orbOptions::extractInitOptions(int& argc,char** argv)
 
 ////////////////////////////////////////////////////////////////////////
 void
-orbOptions::getTraceLevel(int argc, char** argv)
-  throw (orbOptions::Unknown,orbOptions::BadParam) {
+orbOptions::getTraceLevel(int argc, char** argv) {
 
   int i;
   for (i=0; i<argc; i++) {
@@ -338,8 +274,7 @@ orbOptions::getTraceLevel(int argc, char** argv)
 
 ////////////////////////////////////////////////////////////////////////
 const char*
-orbOptions::getConfigFileName(int argc, char** argv, const char* fname)
-  throw (orbOptions::Unknown,orbOptions::BadParam) {
+orbOptions::getConfigFileName(int argc, char** argv, const char* fname) {
 
   for (int i=0; i<argc; i++) {
     if (!strcmp(argv[i], "-ORBconfigFile")) {
@@ -356,7 +291,7 @@ orbOptions::getConfigFileName(int argc, char** argv, const char* fname)
 
 ////////////////////////////////////////////////////////////////////////
 void
-orbOptions::importFromEnv() throw (orbOptions::Unknown,orbOptions::BadParam) {
+orbOptions::importFromEnv() {
   
   if (!pd_handlers_sorted) sortHandlers();
 
@@ -492,8 +427,9 @@ CORBA::Boolean
 orbOptions::getULong(const char* value, CORBA::ULong& result) {
 
   unsigned long v;
-  v = strtoul(value,0,10);
-  if (v == ULONG_MAX && errno == ERANGE) return 0;
+  char* end;
+  v = strtoul(value, &end, 10);
+  if (errno == ERANGE || end == value || *end != '\0') return 0;
   result = v;
   return 1;
 }
@@ -503,10 +439,33 @@ CORBA::Boolean
 orbOptions::getLong(const char* value, CORBA::Long& result) {
 
   long v;
-  v = strtol(value,0,10);
-  if (v == LONG_MAX && errno == ERANGE) return 0;
+  char* end;
+  v = strtol(value, &end, 10);
+  if (errno == ERANGE || end == value || *end != '\0') return 0;
   result = v;
   return 1;
+}
+
+////////////////////////////////////////////////////////////////////////
+CORBA::Boolean
+orbOptions::getSizeT(const char* value, size_t& result) {
+
+#if defined (_WIN64)
+  __int64 v;
+  char* end;
+  v = _strtoui64(value, &end, 10);
+  if (errno == ERANGE || end == value || *end != '\0') return 0;
+  result = v;
+  return 1;
+
+#else
+  size_t v;
+  char* end;
+  v = strtoul(value, &end, 10);
+  if (errno == ERANGE || end == value || *end != '\0') return 0;
+  result = v;
+  return 1;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -529,7 +488,7 @@ orbOptions::addKVBoolean(const char* key, CORBA::Boolean value,
 ////////////////////////////////////////////////////////////////////////
 void
 orbOptions::addKVULong(const char* key, CORBA::ULong value,
-			 orbOptions::sequenceString& result) {
+                       orbOptions::sequenceString& result) {
 
   CORBA::String_var kv;
   CORBA::ULong l;
@@ -554,6 +513,28 @@ orbOptions::addKVLong(const char* key, CORBA::Long value,
   l = strlen(key) + 16;
   kv = CORBA::string_alloc(l);
   sprintf(kv,"%s = %ld",key,(long)value);
+
+  l = result.length();
+  result.length(l+1);
+  result[l] = kv._retn();
+}
+
+////////////////////////////////////////////////////////////////////////
+void
+orbOptions::addKVSizeT(const char* key, size_t value,
+                       orbOptions::sequenceString& result) {
+
+  CORBA::String_var kv;
+  CORBA::ULong l;
+
+  l = strlen(key) + 26;
+  kv = CORBA::string_alloc(l);
+
+#if defined (_WIN64)
+  sprintf(kv,"%s = %I64u",key,(unsigned __int64)value);
+#else
+  sprintf(kv,"%s = %lu",key,(unsigned long)value);
+#endif
 
   l = result.length();
   result.length(l+1);

@@ -4,8 +4,8 @@
 %define omnigid -1
 
 %define version_major 4
-%define version_minor 1
-%define version_micro 7
+%define version_minor 3
+%define version_micro 2
 %define version_full %{version_major}.%{version_minor}.%{version_micro}
 %define version_brief %{version_major}.%{version_minor}
 
@@ -55,7 +55,7 @@ Provides:  libomniConnectionMgmt%{version_major}.so.%{version_minor}
 Provides:  libomniDynamic%{version_major}.so.%{version_minor}
 Provides:  libomniORB%{version_major}.so.%{version_minor}
 Provides:  libomnisslTP%{version_major}.so.%{version_minor}
-Provides:  libomnithread.so.3
+Provides:  libomnithread.so.4
 
 %description -n %{lib_name}
 %{name} is an Object Request Broker (ORB) which implements
@@ -272,7 +272,7 @@ fi
 
 %files bootscripts
 %defattr (-,root,root)
-%config(noreplace) %attr(775,root,root) %{_initrddir}/*
+%config(noreplace) %attr(755,root,root) %{_initrddir}/*
 %if "%{_vendor}" == "suse"
 %{_sbindir}/rcomniNames
 %endif
@@ -342,7 +342,7 @@ fi
   start omniNames upon RPM install.
 
 * Thu Jul 22 2004 Thomas Lockhart <lockhart@fourpalms.org> 4.0.3-7
-- Incorporate additional SUSE features per Dirk O. Siebnich <dok@dok-net.net>
+- Incorporate additional SUSE features per Dirk O. Kaar <dok@dok-net.net>
 - Use additional standard RPM substitution parameters rather than
   hardcoded paths
 

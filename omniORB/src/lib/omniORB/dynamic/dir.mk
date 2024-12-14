@@ -1,6 +1,7 @@
 # dir.mk for omniORB dynamic library
 
 ORB_SRCS = \
+           ami.cc \
            valueBase.cc \
            valueFactory.cc \
            valueTracker.cc \
@@ -12,7 +13,6 @@ ORB_SRCS = \
            constants.cc \
            context.cc \
            contextList.cc \
-           deferredRequest.cc \
            dynamicImplementation.cc \
            dynamicLib.cc \
 	   dynAny.cc \
@@ -22,10 +22,10 @@ ORB_SRCS = \
            exceptionList.cc \
 	   namedValue.cc \
            nvList.cc \
-	   orbMultiRequest.cc \
            policy.cc \
 	   pseudoBase.cc \
            request.cc \
+	   orbMultiRequest.cc \
            serverRequest.cc \
            tcParser.cc \
            typecode.cc \
@@ -42,6 +42,8 @@ BUILTIN_STUB_SRCS = \
            irdynstub.cc \
            Namingdynstub.cc \
 	   boxes.cc \
+	   pollablestub.cc \
+	   messagingstub.cc \
            omniTypedefs.cc
 
 

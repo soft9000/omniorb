@@ -17,9 +17,7 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
-//  USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 //
 //
@@ -33,14 +31,10 @@
 
 #include <omniORB4/CORBA.h>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
-#ifdef HAVE_UNISTD_H
+#ifdef OMNI_HAVE_UNISTD_H
 #  include <unistd.h>
 #endif
 
@@ -62,7 +56,7 @@ static void usage(char* progname)
 }
 
 
-#ifdef HAVE_GETOPT
+#ifdef OMNI_HAVE_GETOPT
 
 extern char* optarg;
 extern int optind;
@@ -265,6 +259,7 @@ genRef(const char* IRTypeId, const char* hostname, int port,
 	  hi = ((curr - 'a' + 10) << 4);
 	else {
 	  cerr << "Hexadecimal key is corrupted." << endl;
+          delete keySeed;
 	  return 0;
 	}
 	curr = tolower(objKey[j+1]);
@@ -274,6 +269,7 @@ genRef(const char* IRTypeId, const char* hostname, int port,
 	  lo = curr - 'a' + 10;
 	else {
 	  cerr << "Hexadecimal key is corrupted." << endl;
+          delete keySeed;
 	  return 0;
 	}
 	(*keySeed)[(j/2)-1] = (CORBA::Octet) (hi + lo);
@@ -288,7 +284,9 @@ genRef(const char* IRTypeId, const char* hostname, int port,
   
   CORBA::String_var result;
   result = omniObjRef::_toString(objref);
-  
+
+  delete keySeed;
+
   return result._retn();
 }  
   

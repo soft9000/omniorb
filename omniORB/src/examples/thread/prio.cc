@@ -19,21 +19,13 @@
 // running for a long time if anyone else is using the same machine.
 //
 
-#include <omniORB4/CORBA_sysdep.h> // for HAVE_STD
-
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
+
 #include <omnithread.h>
 
-#if defined(__arm__) && defined(__atmos__)
-#define flush ""
-#endif
 
 static void func(void*);
 

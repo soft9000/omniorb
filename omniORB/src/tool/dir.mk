@@ -11,7 +11,7 @@ SUBDIRS = omkdepend omniidl
 endif
 
 ifdef Win32Platform
-SUBDIRS = omniidl
+SUBDIRS = win32 omkdepend omniidl
 endif
 
 

@@ -9,44 +9,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //
-
-/*
-  $Log$
-  Revision 1.1.4.3  2006/05/02 13:07:13  dgrisby
-  Idle giopMonitor SocketCollections would not exit at shutdown.
-
-  Revision 1.1.4.2  2005/01/13 21:10:01  dgrisby
-  New SocketCollection implementation, using poll() where available and
-  select() otherwise. Windows specific version to follow.
-
-  Revision 1.1.4.1  2003/03/23 21:01:59  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.2  2002/08/21 06:23:16  dgrisby
-  Properly clean up bidir connections and ropes. Other small tweaks.
-
-  Revision 1.1.2.1  2001/07/31 16:16:24  sll
-  New transport interface to support the monitoring of active connections.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/giopEndpoint.h>
@@ -64,7 +42,9 @@ OMNI_NAMESPACE_BEGIN(omni)
 static sslActiveCollection myCollection;
 
 /////////////////////////////////////////////////////////////////////////
-sslActiveCollection::sslActiveCollection() : pd_n_sockets(0), pd_shutdown(0) {}
+sslActiveCollection::sslActiveCollection()
+  : pd_n_sockets(0), pd_shutdown(0), pd_lock("sslActiveCollection::pd_lock")
+{}
 
 /////////////////////////////////////////////////////////////////////////
 sslActiveCollection::~sslActiveCollection() {}
@@ -83,7 +63,6 @@ sslActiveCollection::Monitor(giopConnection::notifyReadable_t func,
   pd_callback_func = func;
   pd_callback_cookie = cookie;
 
-  CORBA::Boolean doit;
   while (!isEmpty()) {
     if (!Select()) break;
   }
@@ -130,7 +109,10 @@ sslActiveCollection::isEmpty() const {
 
 /////////////////////////////////////////////////////////////////////////
 sslActiveConnection::sslActiveConnection(SocketHandle_t sock, ::SSL* ssl) : 
-  sslConnection(sock,ssl,&myCollection), pd_registered(0) {
+  sslConnection(sock,ssl,&myCollection), pd_registered(0)
+{
+  pd_handshake_ok = 1;
+  setPeerDetails();
 }
 
 /////////////////////////////////////////////////////////////////////////

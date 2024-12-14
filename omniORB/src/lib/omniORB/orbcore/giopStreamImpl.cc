@@ -3,74 +3,28 @@
 // giopStreamImpl.cc          Created on: 14/02/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2002-2008 Apasphere Ltd
+//    Copyright (C) 2002-2011 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories, Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //	
-
-/*
-  $Log$
-  Revision 1.1.6.5  2008/02/14 12:37:50  dgrisby
-  New immediateAddressSwitch parameter.
-
-  Revision 1.1.6.4  2006/02/22 14:56:36  dgrisby
-  New endPointPublishHostname and endPointResolveNames parameters.
-
-  Revision 1.1.6.3  2006/01/10 13:59:37  dgrisby
-  New clientConnectTimeOutPeriod configuration parameter.
-
-  Revision 1.1.6.2  2005/01/06 23:10:30  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.6.1  2003/03/23 21:02:14  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.4.7  2002/10/14 20:07:11  dgrisby
-  Per objref / per thread timeouts.
-
-  Revision 1.1.4.6  2002/04/29 11:52:51  dgrisby
-  More fixes for FreeBSD, Darwin, Windows.
-
-  Revision 1.1.4.5  2002/03/18 15:13:08  dpg1
-  Fix bug with old-style ORBInitRef in config file; look for
-  -ORBtraceLevel arg before anything else; update Windows registry
-  key. Correct error message.
-
-  Revision 1.1.4.4  2001/09/20 13:26:14  dpg1
-  Allow ORB_init() after orb->destroy().
-
-  Revision 1.1.4.3  2001/08/21 11:02:16  sll
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.1.4.2  2001/08/17 17:12:38  sll
-  Modularise ORB configuration parameters.
-
-  Revision 1.1.4.1  2001/04/18 18:10:48  sll
-  Big checkin with the brand new internal APIs.
-
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <giopStream.h>
@@ -96,14 +50,14 @@ GIOP::Version orbParameters::maxGIOPVersion = { 1, 2 };
 //
 //  Valid values = 1.0 | 1.1 | 1.2
 
-CORBA::ULong orbParameters::giopMaxMsgSize = 2048 * 1024;
+size_t orbParameters::giopMaxMsgSize = 2048 * 1024;
 //   This value defines the ORB-wide limit on the size of GIOP message 
 //   (excluding the header). If this limit is exceeded, the ORB will
 //   refuse to send or receive the message and raise a MARSHAL exception.
 //
 //   Valid values = (n >= 8192)
 
-orbParameters::timeValue orbParameters::clientCallTimeOutPeriod = {0,0};
+omni_time_t orbParameters::clientCallTimeOutPeriod;
 //   Call timeout. On the client side, if a remote call takes longer
 //   than the timeout value, the ORB will shutdown the connection and
 //   raise a COMM_FAILURE.
@@ -111,7 +65,7 @@ orbParameters::timeValue orbParameters::clientCallTimeOutPeriod = {0,0};
 //   Valid values = (n >= 0 in seconds) 
 //                   0 --> no timeout. Block till a reply comes back
 
-orbParameters::timeValue orbParameters::clientConnectTimeOutPeriod = {0,0};
+omni_time_t orbParameters::clientConnectTimeOutPeriod;
 //   Connect timeout. When a client has no existing connection to
 //   communicate with a server, it must open a new connection before
 //   performing the call. If this parameter is non-zero, it sets a
@@ -136,7 +90,7 @@ CORBA::Boolean orbParameters::supportPerThreadTimeOut = 0;
 //
 //   Valid values = 0 or 1
 
-orbParameters::timeValue orbParameters::serverCallTimeOutPeriod = {0,0};
+omni_time_t orbParameters::serverCallTimeOutPeriod;
 //   Call timeout. On the server side, if the ORB cannot completely 
 //   unmarshal a call's arguments in the defined timeout, it shutdown the
 //   connection.
@@ -180,12 +134,6 @@ CORBA::Boolean orbParameters::strictIIOP = 1;
 //   strand as it tries to read more data from it. In this case the
 //   sender won't send any more as it thinks it has marshalled in all
 //   the data.
-//
-//   Valid values = 0 or 1
-
-CORBA::Boolean orbParameters::immediateRopeSwitch = 0;
-//   Switch rope to use a new address immediately, rather than
-//   retrying with the existing one.
 //
 //   Valid values = 0 or 1
 
@@ -301,7 +249,7 @@ public:
 			1,
 			"-ORBmaxGIOPVersion < 1.0 | 1.1 | 1.2 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     unsigned int ma, mi;
     if ( sscanf(value, "%u.%u", &ma, &mi) != 2 || ma > 255 || mi > 255) {
@@ -330,22 +278,40 @@ public:
 
   giopMaxMsgSizeHandler() : 
     orbOptions::Handler("giopMaxMsgSize",
-			"giopMaxMsgSize = n >= 8192",
+			"giopMaxMsgSize = n >= 8192 or n == 0",
 			1,
-			"-ORBgiopMaxMsgSize < n >= 8192 >") {}
+			"-ORBgiopMaxMsgSize < n >= 8192 or n == 0 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
-    CORBA::ULong v;
-    if (!orbOptions::getULong(value,v) || v < 8192) {
+    size_t v;
+    
+    if (!orbOptions::getSizeT(value,v) || (v && v < 8192)) {
       throw orbOptions::BadParam(key(),value,
-				 "Invalid value, expect n >= 8192");
+				 "Invalid value, expect n >= 8192 or n == 0");
     }
-    orbParameters::giopMaxMsgSize = v;
+    if (v) {
+      orbParameters::giopMaxMsgSize = v;
+    }
+    else {
+      // Set to maximum signed value, to aid indirection code that
+      // calculates negative values.
+
+#if (OMNI_SIZEOF_LONG == OMNI_SIZEOF_PTR)
+      orbParameters::giopMaxMsgSize = LONG_MAX;
+#elif (OMNI_SIZEOF_INT == OMNI_SIZEOF_PTR)
+      orbParameters::giopMaxMsgSize = INT_MAX;
+#elif defined (_WIN64)
+      orbParameters::giopMaxMsgSize = _I64_MAX;
+#else
+#error "No suitable integer type available to calculate maximum" \
+  " message size"
+#endif
+    }
   }
 
   void dump(orbOptions::sequenceString& result) {
-    orbOptions::addKVULong(key(),orbParameters::giopMaxMsgSize,
+    orbOptions::addKVSizeT(key(),orbParameters::giopMaxMsgSize,
 			   result);
   }
 
@@ -363,20 +329,20 @@ public:
 			1,
 			"-ORBclientCallTimeOutPeriod < n >= 0 in msecs >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
       throw orbOptions::BadParam(key(),value,
 				 "Expect n >= 0 in msecs");
     }
-    orbParameters::clientCallTimeOutPeriod.secs = v / 1000;
-    orbParameters::clientCallTimeOutPeriod.nanosecs = (v % 1000) * 1000000;
+    orbParameters::clientCallTimeOutPeriod.assign(v / 1000,
+						  (v % 1000) * 1000000);
   }
 
   void dump(orbOptions::sequenceString& result) {
-    CORBA::ULong v = orbParameters::clientCallTimeOutPeriod.secs * 1000 +
-      orbParameters::clientCallTimeOutPeriod.nanosecs / 1000000;
+    CORBA::ULong v = orbParameters::clientCallTimeOutPeriod.s * 1000 +
+      orbParameters::clientCallTimeOutPeriod.ns / 1000000;
     orbOptions::addKVULong(key(),v,result);
   }
 
@@ -394,7 +360,7 @@ public:
 			1,
 			"-ORBsupportPerThreadTimeOut < 0 | 1 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -422,20 +388,20 @@ public:
 			1,
 			"-ORBclientConnectTimeOutPeriod < n >= 0 in msecs >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
       throw orbOptions::BadParam(key(),value,
 				 "Expect n >= 0 in msecs");
     }
-    orbParameters::clientConnectTimeOutPeriod.secs = v / 1000;
-    orbParameters::clientConnectTimeOutPeriod.nanosecs = (v % 1000) * 1000000;
+    orbParameters::clientConnectTimeOutPeriod.assign(v / 1000,
+						     (v % 1000) * 1000000);
   }
 
   void dump(orbOptions::sequenceString& result) {
-    CORBA::ULong v = orbParameters::clientConnectTimeOutPeriod.secs * 1000 +
-      orbParameters::clientConnectTimeOutPeriod.nanosecs / 1000000;
+    CORBA::ULong v = orbParameters::clientConnectTimeOutPeriod.s * 1000 +
+      orbParameters::clientConnectTimeOutPeriod.ns / 1000000;
     orbOptions::addKVULong(key(),v,result);
   }
 
@@ -455,20 +421,20 @@ public:
 			1,
 			"-ORBserverCallTimeOutPeriod < n >= 0 in msecs >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
       throw orbOptions::BadParam(key(),value,
 				 "Expect n >= 0 in msecs");
     }
-    orbParameters::serverCallTimeOutPeriod.secs = v / 1000;
-    orbParameters::serverCallTimeOutPeriod.nanosecs = (v % 1000) * 1000000;
+    orbParameters::serverCallTimeOutPeriod.assign(v / 1000,
+						  (v % 1000) * 1000000);
   }
 
   void dump(orbOptions::sequenceString& result) {
-    CORBA::ULong v = orbParameters::serverCallTimeOutPeriod.secs * 1000 +
-      orbParameters::serverCallTimeOutPeriod.nanosecs / 1000000;
+    CORBA::ULong v = orbParameters::serverCallTimeOutPeriod.s * 1000 +
+      orbParameters::serverCallTimeOutPeriod.ns / 1000000;
     orbOptions::addKVULong(key(),v,result);
   }
 
@@ -486,7 +452,7 @@ public:
 			1,
 			"-ORBmaxInterleavedCallsPerConnection < n > 0 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v) || v < 1) {
@@ -518,7 +484,7 @@ public:
 			1,
 			"-ORBgiopTargetAddressMode < 0 | 1 | 2 >") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::ULong v;
     if (!orbOptions::getULong(value,v)) {
@@ -569,7 +535,7 @@ public:
 			"-ORBstrictIIOP < 0 | 1 >") {}
 
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
 
     CORBA::Boolean v;
     if (!orbOptions::getBoolean(value,v)) {
@@ -587,35 +553,121 @@ public:
 
 static strictIIOPHandler strictIIOPHandler_;
 
+
 /////////////////////////////////////////////////////////////////////////////
-class immediateRopeSwitchHandler : public orbOptions::Handler {
+class giopBufferSizeHandler : public orbOptions::Handler {
 public:
 
-  immediateRopeSwitchHandler() : 
-    orbOptions::Handler("immediateAddressSwitch",
-			"immediateAddressSwitch = 0 or 1",
+  giopBufferSizeHandler() : 
+    orbOptions::Handler("giopBufferSize",
+			"giopBufferSize = n >= 8192",
 			1,
-			"-ORBimmediateAddressSwitch < 0 | 1 >") {}
+			"-ORBgiopBufferSize < n >= 8192 >") {}
 
+  void visit(const char* value,orbOptions::Source) {
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
-
-    CORBA::Boolean v;
-    if (!orbOptions::getBoolean(value,v)) {
+    CORBA::ULong v;
+    if (!orbOptions::getULong(value,v) || (v < 8192)) {
       throw orbOptions::BadParam(key(),value,
-				 orbOptions::expect_boolean_msg);
+				 "Expect n >= 8192");
     }
-    orbParameters::immediateRopeSwitch = v;
+    giopStream::bufferSize = v;
   }
 
   void dump(orbOptions::sequenceString& result) {
-    orbOptions::addKVBoolean(key(),orbParameters::immediateRopeSwitch,
-			     result);
+    orbOptions::addKVULong(key(), giopStream::bufferSize, result);
   }
+
 };
 
-static immediateRopeSwitchHandler immediateRopeSwitchHandler_;
+static giopBufferSizeHandler giopBufferSizeHandler_;
 
+
+/////////////////////////////////////////////////////////////////////////////
+class giopDirectSendCutOffHandler : public orbOptions::Handler {
+public:
+
+  giopDirectSendCutOffHandler() : 
+    orbOptions::Handler("giopDirectSendCutOff",
+			"giopDirectSendCutOff = n >= 128",
+			1,
+			"-ORBgiopDirectSendCutOff < n >= 128 >") {}
+
+  void visit(const char* value,orbOptions::Source) {
+
+    CORBA::ULong v;
+    if (!orbOptions::getULong(value,v) || (v < 128)) {
+      throw orbOptions::BadParam(key(),value,
+				 "Expect n >= 128");
+    }
+    giopStream::directSendCutOff = v;
+  }
+
+  void dump(orbOptions::sequenceString& result) {
+    orbOptions::addKVULong(key(), giopStream::directSendCutOff, result);
+  }
+
+};
+
+static giopDirectSendCutOffHandler giopDirectSendCutOffHandler_;
+
+
+/////////////////////////////////////////////////////////////////////////////
+class giopDirectReceiveCutOffHandler : public orbOptions::Handler {
+public:
+
+  giopDirectReceiveCutOffHandler() : 
+    orbOptions::Handler("giopDirectReceiveCutOff",
+			"giopDirectReceiveCutOff = n >= 128",
+			1,
+			"-ORBgiopDirectReceiveCutOff < n >= 128 >") {}
+
+  void visit(const char* value,orbOptions::Source) {
+
+    CORBA::ULong v;
+    if (!orbOptions::getULong(value,v) || (v < 128)) {
+      throw orbOptions::BadParam(key(),value,
+				 "Expect n >= 128");
+    }
+    giopStream::directReceiveCutOff = v;
+  }
+
+  void dump(orbOptions::sequenceString& result) {
+    orbOptions::addKVULong(key(), giopStream::directReceiveCutOff, result);
+  }
+
+};
+
+static giopDirectReceiveCutOffHandler giopDirectReceiveCutOffHandler_;
+
+
+/////////////////////////////////////////////////////////////////////////////
+class giopMinChunkBeforeDirectSendHandler : public orbOptions::Handler {
+public:
+
+  giopMinChunkBeforeDirectSendHandler() : 
+    orbOptions::Handler("giopMinChunkBeforeDirectSend",
+			"giopMinChunkBeforeDirectSend = n >= 128",
+			1,
+			"-ORBgiopMinChunkBeforeDirectSend < n >= 128 >") {}
+
+  void visit(const char* value,orbOptions::Source) {
+
+    CORBA::ULong v;
+    if (!orbOptions::getULong(value,v) || (v < 128)) {
+      throw orbOptions::BadParam(key(),value,
+				 "Expect n >= 128");
+    }
+    giopStream::minChunkBeforeDirectSend = v;
+  }
+
+  void dump(orbOptions::sequenceString& result) {
+    orbOptions::addKVULong(key(), giopStream::minChunkBeforeDirectSend, result);
+  }
+
+};
+
+static giopMinChunkBeforeDirectSendHandler giopMinChunkBeforeDirectSendHandler_;
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -639,7 +691,10 @@ public:
     orbOptions::singleton().registerHandler(maxInterleavedCallsPerConnectionHandler_);
     orbOptions::singleton().registerHandler(giopTargetAddressModeHandler_);
     orbOptions::singleton().registerHandler(strictIIOPHandler_);
-    orbOptions::singleton().registerHandler(immediateRopeSwitchHandler_);
+    orbOptions::singleton().registerHandler(giopBufferSizeHandler_);
+    orbOptions::singleton().registerHandler(giopDirectSendCutOffHandler_);
+    orbOptions::singleton().registerHandler(giopDirectReceiveCutOffHandler_);
+    orbOptions::singleton().registerHandler(giopMinChunkBeforeDirectSendHandler_);
   }
 
   void attach() {

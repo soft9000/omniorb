@@ -56,6 +56,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #define const /**/
 typedef int Bool;
@@ -64,13 +65,13 @@ typedef int Bool;
 
 typedef struct _if_parser {
     struct {				/* functions */
-	char *(*handle_error) (/* struct _if_parser *, const char *,
-				 const char * */);
-	int (*eval_variable) (/* struct _if_parser *, const char *, int */);
-	int (*eval_defined) (/* struct _if_parser *, const char *, int */);
+	char *(*handle_error) (struct _if_parser *, const char *,
+				 const char *);
+	int (*eval_variable) (struct _if_parser *, const char *, int);
+	int (*eval_defined) (struct _if_parser *, const char *, int);
     } funcs;
     char *data;
 } IfParser;
 
-char *ParseIfExpression (/* IfParser *, const char *, int * */);
+char *ParseIfExpression (IfParser *, const char *, int *);
 

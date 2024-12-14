@@ -1,5 +1,6 @@
-// eg2_impl.cc - This is the source code of example 2 used in Chapter 2
-//               "The Basics" of the omniORB2 user guide.
+// eg2_impl.cc - This is a BOA version of the source code of example 2
+//               used in Chapter 2 "The Basics" of the omniORB2 user
+//               guide.
 //
 //               This is the object implementation.
 //
@@ -12,12 +13,8 @@
 
 #include <becho.hh>
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
 
 class Echo_i : public virtual _sk_Echo {
@@ -61,17 +58,11 @@ int main(int argc, char** argv)
     // boa->destroy();
     // orb->destroy();
   }
-  catch(CORBA::SystemException& ex) {
+  catch (CORBA::SystemException& ex) {
     cerr << "Caught CORBA::" << ex._name() << endl;
   }
-  catch(CORBA::Exception& ex) {
+  catch (CORBA::Exception& ex) {
     cerr << "Caught CORBA::Exception: " << ex._name() << endl;
-  }
-  catch(omniORB::fatalException& fe) {
-    cerr << "Caught omniORB::fatalException:" << endl;
-    cerr << "  file: " << fe.file() << endl;
-    cerr << "  line: " << fe.line() << endl;
-    cerr << "  mesg: " << fe.errmsg() << endl;
   }
   return 0;
 }

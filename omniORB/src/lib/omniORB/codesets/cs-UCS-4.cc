@@ -8,69 +8,21 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Native code set for Unicode / ISO 10646 UCS-4
-
-/*
-  $Log$
-  Revision 1.1.4.4  2005/12/08 14:22:31  dgrisby
-  Better string marshalling performance; other minor optimisations.
-
-  Revision 1.1.4.3  2005/01/06 23:09:43  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.4.2  2003/05/20 16:53:14  dgrisby
-  Valuetype marshalling support.
-
-  Revision 1.1.4.1  2003/03/23 21:02:51  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.6  2001/10/17 16:47:08  dpg1
-  New minor codes
-
-  Revision 1.1.2.5  2001/07/26 16:37:20  dpg1
-  Make sure static initialisers always run.
-
-  Revision 1.1.2.4  2001/04/19 09:18:43  sll
-  Scoped where appropriate with the omni namespace.
-
-  Revision 1.1.2.3  2000/12/05 17:43:30  dpg1
-  Check for input over-run in string and wstring unmarshalling.
-
-  Revision 1.1.2.2  2000/11/22 14:37:59  dpg1
-  Code set marshalling functions now take a string length argument.
-
-  Revision 1.1.2.1  2000/11/16 12:37:16  dpg1
-  Implement UCS-4 transmission code set, and move it to the codeSets
-  library.
-
-  Revision 1.1.2.3  2000/11/10 15:41:36  dpg1
-  Native code sets throw BAD_PARAM if they are given a null transmission
-  code set.
-
-  Revision 1.1.2.2  2000/11/02 10:16:27  dpg1
-  Correct some minor errors in code set implementation. Remove Big5
-  converter since it's wrong.
-
-  Revision 1.1.2.1  2000/10/27 15:42:08  dpg1
-  Initial code set conversion support. Not yet enabled or fully tested.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/linkHacks.h>
@@ -78,7 +30,7 @@
 
 OMNI_NAMESPACE_BEGIN(omni)
 
-#if (SIZEOF_WCHAR == 4)
+#if (OMNI_SIZEOF_WCHAR == 4)
 
 class NCS_W_UCS_4 : public omniCodeSet::NCS_W {
 public:
@@ -662,7 +614,7 @@ public:
 static CS_UCS_4_init _CS_UCS_4_init;
 
 
-#endif // (SIZEOF_WCHAR == 4)
+#endif // (OMNI_SIZEOF_WCHAR == 4)
 
 OMNI_NAMESPACE_END(omni)
 

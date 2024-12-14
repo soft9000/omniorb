@@ -6,7 +6,7 @@ export::
 	@$(NoPythonError)
 endif
 
-ifndef EmbeddedSystem
+ifndef CrossCompiling
 SUBDIRS += tool
 endif
 

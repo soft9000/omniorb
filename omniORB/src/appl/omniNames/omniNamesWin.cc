@@ -17,21 +17,15 @@
 //  GNU General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307,
-//  USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 
 #ifdef __WIN32__
 
 #include "omniNames.h"
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
+#include <iostream>
+using namespace std;
 
 static const TCHAR* WIN32_DISP_NAME = TEXT("omniNames CORBA naming service");
 static const TCHAR* WIN32_SVC_NAME  = TEXT("omninames");
@@ -61,7 +55,7 @@ setRegString(HKEY rootkey, const char* subkey, const char* val)
 		     (const BYTE*)val, strlen(val)) != ERROR_SUCCESS) {
     TCHAR err_msg[512];
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Registry error: " << err_msg << endl;
+    LOG(1, "Registry error: " << err_msg);
     return 0;
   }
   return 1;
@@ -75,7 +69,7 @@ setRegLong(HKEY rootkey, const char* subkey, CORBA::Long val)
 		    (const BYTE*)&val, sizeof(val)) != ERROR_SUCCESS) {
     TCHAR err_msg[512];
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Registry error: " << err_msg << endl;
+    LOG(1, "Registry error: " << err_msg);
     return 0;
   }
   return 1;
@@ -103,7 +97,7 @@ setRegArgs(HKEY rootkey, const char* subkey, int argc, char** argv)
 		     (const BYTE*)(char*)val, len+1) != ERROR_SUCCESS) {
     TCHAR err_msg[512];
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Registry error: " << err_msg << endl;
+    LOG(1, "Registry error: " << err_msg);
     return 0;
   }
   return 1;
@@ -232,7 +226,7 @@ installService(int            port,
 
   if (path_result == 0 || path_result == sizeof(path)) {
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Unable to install " << WIN32_DISP_NAME << ": " << err_msg << endl;
+    LOG(1, "Unable to install " << WIN32_DISP_NAME << ": " << err_msg);
     return 2;
   }
 
@@ -250,8 +244,7 @@ installService(int            port,
 		       NULL, &rootkey, NULL) != ERROR_SUCCESS) {
 
       GetLastErrorText(err_msg, sizeof(err_msg));
-      cerr << "Unable to install " << WIN32_DISP_NAME << ": " << err_msg
-	   << endl;
+      LOG(1, "Unable to install " << WIN32_DISP_NAME << ": " << err_msg);
       return 2;
     }
     if (!setRegLong(rootkey, "port",       port))       return 2;
@@ -275,7 +268,7 @@ installService(int            port,
   hmanager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
   if (hmanager == NULL) {
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Unable to open Service Control Manager: " << err_msg << endl;
+    LOG(1, "Unable to open Service Control Manager: " << err_msg);
     return 2;
   }
 
@@ -293,7 +286,7 @@ installService(int            port,
     sd.lpDescription = (LPSTR)WIN32_SVC_DESC;
     if (!ChangeServiceConfig2(hservice, SERVICE_CONFIG_DESCRIPTION, &sd)) {
       GetLastErrorText(err_msg, sizeof(err_msg));
-      cerr << "Error changing service description: " << err_msg << endl;
+      LOG(1, "Error changing service description: " << err_msg);
     }
     CloseServiceHandle(hservice);
   }
@@ -302,11 +295,11 @@ installService(int            port,
 
   if (!hservice) {
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Failed to create service: " << err_msg << endl;
+    LOG(1, "Failed to create service: " << err_msg);
     return 2;
   }
 
-  cerr << WIN32_DISP_NAME << " installed." << endl;
+  LOG(1, WIN32_DISP_NAME << " installed.");
   return 0;
 }
 
@@ -324,15 +317,14 @@ removeService()
   hmanager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
   if (hmanager == NULL) {
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Unable to open Service Control Manager: " << err_msg << endl;
+    LOG(1, "Unable to open Service Control Manager: " << err_msg);
     return 2;
   }
 
   hservice = OpenService(hmanager, WIN32_SVC_NAME, SERVICE_ALL_ACCESS);
   if (hservice == NULL) {
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Unable to open " << WIN32_DISP_NAME << " service: " << err_msg
-	 << endl;
+    LOG(1, "Unable to open " << WIN32_DISP_NAME << " service: " << err_msg);
     CloseServiceHandle(hmanager);
     return 2;
   }
@@ -340,32 +332,31 @@ removeService()
   // Try to stop the service
   SERVICE_STATUS status;
   if (ControlService(hservice, SERVICE_CONTROL_STOP, &status)) {
-    cerr << "Stopping " << WIN32_DISP_NAME << "..." << flush;
+    LOG(1, "Stopping " << WIN32_DISP_NAME << "...");
     Sleep(1000);
 
     while (QueryServiceStatus(hservice, &status)) {
       if (status.dwCurrentState != SERVICE_STOP_PENDING)
 	break;
-      cerr << "." << flush;
+      LOG(1, "...waiting...");
       Sleep(1000);
     }
-    cerr << endl;
 
     if (status.dwCurrentState == SERVICE_STOPPED)
-      cerr << WIN32_DISP_NAME << " stopped." << endl;
+      LOG(1, WIN32_DISP_NAME << " stopped.");
     else
-      cerr << WIN32_DISP_NAME << " failed to stop." << endl;
+      LOG(1, WIN32_DISP_NAME << " failed to stop.");
   }
 
   // now remove the service
   int return_status = 0;
 
   if (DeleteService(hservice)) {
-    cerr << WIN32_DISP_NAME << " removed." << endl;
+    LOG(1, WIN32_DISP_NAME << " removed.");
   }
   else {
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Failed to delete " << WIN32_DISP_NAME << ": " << err_msg << endl;
+    LOG(1, "Failed to delete " << WIN32_DISP_NAME << ": " << err_msg);
     return_status = 2;
   }
 
@@ -376,7 +367,7 @@ removeService()
     // Clear registry
     if (RegDeleteKey(HKEY_LOCAL_MACHINE, REGISTRY_KEY) != ERROR_SUCCESS) {
       GetLastErrorText(err_msg, sizeof(err_msg));
-      cerr << "Failed to clear registry key: " << err_msg << endl;
+      LOG(1, "Failed to clear registry key: " << err_msg);
       return_status = 2;
     }
   }
@@ -444,7 +435,7 @@ runService(int port, const char* logdir, const char* errlog,
   if (StartServiceCtrlDispatcher(dispatch) == 0) {
     char err_msg[512];
     GetLastErrorText(err_msg, sizeof(err_msg));
-    cerr << "Unable to start service control dispatcher: " << err_msg << endl;
+    LOG(1, "Unable to start service control dispatcher: " << err_msg);
 
     if (names)
       delete names;

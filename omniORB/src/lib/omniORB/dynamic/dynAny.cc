@@ -3,164 +3,27 @@
 // DynAny.cc                  Created on: 12/02/98
 //                            Author    : Sai-Lai Lo (sll)
 //
-//    Copyright (C) 2002-2009 Apasphere Ltd
+//    Copyright (C) 2002-2013 Apasphere Ltd
 //    Copyright (C) 1996-1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //      Implementation of type DynAny
-
-
-/*
-   $Log$
-   Revision 1.13.2.10  2009/02/02 12:30:25  dgrisby
-   Memory leaks in DynAny. Thanks Sampo Ahokas.
-
-   Revision 1.13.2.9  2008/09/16 09:24:08  dgrisby
-   Support null types in DynAny; fix errors with exception handling.
-
-   Revision 1.13.2.8  2006/05/31 10:17:04  dgrisby
-   Allow creation of unknown values in DynAnys.
-
-   Revision 1.13.2.7  2005/04/08 15:05:46  dgrisby
-   Attach child DynAnys properly.
-
-   Revision 1.13.2.6  2005/03/30 23:36:12  dgrisby
-   Another merge from omni4_0_develop.
-
-   Revision 1.13.2.5  2005/01/06 23:09:45  dgrisby
-   Big merge from omni4_0_develop.
-
-   Revision 1.13.2.4  2005/01/06 16:39:24  dgrisby
-   DynValue and DynValueBox implementations; misc small fixes.
-
-   Revision 1.13.2.3  2004/07/23 10:29:58  dgrisby
-   Completely new, much simpler Any implementation.
-
-   Revision 1.13.2.2  2004/07/04 23:53:36  dgrisby
-   More ValueType TypeCode and Any support.
-
-   Revision 1.13.2.1  2003/03/23 21:02:50  dgrisby
-   Start of omniORB 4.1.x development branch.
-
-   Revision 1.11.2.17  2002/12/18 15:59:14  dgrisby
-   Proper clean-up of recursive TypeCodes.
-
-   Revision 1.11.2.16  2002/02/11 14:46:20  dpg1
-   Remove unnecessary ##s in macro.
-
-   Revision 1.11.2.15  2001/11/14 17:13:41  dpg1
-   Long double support.
-
-   Revision 1.11.2.14  2001/10/19 11:04:02  dpg1
-   Avoid confusing (to gcc 2.95) inheritance of refcount functions.
-
-   Revision 1.11.2.13  2001/10/17 18:51:50  dpg1
-   Fix inevitable Windows problems.
-
-   Revision 1.11.2.12  2001/10/17 16:44:02  dpg1
-   Update DynAny to CORBA 2.5 spec, const Any exception extraction.
-
-   Revision 1.11.2.11  2001/09/24 10:41:08  dpg1
-   Minor codes for Dynamic library and omniORBpy.
-
-   Revision 1.11.2.10  2001/08/22 13:29:46  dpg1
-   Re-entrant Any marshalling.
-
-   Revision 1.11.2.9  2001/06/15 10:23:21  sll
-   Changed the name of the internal create_dyn_any function to
-   internal_create_dyn_any. Compilers which do not support namespace are
-   confused by the original name.
-
-   Revision 1.11.2.8  2001/06/13 20:10:04  sll
-   Minor update to make the ORB compiles with MSVC++.
-
-   Revision 1.11.2.7  2001/04/19 09:14:15  sll
-   Scoped where appropriate with the omni namespace.
-
-   Revision 1.11.2.6  2000/11/17 19:09:37  dpg1
-   Support codeset conversion in any.
-
-   Revision 1.11.2.5  2000/11/09 12:27:53  dpg1
-   Huge merge from omni3_develop, plus full long long from omni3_1_develop.
-
-   Revision 1.11.2.4  2000/11/03 19:07:32  sll
-   Use new marshalling functions for byte, octet and char. Use get_octet_array
-   instead of get_char_array.
-
-   Revision 1.11.2.3  2000/10/06 16:40:53  sll
-   Changed to use cdrStream.
-
-   Revision 1.11.2.2  2000/09/27 17:25:41  sll
-   Changed include/omniORB3 to include/omniORB4.
-
-   Revision 1.11.2.1  2000/07/17 10:35:41  sll
-   Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
-   Revision 1.12  2000/07/13 15:26:02  dpg1
-   Merge from omni3_develop for 3.0 release.
-
-   Revision 1.8.6.5  2000/06/22 10:40:12  dpg1
-   exception.h renamed to exceptiondefs.h to avoid name clash on some
-   platforms.
-
-   Revision 1.8.6.4  1999/10/26 20:18:18  sll
-   DynAny no longer do alias expansion on the typecode. In other words, all
-   aliases in the typecode are preserved.
-
-   Revision 1.8.6.3  1999/10/14 16:21:56  djr
-   Implemented logging when system exceptions are thrown.
-
-   Revision 1.8.6.2  1999/09/22 16:15:58  djr
-   Removed MT locking.
-
-   Revision 1.8.6.1  1999/09/22 14:26:30  djr
-   Major rewrite of orbcore to support POA.
-
-   Revision 1.8  1999/07/20 14:22:58  djr
-   Accept nil ref in insert_reference().
-   Allow DynAny with type tk_void.
-
-   Revision 1.7  1999/06/18 21:01:11  sll
-   Use TypeCode equivalent() instead of equal().
-
-   Revision 1.6  1999/05/25 18:05:00  sll
-   Added check for invalid arguments using magic numbers.
-
-   Revision 1.5  1999/03/11 16:25:58  djr
-   Updated copyright notice
-
-   Revision 1.4  1999/01/07 16:58:16  djr
-   New implementation using new version of TypeCode and Any.
-
-   Revision 1.3  1998/08/25 18:52:59  sll
-   Added signed-unsigned cast to keep egcs and gcc-2.7.2 happy.
-
-   Revision 1.2  1998/08/14 13:45:31  sll
-   Added pragma hdrstop to control pre-compile header if the compiler feature
-   is available.
-
-   Revision 1.1  1998/08/05 18:03:49  sll
-   Initial revision
-
-*/
 
 #include <omniORB4/CORBA.h>
 
@@ -270,7 +133,7 @@ do { \
 } while(0)
 
 
-omni_tracedmutex DynAnyImplBase::refCountLock;
+omni_tracedmutex DynAnyImplBase::refCountLock("DynAnyImplBase::refCountLock");
 
 
 DynAnyImplBase::~DynAnyImplBase()
@@ -485,6 +348,16 @@ DynAnyImpl::equal(DynamicAny::DynAny_ptr dyn_any)
       CORBA::Object_var b = dyn_any->get_reference();
       return a->_is_equivalent(b);
     }
+#ifdef OMNI_HAS_LongDouble
+  case CORBA::tk_longdouble:
+    {
+      // Two identical LongDoubles do not necessarily have the same
+      // marshalled format.
+      CORBA::LongDouble a = get_longdouble();
+      CORBA::LongDouble b = dyn_any->get_longdouble();
+      return a == b;
+    }
+#endif
   default:
     // With all other types supported by this class, it's sufficient
     // to see if the data in the memory buffers is identical.
@@ -550,7 +423,7 @@ DynAnyImpl::insert_ulong(CORBA::ULong value)
   value >>= doWrite(CORBA::tk_ulong);
 }
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 void
 DynAnyImpl::insert_float(CORBA::Float value)
 {
@@ -617,7 +490,7 @@ DynAnyImpl::insert_typecode(CORBA::TypeCode_ptr value)
 }
 
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 void
 DynAnyImpl::insert_longlong(CORBA::LongLong value)
 {
@@ -633,7 +506,7 @@ DynAnyImpl::insert_ulonglong(CORBA::ULongLong value)
 }
 #endif
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 void
 DynAnyImpl::insert_longdouble(CORBA::LongDouble value)
 {
@@ -777,7 +650,7 @@ DynAnyImpl::get_ulong()
   return value;
 }
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 CORBA::Float
 DynAnyImpl::get_float()
 {
@@ -803,7 +676,6 @@ DynAnyImpl::get_string()
   CHECK_NOT_DESTROYED;
   cdrAnyMemoryStream& buf = doRead(CORBA::tk_string);
 
-  CORBA::ULong length;
   CORBA::ULong maxlen = actualTc()->NP_length();
   try {
     char* value = buf.unmarshalString(maxlen);
@@ -837,7 +709,7 @@ DynAnyImpl::get_typecode()
 }
 
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 CORBA::LongLong
 DynAnyImpl::get_longlong()
 {
@@ -857,7 +729,7 @@ DynAnyImpl::get_ulonglong()
 }
 #endif
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 CORBA::LongDouble
 DynAnyImpl::get_longdouble()
 {
@@ -881,7 +753,6 @@ DynAnyImpl::get_wstring()
   CHECK_NOT_DESTROYED;
   cdrAnyMemoryStream& buf = doRead(CORBA::tk_wstring);
 
-  CORBA::ULong length;
   CORBA::ULong maxlen = actualTc()->NP_length();
   CORBA::WChar* value = buf.unmarshalWString(maxlen);
   return value;
@@ -974,15 +845,15 @@ SEQUENCE_OPS(short, Short)
 SEQUENCE_OPS(ushort, UShort)
 SEQUENCE_OPS(long, Long)
 SEQUENCE_OPS(ulong, ULong)
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 SEQUENCE_OPS(float, Float)
 SEQUENCE_OPS(double, Double)
 #endif
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 SEQUENCE_OPS(longlong, LongLong)
 SEQUENCE_OPS(ulonglong, ULongLong)
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 SEQUENCE_OPS(longdouble, LongDouble)
 #endif
 SEQUENCE_OPS(wchar, WChar)
@@ -1057,7 +928,7 @@ DynAnyImpl::set_to_initial_value()
   case CORBA::tk_long:       insert_long(0);      break;
   case CORBA::tk_ushort:     insert_ushort(0);    break;
   case CORBA::tk_ulong:      insert_ulong(0);     break;
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
   case CORBA::tk_float:      insert_float(0.0);   break;
   case CORBA::tk_double:     insert_double(0.0);  break;
 #endif
@@ -1075,11 +946,11 @@ DynAnyImpl::set_to_initial_value()
   case CORBA::tk_string:
     insert_string(_CORBA_String_helper::empty_string);
     break;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:   insert_longlong(0);     break;
   case CORBA::tk_ulonglong:  insert_ulonglong(0);    break;
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   case CORBA::tk_longdouble: insert_longdouble(0.0); break;
 #endif
   case CORBA::tk_wchar:      insert_wchar(0);        break;
@@ -1570,7 +1441,7 @@ DynAnyConstrBase::insert_ulong(CORBA::ULong value)
   value >>= writeCurrent(CORBA::tk_ulong);
 }
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 void
 DynAnyConstrBase::insert_float(CORBA::Float value)
 {
@@ -1640,7 +1511,7 @@ DynAnyConstrBase::insert_typecode(CORBA::TypeCode_ptr value)
 }
 
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 void
 DynAnyConstrBase::insert_longlong(CORBA::LongLong value)
 {
@@ -1656,7 +1527,7 @@ DynAnyConstrBase::insert_ulonglong(CORBA::ULongLong value)
 }
 #endif
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 void
 DynAnyConstrBase::insert_longdouble(CORBA::LongDouble value)
 {
@@ -1809,7 +1680,7 @@ DynAnyConstrBase::get_ulong()
   return value;
 }
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 CORBA::Float
 DynAnyConstrBase::get_float()
 {
@@ -1871,7 +1742,7 @@ DynAnyConstrBase::get_typecode()
   return CORBA::TypeCode::unmarshalTypeCode(readCurrent(CORBA::tk_TypeCode));
 }
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 CORBA::LongLong
 DynAnyConstrBase::get_longlong()
 {
@@ -1893,7 +1764,7 @@ DynAnyConstrBase::get_ulonglong()
 #endif
 
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 CORBA::LongDouble
 DynAnyConstrBase::get_longdouble()
 {
@@ -2068,15 +1939,15 @@ INSERT_SEQ_OP(short,      Short,      2, 2)
 INSERT_SEQ_OP(ushort,     UShort,     2, 2)
 INSERT_SEQ_OP(long,       Long,       4, 4)
 INSERT_SEQ_OP(ulong,      ULong,      4, 4)
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 INSERT_SEQ_OP(float,      Float,      4, 4)
 INSERT_SEQ_OP(double,     Double,     8, 8)
 #endif
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 INSERT_SEQ_OP(longlong,   LongLong,   8, 8)
 INSERT_SEQ_OP(ulonglong,  ULongLong,  8, 8)
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 INSERT_SEQ_OP(longdouble, LongDouble, 8, 16)
 #endif
 
@@ -2235,15 +2106,15 @@ GET_SEQ_OP(short,      Short,      2, 2)
 GET_SEQ_OP(ushort,     UShort,     2, 2)
 GET_SEQ_OP(long,       Long,       4, 4)
 GET_SEQ_OP(ulong,      ULong,      4, 4)
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 GET_SEQ_OP(float,      Float,      4, 4)
 GET_SEQ_OP(double,     Double,     8, 8)
 #endif
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 GET_SEQ_OP(longlong,   LongLong,   8, 8)
 GET_SEQ_OP(ulonglong,  ULongLong,  8, 8)
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 GET_SEQ_OP(longdouble, LongDouble, 8, 16)
 #endif
 
@@ -2336,6 +2207,11 @@ DynAnyConstrBase::copy_to(cdrAnyMemoryStream& mbs)
 {
   if( pd_n_in_buf != pd_first_in_comp )  return 0;
 
+  // Marshal exception repoId if necessary
+  TypeCode_base* atc = actualTc();
+  if (atc->kind() == CORBA::tk_except)
+    CORBA::Any::PR_marshalExceptionRepoId(mbs, atc->NP_id());
+  
   cdrAnyMemoryStream src(pd_buf);
   pd_read_index = -1;
 
@@ -2366,6 +2242,10 @@ DynAnyConstrBase::copy_from(cdrAnyMemoryStream& mbs)
   pd_buf.rewindPtrs();
   pd_read_index = 0;
 
+  // Skip exception repoId if necessary
+  if (tckind() == CORBA::tk_except)
+    CORBA::Any::PR_unmarshalExceptionRepoId(mbs);
+  
   unsigned i;
   try {
     // Copy components into the buffer.
@@ -2789,7 +2669,7 @@ DynStructImpl::prepareSequenceWrite(CORBA::TCKind kind, CORBA::ULong len)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -2809,7 +2689,7 @@ DynStructImpl::prepareSequenceRead(CORBA::TCKind kind)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -2931,7 +2811,7 @@ DynUnionDisc::insert_ulong(CORBA::ULong value)
   if( pd_union )  pd_union->discriminatorHasChanged();
 }
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 void
 DynUnionDisc::insert_float(CORBA::Float value)
 {
@@ -2978,7 +2858,7 @@ DynUnionDisc::insert_typecode(CORBA::TypeCode_ptr value)
 }
 
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 void
 DynUnionDisc::insert_longlong(CORBA::LongLong value)
 {
@@ -2997,7 +2877,7 @@ DynUnionDisc::insert_ulonglong(CORBA::ULongLong value)
 }
 #endif
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 void
 DynUnionDisc::insert_longdouble(CORBA::LongDouble value)
 {
@@ -3097,7 +2977,7 @@ DynUnionDisc::set_value(TypeCode_union::Discriminator v)
   case CORBA::tk_ulong:
     insert_ulong((CORBA::ULong)v);
     break;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
     insert_longlong((CORBA::LongLong)v);
     break;
@@ -3452,7 +3332,7 @@ DynUnionImpl::insert_ulong(CORBA::ULong value)
   discriminatorHasChanged();
 }
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 void
 DynUnionImpl::insert_float(CORBA::Float value)
 {
@@ -3526,7 +3406,7 @@ DynUnionImpl::insert_typecode(CORBA::TypeCode_ptr value)
 }
 
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 void
 DynUnionImpl::insert_longlong(CORBA::LongLong value)
 {
@@ -3545,7 +3425,7 @@ DynUnionImpl::insert_ulonglong(CORBA::ULongLong value)
 }
 #endif
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 void
 DynUnionImpl::insert_longdouble(CORBA::LongDouble value)
 {
@@ -3698,7 +3578,7 @@ DynUnionImpl::get_ulong()
   return value;
 }
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 CORBA::Float
 DynUnionImpl::get_float()
 {
@@ -3758,7 +3638,7 @@ DynUnionImpl::get_typecode()
 
 
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 CORBA::LongLong
 DynUnionImpl::get_longlong()
 {
@@ -3779,7 +3659,7 @@ DynUnionImpl::get_ulonglong()
 }
 #endif
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 CORBA::LongDouble
 DynUnionImpl::get_longdouble()
 {
@@ -3908,15 +3788,15 @@ UNION_SEQUENCE_OPS(short, Short)
 UNION_SEQUENCE_OPS(ushort, UShort)
 UNION_SEQUENCE_OPS(long, Long)
 UNION_SEQUENCE_OPS(ulong, ULong)
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 UNION_SEQUENCE_OPS(float, Float)
 UNION_SEQUENCE_OPS(double, Double)
 #endif
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 UNION_SEQUENCE_OPS(longlong, LongLong)
 UNION_SEQUENCE_OPS(ulonglong, ULongLong)
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 UNION_SEQUENCE_OPS(longdouble, LongDouble)
 #endif
 UNION_SEQUENCE_OPS(wchar, WChar)
@@ -3942,7 +3822,7 @@ DynUnionImpl::seek(CORBA::Long index)
       pd_curr_index = 1;
       return 1;
     }
-    // drop through
+    // falls through
   default:
     pd_curr_index = -1;
     return 0;
@@ -4539,7 +4419,7 @@ DynSequenceImpl::prepareSequenceWrite(CORBA::TCKind kind, CORBA::ULong len)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -4564,7 +4444,7 @@ DynSequenceImpl::prepareSequenceRead(CORBA::TCKind kind)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -4797,7 +4677,7 @@ DynArrayImpl::prepareSequenceWrite(CORBA::TCKind kind, CORBA::ULong len)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -4823,7 +4703,7 @@ DynArrayImpl::prepareSequenceRead(CORBA::TCKind kind)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -5226,7 +5106,7 @@ DynValueImpl::prepareSequenceWrite(CORBA::TCKind kind, CORBA::ULong len)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -5246,7 +5126,7 @@ DynValueImpl::prepareSequenceRead(CORBA::TCKind kind)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -5541,7 +5421,7 @@ DynValueBoxImpl::prepareSequenceWrite(CORBA::TCKind kind, CORBA::ULong len)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -5561,7 +5441,7 @@ DynValueBoxImpl::prepareSequenceRead(CORBA::TCKind kind)
     return SEQ_COMPONENT;
   }
   throw DynamicAny::DynAny::TypeMismatch();
-#ifdef NEED_DUMMY_RETURN
+#ifdef OMNI_NEED_DUMMY_RETURN
   return SEQ_COMPONENT;
 #endif
 }
@@ -5727,14 +5607,14 @@ internal_create_dyn_any(TypeCode_base* tc, CORBA::Boolean is_root)
   case CORBA::tk_long:
   case CORBA::tk_ushort:
   case CORBA::tk_ulong:
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
   case CORBA::tk_ulonglong:
 #endif
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
   case CORBA::tk_float:
   case CORBA::tk_double:
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   case CORBA::tk_longdouble:
 #endif
 #endif
@@ -5858,14 +5738,14 @@ factory_create_dyn_any_from_type_code(CORBA::TypeCode_ptr tc)
   case CORBA::tk_long:
   case CORBA::tk_ushort:
   case CORBA::tk_ulong:
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case CORBA::tk_longlong:
   case CORBA::tk_ulonglong:
 #endif
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
   case CORBA::tk_float:
   case CORBA::tk_double:
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   case CORBA::tk_longdouble:
 #endif
 #endif

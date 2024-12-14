@@ -19,47 +19,11 @@
 //  General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//  02111-1307, USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //   
 //   System dependencies
-
-// $Id$
-// $Log$
-// Revision 1.8.2.2  2005/01/06 23:11:14  dgrisby
-// Big merge from omni4_0_develop.
-//
-// Revision 1.8.2.1  2003/03/23 21:01:44  dgrisby
-// Start of omniORB 4.1.x development branch.
-//
-// Revision 1.4.2.5  2002/02/01 11:22:06  dpg1
-// strcasecmp/stricmp redefinition on Windows.
-//
-// Revision 1.4.2.4  2002/01/15 16:38:14  dpg1
-// On the road to autoconf. Dependencies refactored, configure.ac
-// written. No makefiles yet.
-//
-// Revision 1.4.2.3  2001/06/08 17:12:24  dpg1
-// Merge all the bug fixes from omni3_develop.
-//
-// Revision 1.4.2.2  2000/10/27 16:31:10  dpg1
-// Clean up of omniidl dependencies and types, from omni3_develop.
-//
-// Revision 1.4.2.1  2000/07/17 10:36:05  sll
-// Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-//
-// Revision 1.5  2000/07/13 15:25:52  dpg1
-// Merge from omni3_develop for 3.0 release.
-//
-// Revision 1.2  1999/11/09 12:41:40  dpg1
-// strcasecmp changes for NT, AIX.
-//
-// Revision 1.1  1999/11/05 09:43:01  dpg1
-// Changes for NT.
-//
 
 #ifndef _idlsysdep_h_
 #define _idlsysdep_h_
@@ -78,11 +42,14 @@
 #endif
 #else
 #  define DLL_EXPORT
+#endif
+
+#ifdef OMNI_HAVE_STRINGS_H
 #  include <strings.h>
 #endif
 
 
-#ifdef HAS_Cplusplus_Bool
+#ifdef OMNI_HAS_Cplusplus_Bool
 typedef bool                      IDL_Boolean;
 #else
 typedef unsigned char             IDL_Boolean;
@@ -98,11 +65,11 @@ typedef unsigned short            IDL_UShort;
 
 typedef unsigned short            IDL_WChar;
 
-#if SIZEOF_LONG == 4
+#if OMNI_SIZEOF_LONG == 4
 typedef long                      IDL_Long;
 
 typedef unsigned long             IDL_ULong;
-#elif SIZEOF_INT == 4
+#elif OMNI_SIZEOF_INT == 4
 typedef int                       IDL_Long;
 
 typedef unsigned int              IDL_ULong;
@@ -110,13 +77,13 @@ typedef unsigned int              IDL_ULong;
 # error "Can't map Long (32 bits) to a native type."
 #endif
 
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 typedef _CORBA_LONGLONG_DECL      IDL_LongLong;
 typedef _CORBA_ULONGLONG_DECL     IDL_ULongLong;
 #endif
 
 
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
 
 #ifndef __VAX
 
@@ -124,7 +91,7 @@ typedef _CORBA_ULONGLONG_DECL     IDL_ULongLong;
 typedef float                     IDL_Float;
 typedef double                    IDL_Double;
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 typedef _CORBA_LONGDOUBLE_DECL    IDL_LongDouble;
 #endif
 
@@ -159,12 +126,12 @@ public:
 
 //  Assume long double type is compatible with the CORBA standard.
 
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 typedef _CORBA_LONGDOUBLE_DECL    IDL_LongDouble;
 #endif
 
 #endif   // VAX float test
-#endif   // !defined(NO_FLOAT)
+#endif   // !defined(OMNI_NO_FLOAT)
 
 
 #endif // _idlsysdep_h_

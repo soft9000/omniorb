@@ -3,25 +3,23 @@
 // giopImpl12.cc              Created on: 14/02/2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2002-2013 Apasphere Ltd
+//    Copyright (C) 2002-2015 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories, Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -78,8 +76,8 @@ public:
   static size_t outputRemaining(const giopStream*);
   static void getReserveSpace(giopStream*,omni::alignment_t,size_t);
   static void copyOutputData(giopStream*,void*, size_t,omni::alignment_t);
-  static CORBA::ULong currentInputPtr(const giopStream*);
-  static CORBA::ULong currentOutputPtr(const giopStream*);
+  static size_t currentInputPtr(const giopStream*);
+  static size_t currentOutputPtr(const giopStream*);
 
   friend class nonexistence;  // Just to make gcc shut up.
 
@@ -106,11 +104,13 @@ public:
 
   static void outputNewMessage(giopStream* g);
 
-  static void outputFlush(giopStream* g,CORBA::Boolean knownFragmentSize=0);
+  static void outputFlush(giopStream* g, CORBA::Boolean knownFragmentSize=0);
 
-  static void outputSetFragmentSize(giopStream*,CORBA::ULong);
+  static void outputSetFragmentSize(giopStream*, size_t);
 
-  static CORBA::Boolean outputHasReachedLimit(giopStream* g);
+  static inline CORBA::Boolean outputHasReachedLimit(giopStream* g) {
+    return g->outEnd() == g->outputBufferStart() + 12;
+  }
 
 private:
   giopImpl12();
@@ -118,18 +118,10 @@ private:
   giopImpl12& operator=(const giopImpl12&);
 };
 
-////////////////////////////////////////////////////////////////////////
-CORBA::Boolean
-giopImpl12::outputHasReachedLimit(giopStream* g) {
-
-  return ( (omni::ptr_arith_t) g->pd_outb_end == 
-          ((omni::ptr_arith_t) g->pd_currentOutputBuffer + 
-		  	       g->pd_currentOutputBuffer->start + 12) );
-}
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
+giopImpl12::inputQueueMessage(giopStream* g, giopStream_Buffer* b) {
 
   // On entry, this function owns the giopStream_Buffer. On exit, the
   // buffer has either been assigned to another owner or deleted.
@@ -162,7 +154,12 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
 
   CORBA::ULong reqid;
 
-  if ( mtype != GIOP::CloseConnection && mtype != GIOP::MessageError) {
+  if (mtype != GIOP::CloseConnection && mtype != GIOP::MessageError) {
+    if (b->size < 16) {
+      giopStream_Buffer::deleteBuffer(b);
+      OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
+                    (CORBA::CompletionStatus)g->completion());
+    }
 
     // unmarshal request id.
     reqid = *((CORBA::ULong*)(hdr + 12));
@@ -174,16 +171,18 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
 	       (((v) & 0x000000ff) << 24));
     }
   }
-  else if ( mtype == GIOP::MessageError) {
+  else if (mtype == GIOP::MessageError) {
     giopStream_Buffer::deleteBuffer(b);
     inputTerminalProtocolError(g, __FILE__, __LINE__,
 			       "Received a MessageError message");
     // never reach here
+    reqid = 0; // avoid compiler warning
   }
-  else if ( g->pd_strand->isClient() || g->pd_strand->biDir) {
+  else if (g->pd_strand->isClient() || g->pd_strand->isBiDir()) {
     // orderly shutdown.
-    CORBA::ULong minor;
+    CORBA::ULong   minor;
     CORBA::Boolean retry;
+
     giopStream_Buffer::deleteBuffer(b);
     g->pd_strand->orderly_closed = 1;
     g->notifyCommFailure(0,minor,retry);
@@ -194,11 +193,13 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
 				    "Orderly connection shutdown",
 				    g->pd_strand);
     // never reach here
+    reqid = 0; // avoid compiler warning
   }
   else {
     giopStream_Buffer::deleteBuffer(b);
     inputTerminalProtocolError(g, __FILE__, __LINE__,
 			       "Orderly connection shutdown on server");
+    reqid = 0; // avoid compiler warning
     // never reach here
   }
 
@@ -211,7 +212,7 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
   switch (mtype) {
   case GIOP::Reply:
   case GIOP::LocateReply:
-    if (!(g->pd_strand->isClient() || g->pd_strand->biDir)) {
+    if (!(g->pd_strand->isClient() || g->pd_strand->isBiDir())) {
       omniTransportLock->unlock();
       giopStream_Buffer::deleteBuffer(b);
       inputTerminalProtocolError(g, __FILE__, __LINE__,
@@ -282,7 +283,7 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
     case GIOP::Request:
     case GIOP::LocateRequest:
       {
-	if (g->pd_strand->isClient() && !g->pd_strand->biDir) {
+	if (g->pd_strand->isClient() && !g->pd_strand->isBiDir()) {
 	  omniTransportLock->unlock();
 	  giopStream_Buffer::deleteBuffer(b);
 	  inputTerminalProtocolError(g, __FILE__, __LINE__,
@@ -318,7 +319,7 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
       }
       // falls through
     case GIOP::CancelRequest:
-      if (g->pd_strand->isClient() && !g->pd_strand->biDir) {
+      if (g->pd_strand->isClient() && !g->pd_strand->isBiDir()) {
 	omniTransportLock->unlock();
 	giopStream_Buffer::deleteBuffer(b);
 	inputTerminalProtocolError(g, __FILE__, __LINE__,
@@ -379,13 +380,13 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
     }
     *pp = b;
 
-    CORBA::ULong fetchsz = b->size - (b->last - b->start);
+    CORBA::ULong fetchsz = b->size - b->dataSize();
     while (fetchsz) {
       // fetch the rest of the message;
       giopStream_Buffer* p = g->inputChunk(fetchsz);
       pp = &((*pp)->next);
       *pp = p;
-      fetchsz -= (p->last - p->start);
+      fetchsz -= p->dataSize();
     }
       
     CORBA::Boolean isfull = ((hdr[6] & 0x2) ? 0 : 1);
@@ -421,12 +422,12 @@ giopImpl12::inputQueueMessage(giopStream* g,giopStream_Buffer* b) {
       log << "Discarding message for non-existent request id "
 	  << reqid << ".\n";
     }
-    CORBA::ULong fetchsz = b->size - (b->last - b->start);
+    CORBA::ULong fetchsz = b->size - b->dataSize();
     giopStream_Buffer::deleteBuffer(b);
     while (fetchsz) {
       // fetch the rest of the message;
       b = g->inputChunk(fetchsz);
-      fetchsz -= (b->last - b->start);
+      fetchsz -= b->dataSize();
       giopStream_Buffer::deleteBuffer(b);
     }
   }
@@ -441,8 +442,7 @@ giopImpl12::inputNewServerMessage(giopStream* g) {
 
   g->pd_currentInputBuffer = g->inputMessage();
 
-  unsigned char* hdr = (unsigned char*)g->pd_currentInputBuffer + 
-                                       g->pd_currentInputBuffer->start;
+  unsigned char* hdr = (unsigned char*)g->inputBufferStart();
 
   if (hdr[4] != 1 || hdr[5] > 2 || hdr[7] > (unsigned char) GIOP::Fragment) {
     inputTerminalProtocolError(g, __FILE__, __LINE__,
@@ -458,7 +458,7 @@ giopImpl12::inputNewServerMessage(giopStream* g) {
     return;
   case GIOP::Reply:
   case GIOP::LocateReply:
-    if (g->pd_strand->biDir) {
+    if (g->pd_strand->isBiDir()) {
       break;
     }
     else {
@@ -494,17 +494,15 @@ giopImpl12::inputNewFragment(giopStream* g) {
     goto again;
   }
   else {
-    g->pd_currentInputBuffer = g->pd_input;
-    g->pd_input = g->pd_currentInputBuffer->next;
+    g->pd_currentInputBuffer       = g->pd_input;
+    g->pd_input                    = g->pd_currentInputBuffer->next;
     g->pd_currentInputBuffer->next = 0;
   }
 
-  char* hdr = (char*)g->pd_currentInputBuffer + 
-                     g->pd_currentInputBuffer->start;
-
+  char* hdr = (char*)g->inputBufferStart();
 
   if (hdr[7] == GIOP::CancelRequest) {
-    if (g->pd_strand->biDir || !g->pd_strand->isClient()) {
+    if (g->pd_strand->isBiDir() || !g->pd_strand->isClient()) {
       throw GIOP_S::terminateProcessing();
     }
     else {
@@ -525,14 +523,15 @@ giopImpl12::inputNewFragment(giopStream* g) {
   }
 
   g->pd_inb_mkr = (void*)(hdr + 16);
-  g->pd_inb_end = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			  g->pd_currentInputBuffer->last);
+  g->pd_inb_end = (void*)g->inputBufferLast();
+  OMNIORB_ASSERT(g->pd_inb_mkr <= g->pd_inb_end);
+
   g->inputExpectAnotherFragment(((hdr[6] & 0x2) ? 1 : 0));
+
   g->inputMessageSize(g->inputMessageSize() + 
-		      g->pd_currentInputBuffer->size - 16);
-  g->inputFragmentToCome(g->pd_currentInputBuffer->size - 
-			 (g->pd_currentInputBuffer->last -
-			  g->pd_currentInputBuffer->start));
+		      g->inputBufferMsgSize() - 16);
+
+  g->inputFragmentToCome(g->inputBufferMsgSize() - g->inputBufferDataSize());
 }
 
 
@@ -544,7 +543,7 @@ giopImpl12::inputReplyBegin(giopStream* g,
   {
     omni_tracedmutex_lock sync(*omniTransportLock);
 
-    if (!g->pd_strand->biDir) {
+    if (!g->pd_strand->isBiDir()) {
 
       while (!(g->inputFullyBuffered() || g->pd_rdlocked)) {
 	if (!g->rdLockNonBlocking()) {
@@ -564,9 +563,11 @@ giopImpl12::inputReplyBegin(giopStream* g,
 	g->sleepOnRdLockAlways();
       }
       if (g->pd_strand->state() == giopStrand::DYING) {
-	CORBA::ULong minor;
+	CORBA::ULong   minor;
 	CORBA::Boolean retry;
+
 	g->notifyCommFailure(1,minor,retry);
+
 	CORBA::CompletionStatus status;
 	if (g->pd_strand->orderly_closed) {
 	  status = CORBA::COMPLETED_NO;
@@ -594,28 +595,25 @@ giopImpl12::inputReplyBegin(giopStream* g,
       goto again;
     }
     else {
-      g->pd_currentInputBuffer = g->pd_input;
-      g->pd_input = g->pd_input->next;
+      g->pd_currentInputBuffer       = g->pd_input;
+      g->pd_input                    = g->pd_input->next;
       g->pd_currentInputBuffer->next = 0;
     }
   }
 
-  char* hdr = (char*)g->pd_currentInputBuffer + 
-                     g->pd_currentInputBuffer->start;
+  char* hdr = (char*)g->inputBufferStart();
 
   g->pd_unmarshal_byte_swap = (((hdr[6] & 0x1) == _OMNIORB_HOST_BYTE_ORDER_)
 			       ? 0 : 1 );
 
   g->pd_inb_mkr = (void*)(hdr + 16);
-  g->pd_inb_end = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			  g->pd_currentInputBuffer->last);
-
+  g->pd_inb_end = (void*)g->inputBufferLast();
+  OMNIORB_ASSERT(g->pd_inb_mkr <= g->pd_inb_end);
 
   g->inputExpectAnotherFragment(((hdr[6] & 0x2) ? 1 : 0));
-  g->inputMessageSize(g->pd_currentInputBuffer->size);
-  g->inputFragmentToCome(g->pd_currentInputBuffer->size - 
-			 (g->pd_currentInputBuffer->last -
-			  g->pd_currentInputBuffer->start));
+
+  g->inputMessageSize(g->inputBufferMsgSize());
+  g->inputFragmentToCome(g->inputBufferMsgSize() - g->inputBufferDataSize());
 
   unmarshalHeader(g);
 
@@ -647,8 +645,8 @@ giopImpl12::inputMessageBegin(giopStream* g,
   if (!g->pd_currentInputBuffer) {
 
     if (g->pd_input) {
-      g->pd_currentInputBuffer = g->pd_input;
-      g->pd_input = g->pd_input->next;
+      g->pd_currentInputBuffer       = g->pd_input;
+      g->pd_input                    = g->pd_input->next;
       g->pd_currentInputBuffer->next = 0;
     }
     else {
@@ -657,8 +655,7 @@ giopImpl12::inputMessageBegin(giopStream* g,
     }
   }
 
-  char* hdr = (char*)g->pd_currentInputBuffer + 
-                     g->pd_currentInputBuffer->start;
+  char* hdr = (char*)g->inputBufferStart();
 
   if (hdr[5] <= 1) {
     // This is a GIOP 1.0 or 1.1 message, switch to the implementation
@@ -666,7 +663,7 @@ giopImpl12::inputMessageBegin(giopStream* g,
     GIOP::Version v;
     v.major = 1;
     v.minor = hdr[5];
-    ((giopStrand &)*g).version = v;
+    g->strand().version = v;
     g->impl(giopStreamImpl::matchVersion(v));
     OMNIORB_ASSERT(g->impl());
     g->impl()->inputMessageBegin(g,g->impl()->unmarshalWildCardRequestHeader);
@@ -677,15 +674,12 @@ giopImpl12::inputMessageBegin(giopStream* g,
 			       ? 0 : 1 );
 
   g->pd_inb_mkr = (void*)(hdr + 12);
-  g->pd_inb_end = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			  g->pd_currentInputBuffer->last);
-
+  g->pd_inb_end = (void*)g->inputBufferLast();
 
   g->inputExpectAnotherFragment(((hdr[6] & 0x2) ? 1 : 0));
-  g->inputMessageSize(g->pd_currentInputBuffer->size);
-  g->inputFragmentToCome(g->pd_currentInputBuffer->size - 
-			 (g->pd_currentInputBuffer->last -
-			  g->pd_currentInputBuffer->start));
+
+  g->inputMessageSize(g->inputBufferMsgSize());
+  g->inputFragmentToCome(g->inputBufferMsgSize() - g->inputBufferDataSize());
 
   unmarshalHeader(g);
 
@@ -710,17 +704,14 @@ giopImpl12::inputSkipWholeMessage(giopStream* g) {
 	g->pd_currentInputBuffer = g->inputChunk(g->inputFragmentToCome());
       }
       else {
-	g->pd_currentInputBuffer = g->pd_input;
-	g->pd_input = g->pd_currentInputBuffer->next;
+	g->pd_currentInputBuffer       = g->pd_input;
+	g->pd_input                    = g->pd_currentInputBuffer->next;
 	g->pd_currentInputBuffer->next = 0;
       }
-      g->pd_inb_mkr = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			      g->pd_currentInputBuffer->start);
-      g->pd_inb_end = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			      g->pd_currentInputBuffer->last);
-      g->inputFragmentToCome(g->inputFragmentToCome() - 
-			     (g->pd_currentInputBuffer->last -
-			      g->pd_currentInputBuffer->start));
+      g->pd_inb_mkr = (void*)g->inputBufferStart();
+      g->pd_inb_end = (void*)g->inputBufferLast();
+      g->inputFragmentToCome(g->inputFragmentToCome() -
+                             g->inputBufferDataSize());
     }
     else if (g->inputExpectAnotherFragment()) {
       inputNewFragment(g);
@@ -729,6 +720,7 @@ giopImpl12::inputSkipWholeMessage(giopStream* g) {
       break;
     }
   } while (1);
+
   g->pd_inb_mkr = g->pd_inb_end;
 }
 
@@ -738,9 +730,9 @@ giopImpl12::inputMessageEnd(giopStream* g,CORBA::Boolean disgard) {
 
   if ( g->pd_strand->state() != giopStrand::DYING ) {
 
-    while ( g->inputExpectAnotherFragment() &&
-	    g->inputFragmentToCome() == 0   && 
-	    g->pd_inb_end == g->pd_inb_mkr     ) {
+    while (g->inputExpectAnotherFragment() &&
+	   g->inputFragmentToCome() == 0   && 
+	   g->pd_inb_end == g->pd_inb_mkr     ) {
 
       // If there are more fragments to come and we do not have any
       // data left in our buffer, we keep fetching the next
@@ -786,8 +778,7 @@ giopImpl12::inputMessageEnd(giopStream* g,CORBA::Boolean disgard) {
 void
 giopImpl12::unmarshalReplyHeader(giopStream* g) {
 
-  char* hdr = (char*)g->pd_currentInputBuffer + 
-                     g->pd_currentInputBuffer->start;
+  char* hdr = (char*)g->inputBufferStart();
 
   if ((GIOP::MsgType)hdr[7] != GIOP::Reply) {
     // Unexpected reply. The other end is terribly confused. Drop the
@@ -798,8 +789,8 @@ giopImpl12::unmarshalReplyHeader(giopStream* g) {
     // Never reach here.
   }
 
-  GIOP_C& giop_c = *((GIOP_C*) g);
-  cdrStream& s = *((cdrStream*)g);
+  GIOP_C&    giop_c = *((GIOP_C*) g);
+  cdrStream& s      = *((cdrStream*)g);
 
   // We have already verified the request id in the header and the stream
   // have been setup to go pass it
@@ -851,8 +842,7 @@ giopImpl12::unmarshalReplyHeader(giopStream* g) {
 void
 giopImpl12::unmarshalLocateReply(giopStream* g) {
 
-  char* hdr = (char*)g->pd_currentInputBuffer + 
-                     g->pd_currentInputBuffer->start;
+  char* hdr = (char*)g->inputBufferStart();
 
   if ((GIOP::MsgType)hdr[7] != GIOP::LocateReply) {
     // Unexpected reply. The other end is terribly confused. Drop the
@@ -863,8 +853,8 @@ giopImpl12::unmarshalLocateReply(giopStream* g) {
     // Never reach here.
   }
 
-  GIOP_C& giop_c = *((GIOP_C*) g);
-  cdrStream& s = *((cdrStream*)g);
+  GIOP_C&    giop_c = *((GIOP_C*) g);
+  cdrStream& s      = *((cdrStream*)g);
 
   // We have already verified the request id in the header and the stream
   // have been setup to go pass it
@@ -896,11 +886,11 @@ giopImpl12::unmarshalWildCardRequestHeader(giopStream* g) {
 
   g->inputMatchedId(1);
 
-  char* hdr = (char*)g->pd_currentInputBuffer + 
-                     g->pd_currentInputBuffer->start;
+  char* hdr = (char*)g->inputBufferStart();
 
   ((GIOP_S*)g)->requestType((GIOP::MsgType)hdr[7]);
   switch (((GIOP_S*)g)->requestType()) {
+
   case GIOP::Request:
   case GIOP::LocateRequest:
   case GIOP::CancelRequest:
@@ -909,18 +899,23 @@ giopImpl12::unmarshalWildCardRequestHeader(giopStream* g) {
     ((GIOP_S*)g)->requestId(reqid);
     // HERE: should check if request id has been seen before
     break;
+
   case GIOP::CloseConnection:
-    if (g->pd_strand->biDir && g->pd_strand->isClient()) {
+    if (g->pd_strand->isBiDir() && g->pd_strand->isClient()) {
       // proper shutdown of a connection.
       if (omniORB::trace(30)) {
 	omniORB::logger l;
 	l << "Server has closed a bi-directional connection on strand "
 	  << (void*)g->pd_strand << ". Will scavenge it.\n";
       }
-      g->pd_strand->startIdleCounter();
+      {
+	omni_tracedmutex_lock sync(*omniTransportLock);
+	g->pd_strand->startIdleCounter();
+      }
     }
     inputRaiseCommFailure(g, "Orderly connection shutdown");
     break;
+
   default:
     inputTerminalProtocolError(g, __FILE__, __LINE__,
 			       "Unknown GIOP message type");
@@ -933,14 +928,14 @@ giopImpl12::unmarshalWildCardRequestHeader(giopStream* g) {
 void
 giopImpl12::unmarshalRequestHeader(giopStream* g) {
 
-  GIOP_S& giop_s = *((GIOP_S*) g);
-  cdrStream& s = *((cdrStream*)g);
+  GIOP_S&    giop_s = *((GIOP_S*) g);
+  cdrStream& s      = *((cdrStream*)g);
 
   // We have already verified the request id in the header and the stream
   // have been setup to go pass it
 
-  CORBA::ULong   vl;
-  CORBA::Octet   vb;
+  CORBA::ULong vl;
+  CORBA::Octet vb;
 
   // response flag
   vb = s.unmarshalOctet();
@@ -977,9 +972,8 @@ giopImpl12::unmarshalRequestHeader(giopStream* g) {
 void
 giopImpl12::unmarshalLocateRequest(giopStream* g) {
 
-  GIOP_S& giop_s = *((GIOP_S*) g);
-  cdrStream& s = *((cdrStream*)g);
-
+  GIOP_S&    giop_s = *((GIOP_S*) g);
+  cdrStream& s      = *((cdrStream*)g);
 
   // We have already verified the request id in the header and the stream
   // have been setup to go pass it
@@ -995,8 +989,7 @@ giopImpl12::inputRemaining(giopStream* g) {
     return orbParameters::giopMaxMsgSize - currentInputPtr(g);
   }
   else {
-    return (g->inputFragmentToCome() + ((omni::ptr_arith_t)g->pd_inb_end -
-					(omni::ptr_arith_t)g->pd_inb_mkr));
+    return g->inputFragmentToCome() + (g->inEnd() - g->inMkr());
   }
 }
 
@@ -1005,12 +998,10 @@ void
 giopImpl12::getInputData(giopStream* g,omni::alignment_t align,size_t sz) {
 
  again:
-  omni::ptr_arith_t last = omni::align_to((omni::ptr_arith_t)g->pd_inb_mkr,
-					  align);
+  omni::ptr_arith_t last = g->inMkr(align);
+  omni::ptr_arith_t end  = last + sz;
 
-  omni::ptr_arith_t end = last + sz;
-
-  if ( end <= (omni::ptr_arith_t) g->pd_inb_end) {
+  if (end <= g->inEnd()) {
     return;
   }
   else {
@@ -1018,18 +1009,23 @@ giopImpl12::getInputData(giopStream* g,omni::alignment_t align,size_t sz) {
     // Either the full message is already in the buffer or the part that is
     // in the buffer always ends at an 8 byte aligned boundary.
     // Also remember that sz is <= 8 always!
-    size_t extra = end - (omni::ptr_arith_t) g->pd_inb_end;
+    size_t extra = end - g->inEnd();
+
     if (extra != sz) {
-      if ( !(g->inputFragmentToCome() || g->inputExpectAnotherFragment()) ) {
+      if (omniORB::trace(25)) {
+        omniORB::logger log;
+        log << "getInputData requires invalid size " << (unsigned long)extra
+            << " bytes to satisfy input size " << (unsigned long)sz << ".\n";
+      }
+      if (!(g->inputFragmentToCome() || g->inputExpectAnotherFragment()) ) {
 	// The full message is already in the buffer. The unmarshalling
-	// code is asking for more. This is an error causes by the received
+	// code is asking for more. This is an error caused by the received
 	// data. We'll let the code below to raise a MARSHAL exception
 	sz = extra;            // in case sz == 0
       }
       else {
-
 	if (g->inputExpectAnotherFragment()) {
-	  // The incoming message is fragmented at the wrong boundary!!!
+	  // The incoming message is fragmented at the wrong boundary!
 	  inputTerminalProtocolError(g, __FILE__, __LINE__,
 				     "Message fragmented at incorrect "
 				     "boundary");
@@ -1037,7 +1033,7 @@ giopImpl12::getInputData(giopStream* g,omni::alignment_t align,size_t sz) {
 	}
 	// Very bad. Should never happen given our invariant.
 	{
-	  if( omniORB::trace(1) ) {
+	  if (omniORB::trace(1)) {
 	    omniORB::logger l;
 	    l << "Fatal error in unmarshalling message from "
 	      << g->pd_strand->connection->peeraddress()
@@ -1076,52 +1072,48 @@ giopImpl12::getInputData(giopStream* g,omni::alignment_t align,size_t sz) {
     g->pd_currentInputBuffer = g->inputChunk(g->inputFragmentToCome());
   }
   else {
-    g->pd_currentInputBuffer = g->pd_input;
-    g->pd_input = g->pd_currentInputBuffer->next;
+    g->pd_currentInputBuffer       = g->pd_input;
+    g->pd_input                    = g->pd_currentInputBuffer->next;
     g->pd_currentInputBuffer->next = 0;
   }
 
-  g->pd_inb_mkr = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			  g->pd_currentInputBuffer->start);
-  g->pd_inb_end = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			  g->pd_currentInputBuffer->last);
-  g->inputFragmentToCome(g->inputFragmentToCome() - 
-			 (g->pd_currentInputBuffer->last -
-			  g->pd_currentInputBuffer->start));
+  g->pd_inb_mkr = (void*)g->inputBufferStart();
+  g->pd_inb_end = (void*)g->inputBufferLast();
+  g->inputFragmentToCome(g->inputFragmentToCome() -
+                         g->inputBufferDataSize());
 }
 
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl12::skipInputData(giopStream* g,size_t sz) {
-  copyInputData(g,0,sz,omni::ALIGN_1);
+giopImpl12::skipInputData(giopStream* g, size_t sz) {
+  copyInputData(g, 0, sz, omni::ALIGN_1);
 }
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl12::copyInputData(giopStream* g,void* b, size_t sz,
+giopImpl12::copyInputData(giopStream* g, void* b, size_t sz,
 			  omni::alignment_t align) {
 
   // If b == 0, we don't actually copy the data but just skip <sz> bytes.
 
-  omni::ptr_arith_t last = omni::align_to((omni::ptr_arith_t)g->pd_inb_mkr,
-					  align);
+  omni::ptr_arith_t last = g->inMkr(align);
 
-  if ( last > (omni::ptr_arith_t) g->pd_inb_end ) {
+  if (last > g->inEnd()) {
     // Invariant check 
     // Either the full message is already in the buffer or the part that is
     // in the buffer always ends at an 8 byte aligned boundary.
-    if ( !(g->inputFragmentToCome() || g->inputExpectAnotherFragment()) ) {
+
+    if (!(g->inputFragmentToCome() || g->inputExpectAnotherFragment())) {
       // The full message is already in the buffer. The unmarshalling
-      // code is asking for more. This is an error causes by the received
+      // code is asking for more. This is an error caused by the received
       // data.
       OMNIORB_THROW(MARSHAL,MARSHAL_PassEndOfMessage,
 		    (CORBA::CompletionStatus)g->completion());
     }
     else {
-
       if (g->inputExpectAnotherFragment()) {
-	// The incoming message is fragmented at the wrong boundary!!!
+	// The incoming message is fragmented at the wrong boundary!
 	inputTerminalProtocolError(g, __FILE__, __LINE__,
 				   "Message fragmented at incorrect "
 				   "boundary (bulk copy)");
@@ -1129,7 +1121,7 @@ giopImpl12::copyInputData(giopStream* g,void* b, size_t sz,
       }
       // Very bad. Should never happen given our invariant.
       {
-	if( omniORB::trace(1) ) {
+	if (omniORB::trace(1)) {
 	  omniORB::logger l;
 	  l << "Fatal error in unmarshalling message from "
 	    << g->pd_strand->connection->peeraddress()
@@ -1144,21 +1136,26 @@ giopImpl12::copyInputData(giopStream* g,void* b, size_t sz,
   }
 
   g->pd_inb_mkr = (void*) last;
-  while (sz) {
 
-    size_t avail = (omni::ptr_arith_t) g->pd_inb_end - 
-                   (omni::ptr_arith_t) g->pd_inb_mkr;
-    if (avail >= sz) {
+  while (sz) {
+    size_t avail = g->inEnd() - g->inMkr();
+
+    if (avail >= sz)
       avail = sz;
-    }
+
     if (avail) {
-      if (b) memcpy(b,g->pd_inb_mkr,avail);
-      g->pd_inb_mkr = (void*)((omni::ptr_arith_t)g->pd_inb_mkr + avail);
+      if (b)
+        memcpy(b,g->pd_inb_mkr,avail);
+
+      g->pd_inb_mkr = (void*)(g->inMkr() + avail);
     }
     sz -= avail;
-    if (!sz) break;
 
-    if (b) b = (void*)((omni::ptr_arith_t)b + avail);
+    if (!sz)
+      break;
+
+    if (b)
+      b = (void*)((omni::ptr_arith_t)b + avail);
 
     if (g->pd_inb_mkr == g->pd_inb_end) {
 
@@ -1182,18 +1179,21 @@ giopImpl12::copyInputData(giopStream* g,void* b, size_t sz,
 	g->pd_currentInputBuffer = 0;
       }
       if (g->pd_input) {
-	g->pd_currentInputBuffer = g->pd_input;
-	g->pd_input = g->pd_currentInputBuffer->next;
+	g->pd_currentInputBuffer       = g->pd_input;
+	g->pd_input                    = g->pd_currentInputBuffer->next;
 	g->pd_currentInputBuffer->next = 0;
       }
       else {
+	if (b && sz >= giopStream::directReceiveCutOff) {
 
-	if ( b && sz >= giopStream::directReceiveCutOff ) {
-	  
-	  CORBA::ULong transz = g->inputFragmentToCome();
-	  if (transz > sz) transz = sz;
+	  size_t transz = g->inputFragmentToCome();
+	  if (transz > sz)
+            transz = sz;
+
 	  transz = (transz >> 3) << 3;
-	  g->inputCopyChunk(b,transz);
+
+	  g->inputCopyChunk(b, transz);
+
 	  sz -= transz;
 	  b = (void*)((omni::ptr_arith_t)b + transz);
 	  g->inputFragmentToCome(g->inputFragmentToCome() - transz);
@@ -1204,25 +1204,20 @@ giopImpl12::copyInputData(giopStream* g,void* b, size_t sz,
 	}
       }
 
-      g->pd_inb_mkr = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			      g->pd_currentInputBuffer->start);
-      g->pd_inb_end = (void*)((omni::ptr_arith_t)g->pd_currentInputBuffer + 
-			      g->pd_currentInputBuffer->last);
-      g->inputFragmentToCome(g->inputFragmentToCome() - 
-			     (g->pd_currentInputBuffer->last -
-			      g->pd_currentInputBuffer->start));
+      g->pd_inb_mkr = (void*)g->inputBufferStart();
+      g->pd_inb_end = (void*)g->inputBufferLast();
+      g->inputFragmentToCome(g->inputFragmentToCome() -
+                             g->inputBufferDataSize());
     }
   }	
 }
 
 ////////////////////////////////////////////////////////////////////////
-CORBA::ULong
+size_t
 giopImpl12::currentInputPtr(const giopStream* g) {
 
-  return  g->inputMessageSize() - 
-          g->inputFragmentToCome() -
-         ((omni::ptr_arith_t) g->pd_inb_end - 
-	  (omni::ptr_arith_t) g->pd_inb_mkr);
+  return (g->inputMessageSize() - g->inputFragmentToCome() -
+          (g->inEnd() - g->inMkr()));
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1235,11 +1230,10 @@ giopImpl12::inputTerminalProtocolError(giopStream* g,
   if (omniORB::trace(1)) {
     omniORB::logger l;
     l << "From endpoint: " << g->pd_strand->connection->peeraddress()
-      << ". Detected GIOP 1.2 protocol error in input message. "
-      << omniExHelper::strip(file) << ":" << line
+      << ". Detected GIOP 1.2 protocol error in input message: "
+      << message << ". " << omniExHelper::strip(file) << ":" << line
       << ". Connection is closed.\n";
   }
-
   inputRaiseCommFailure(g, message);
 }
 
@@ -1271,15 +1265,13 @@ giopImpl12::outputNewMessage(giopStream* g) {
   }
   g->pd_currentOutputBuffer->alignStart(omni::ALIGN_8);
 
-  char* hdr = (char*)g->pd_currentOutputBuffer + 
-                     g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[0] = 'G'; hdr[1] = 'I'; hdr[2] = 'O'; hdr[3] = 'P';
   hdr[4] = 1;   hdr[5] = 2;   hdr[6] = _OMNIORB_HOST_BYTE_ORDER_;
 
   g->pd_outb_mkr = (void*)(hdr + 12);
-  g->pd_outb_end = (void*)((omni::ptr_arith_t)g->pd_currentOutputBuffer + 
-			   g->pd_currentOutputBuffer->end);
+  g->pd_outb_end = (void*)g->outputBufferEnd();
   g->outputFragmentSize(0);
   g->outputMessageSize(0);
   *((CORBA::ULong*)(hdr + 8)) = 0xffffffff;
@@ -1300,15 +1292,13 @@ giopImpl12::outputMessageEnd(giopStream* g) {
 
   if (g->pd_currentOutputBuffer) {
 
-    omni::ptr_arith_t outbuf_begin = ((omni::ptr_arith_t) 
-				    g->pd_currentOutputBuffer + 
-				    g->pd_currentOutputBuffer->start);
+    omni::ptr_arith_t outbuf_begin = g->outputBufferStart();
 
-    if ( outbuf_begin != (omni::ptr_arith_t)g->pd_outb_mkr ) {
+    if (outbuf_begin != g->outMkr()) {
 
       if (!g->outputFragmentSize()) {
 
-	CORBA::ULong sz = (omni::ptr_arith_t)g->pd_outb_mkr - outbuf_begin -12;
+	CORBA::ULong sz = g->bufferedOutputSize() - 12;
 
 	if (!g->outputMessageSize()) {
 	  // The whole message is still in the buffer, we have to check
@@ -1318,7 +1308,10 @@ giopImpl12::outputMessageEnd(giopStream* g) {
 	  // The header's size is stored in the buffer
 	  CORBA::ULong hdrsz = *((CORBA::ULong*)(outbuf_begin + 8));
 	  OMNIORB_ASSERT(hdrsz != 0xffffffff);
-	  if ( omni::align_to(hdrsz,omni::ALIGN_8) == (omni::ptr_arith_t)(sz+12)) {
+
+	  if (omni::align_to(hdrsz,omni::ALIGN_8) ==
+              (omni::ptr_arith_t)(sz+12)) {
+
 	    // No argument has been marshalled, remove the padding
 	    sz = hdrsz - 12;
 	    g->pd_outb_mkr = (void*)(outbuf_begin + hdrsz);
@@ -1327,12 +1320,8 @@ giopImpl12::outputMessageEnd(giopStream* g) {
 	*((CORBA::ULong*)(outbuf_begin + 8)) = sz;
       }
 
-      g->pd_currentOutputBuffer->last = (omni::ptr_arith_t) g->pd_outb_mkr - 
-					(omni::ptr_arith_t) 
-                                        g->pd_currentOutputBuffer;
-
+      g->setOutputLastOffset();
       g->sendChunk(g->pd_currentOutputBuffer);
-    
     }
     // Notice that we do not release the buffer. Next time this giopStream
     // is re-used, the buffer will be reused as well.
@@ -1376,22 +1365,20 @@ giopImpl12::sendMsgErrorMessage(giopStream* g,
   }
   g->pd_currentOutputBuffer->alignStart(omni::ALIGN_8);
 
-  char* hdr = (char*)g->pd_currentOutputBuffer + 
-                     g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[0] = 'G'; hdr[1] = 'I'; hdr[2] = 'O'; hdr[3] = 'P';
   hdr[4] = 1;   hdr[5] = 2;   hdr[6] = _OMNIORB_HOST_BYTE_ORDER_;
 
   g->pd_outb_mkr = (void*)(hdr + 12);
-  g->pd_outb_end = (void*)((omni::ptr_arith_t)g->pd_currentOutputBuffer + 
-			   g->pd_currentOutputBuffer->end);
+  g->pd_outb_end = (void*)g->outputBufferEnd();
   g->outputFragmentSize(0);
   g->outputMessageSize(0);
 
   hdr[7] = (char)GIOP::MessageError;
   hdr[8] = hdr[9] = hdr[10] = hdr[11] = 0;
 
-  (void)  g->pd_strand->connection->Send(hdr,12);
+  g->pd_strand->connection->Send(hdr, 12, g->getDeadline());
 
   g->pd_strand->state(giopStrand::DYING);
 
@@ -1405,17 +1392,16 @@ giopImpl12::sendMsgErrorMessage(giopStream* g,
 void
 giopImpl12::marshalRequestHeader(giopStream* g) {
 
-  char* hdr = (char*) g->pd_currentOutputBuffer + 
-                      g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[7] = (char) GIOP::Request;
 
-  GIOP_C& giop_c = *(GIOP_C*)g;
-  cdrStream& s = (cdrStream&) *g;
-  omniCallDescriptor& calldesc = *giop_c.calldescriptor();
-  CORBA::Boolean response_expected = !calldesc.is_oneway();
-  
+  GIOP_C&    giop_c = *(GIOP_C*)g;
+  cdrStream& s      = (cdrStream&) *g;
 
+  omniCallDescriptor& calldesc          = *giop_c.calldescriptor();
+  CORBA::Boolean      response_expected = !calldesc.is_oneway();
+  
   omniInterceptors::clientSendRequest_T::info_T info(giop_c);
   omniInterceptorP::visit(info);
 
@@ -1440,7 +1426,7 @@ giopImpl12::marshalRequestHeader(giopStream* g) {
   }
   else {
     // Calculate the request header size
-    cdrCountingStream cs(g->TCS_C(),g->TCS_W(),12 + 4 + 1 + 3);
+    cdrCountingStream cs(g->TCS_C(), g->TCS_W(), 12 + 4 + 1 + 3);
 
     if (giop_c.ior()->addr_mode() == GIOP::KeyAddr) {
       GIOP::KeyAddr >>= cs;
@@ -1494,14 +1480,14 @@ giopImpl12::marshalRequestHeader(giopStream* g) {
   s.alignOutput(omni::ALIGN_8);
 }
 
+
 ////////////////////////////////////////////////////////////////////////
 void
 giopImpl12::sendLocateRequest(giopStream* g) {
 
   outputNewMessage(g);
 
-  char* hdr = (char*) g->pd_currentOutputBuffer + 
-                      g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[7] = (char)GIOP::LocateRequest;
 
@@ -1510,7 +1496,7 @@ giopImpl12::sendLocateRequest(giopStream* g) {
 
   // Compute and initialise the message size field
   {
-    cdrCountingStream cs(g->TCS_C(),g->TCS_W(),12);
+    cdrCountingStream cs(g->TCS_C(), g->TCS_W(), 12);
     operator>>= ((CORBA::ULong)0,cs);
     giop_c.ior()->marshalIORAddressingInfo(cs);
     outputSetFragmentSize(g,cs.total()-12);
@@ -1530,8 +1516,7 @@ giopImpl12::sendLocateRequest(giopStream* g) {
 void
 giopImpl12::marshalReplyHeader(giopStream* g) {
 
-  char* hdr = (char*) g->pd_currentOutputBuffer + 
-                      g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[7] = (char) GIOP::Reply;
 
@@ -1546,8 +1531,8 @@ giopImpl12::marshalReplyHeader(giopStream* g) {
   }
   else {
     // calculate the reply header size
-    cdrCountingStream cs(g->TCS_C(),g->TCS_W(),12);
-    operator>>= ((CORBA::ULong)0,cs);
+    cdrCountingStream cs(g->TCS_C(), g->TCS_W(), 12);
+    operator>>= ((CORBA::ULong)0, cs);
     rc >>= cs;
     giop_s.service_contexts() >>= cs;
     *((CORBA::ULong*)(hdr+8)) = cs.total();
@@ -1570,9 +1555,10 @@ giopImpl12::marshalReplyHeader(giopStream* g) {
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl12::sendSystemException(giopStream* g,const CORBA::SystemException& ex) {
-  GIOP_S& giop_s = *(GIOP_S*)g;
-  cdrStream& s = (cdrStream&) *g;
+giopImpl12::sendSystemException(giopStream* g,const CORBA::SystemException& ex)
+{
+  GIOP_S&    giop_s = *(GIOP_S*)g;
+  cdrStream& s      = (cdrStream&) *g;
 
   if (giop_s.state() == GIOP_S::ReplyIsBeingComposed) {
     // This system exception is raised during the marshalling of the reply.
@@ -1598,8 +1584,7 @@ giopImpl12::sendSystemException(giopStream* g,const CORBA::SystemException& ex) 
 
   outputNewMessage(g);
 
-  char* hdr = (char*) g->pd_currentOutputBuffer + 
-                      g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[7] = (char) GIOP::Reply;
 
@@ -1610,12 +1595,11 @@ giopImpl12::sendSystemException(giopStream* g,const CORBA::SystemException& ex) 
     omniInterceptorP::visit(info);
 
     if (giop_s.service_contexts().length() > 0) {
-
       // Compute and initialise the message size field. Only necessary
       // if there are service contexts, since we know a message without
       // service contexts will fit in a single buffer.
 
-      cdrCountingStream cs(g->TCS_C(),g->TCS_W(),12);
+      cdrCountingStream cs(g->TCS_C(), g->TCS_W(), 12);
       operator>>= ((CORBA::ULong)0,cs);
       operator>>= ((CORBA::ULong)0,cs);
       giop_s.service_contexts() >>= cs;
@@ -1626,7 +1610,7 @@ giopImpl12::sendSystemException(giopStream* g,const CORBA::SystemException& ex) 
       ex.minor() >>= cs;
       operator>>= ((CORBA::ULong)0,cs);
 
-      outputSetFragmentSize(g,cs.total()-12);
+      outputSetFragmentSize(g, cs.total() - 12);
       *((CORBA::ULong*)(hdr + 8)) = cs.total() - 12;
     }
   }
@@ -1668,8 +1652,8 @@ giopImpl12::sendSystemException(giopStream* g,const CORBA::SystemException& ex) 
 void
 giopImpl12::sendUserException(giopStream* g,const CORBA::UserException& ex) {
 
-  GIOP_S& giop_s = *(GIOP_S*)g;
-  cdrStream& s = (cdrStream&) *g;
+  GIOP_S&    giop_s = *(GIOP_S*)g;
+  cdrStream& s      = (cdrStream&) *g;
 
   giop_s.state(GIOP_S::ReplyIsBeingComposed);
 
@@ -1678,8 +1662,7 @@ giopImpl12::sendUserException(giopStream* g,const CORBA::UserException& ex) {
 
   outputNewMessage(g);
 
-  char* hdr = (char*)g->pd_currentOutputBuffer + 
-                     g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[7] = (char)GIOP::Reply;
 
@@ -1704,7 +1687,7 @@ giopImpl12::sendUserException(giopStream* g,const CORBA::UserException& ex) {
     cs.put_octet_array((const CORBA::Octet*) repoid, repoid_size);
     ex._NP_marshal(cs);
 
-    outputSetFragmentSize(g,cs.total()-12);
+    outputSetFragmentSize(g, cs.total() - 12);
     *((CORBA::ULong*)(hdr + 8)) = cs.total() - 12;
   }
 
@@ -1737,8 +1720,7 @@ giopImpl12::sendLocationForwardReply(giopStream* g,CORBA::Object_ptr obj,
 
   outputNewMessage(g);
   
-  char* hdr = (char*)g->pd_currentOutputBuffer + 
-                     g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[7] = (char)GIOP::Reply;
 
@@ -1780,11 +1762,9 @@ void
 giopImpl12::sendLocateReply(giopStream* g,GIOP::LocateStatusType rc,
 			    CORBA::Object_ptr obj,CORBA::SystemException* p) {
 
-
   outputNewMessage(g);
 
-  char* hdr = (char*)g->pd_currentOutputBuffer + 
-                     g->pd_currentOutputBuffer->start;
+  char* hdr = (char*)g->outputBufferStart();
 
   hdr[7] = (char)GIOP::LocateReply;
 
@@ -1813,12 +1793,12 @@ giopImpl12::sendLocateReply(giopStream* g,GIOP::LocateStatusType rc,
     break;
   }
 
-  int repoid_size;
-  const char* repoid;
+  int         repoid_size = 0;
+  const char* repoid      = 0;
   
   // Compute and initialise the message size field
   {
-    cdrCountingStream cs(g->TCS_C(),g->TCS_W(),12);
+    cdrCountingStream cs(g->TCS_C(), g->TCS_W(), 12);
     operator>>= ((CORBA::ULong)0,cs);
     operator>>= ((CORBA::ULong)0,cs);
     if (!CORBA::is_nil(extra)) {
@@ -1832,10 +1812,9 @@ giopImpl12::sendLocateReply(giopStream* g,GIOP::LocateStatusType rc,
       operator>>= ((CORBA::ULong)0,cs);
     }
 
-    outputSetFragmentSize(g,cs.total()-12);
+    outputSetFragmentSize(g, cs.total() - 12);
     *((CORBA::ULong*)(hdr + 8)) = cs.total() - 12;
   }
-
 
   // request id
   giop_s.requestId() >>= s;
@@ -1859,10 +1838,9 @@ giopImpl12::sendLocateReply(giopStream* g,GIOP::LocateStatusType rc,
 size_t
 giopImpl12::outputRemaining(const giopStream* g) {
 
-  CORBA::ULong total = g->outputFragmentSize();
+  size_t total = g->outputFragmentSize();
   if (!total) {
-    CORBA::ULong avail = (CORBA::Long)orbParameters::giopMaxMsgSize -
-                         (CORBA::Long)currentOutputPtr(g);
+    size_t avail = orbParameters::giopMaxMsgSize - currentOutputPtr(g);
     
     // Adjust avail to exactly the same value as calculated in outputFlush().
     // See the comment in outputFlush() for the reason why.
@@ -1877,20 +1855,17 @@ giopImpl12::outputRemaining(const giopStream* g) {
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl12::outputFlush(giopStream* g,CORBA::Boolean knownFragmentSize) {
+giopImpl12::outputFlush(giopStream* g, CORBA::Boolean knownFragmentSize) {
 
   // Note: g->outputFragmentSize() != 0 implies that the full message
   //       size has been pre-calculated and no GIOP Fragment should be
   //       sent! This also means that the message size limit has been
   //       checked and there is no need to check against
   //       orbParameters::giopMaxMsgSize.
-  //       
 
-  omni::ptr_arith_t outbuf_begin = ((omni::ptr_arith_t) 
-				    g->pd_currentOutputBuffer + 
-				    g->pd_currentOutputBuffer->start);
+  omni::ptr_arith_t outbuf_begin = g->outputBufferStart();
 
-  CORBA::ULong fsz = (omni::ptr_arith_t) g->pd_outb_mkr - outbuf_begin;
+  CORBA::ULong fsz = g->outMkr() - outbuf_begin;
 
   if (!g->outputFragmentSize()) {
     ((char*)outbuf_begin)[6] |= 0x2;
@@ -1932,13 +1907,12 @@ giopImpl12::outputFlush(giopStream* g,CORBA::Boolean knownFragmentSize) {
   if (outbuf_begin & 0x7) {
     // start has previously been changed to non 8-bytes aligned
     g->pd_currentOutputBuffer->alignStart(omni::ALIGN_8);
-    outbuf_begin = ((omni::ptr_arith_t) g->pd_currentOutputBuffer + 
-		                        g->pd_currentOutputBuffer->start);
+    outbuf_begin = g->outputBufferStart();
   }
 
-  g->pd_outb_mkr = (void*) outbuf_begin;
-  g->pd_outb_end = (void*)((omni::ptr_arith_t)g->pd_currentOutputBuffer + 
-			   g->pd_currentOutputBuffer->end);
+  g->pd_outb_mkr = (void*)outbuf_begin;
+  g->pd_outb_end = (void*)g->outputBufferEnd();
+
   g->pd_currentOutputBuffer->last = g->pd_currentOutputBuffer->start;
 
   if (!g->outputFragmentSize()) {
@@ -1951,24 +1925,22 @@ giopImpl12::outputFlush(giopStream* g,CORBA::Boolean knownFragmentSize) {
     g->pd_outb_mkr = (void*)(outbuf_begin + 16);
 
     // Now determine how much space we have left.
-    // If the message size has already reach orbParameters::giopMaxMsgSize,
+    // If the message size has already reached orbParameters::giopMaxMsgSize,
     // outputHasReachedLimit() will return TRUE.
-    CORBA::ULong avail = orbParameters::giopMaxMsgSize - g->outputMessageSize();
+    size_t avail = orbParameters::giopMaxMsgSize - g->outputMessageSize();
 
     // Adjust avail to make sure that it a multiple of 8.
     // This preserves our invariant: g->pd_outb_end always align on 8 bytes
     // boundary.
     avail = ((avail + 7) >> 3) << 3;
 
-    omni::ptr_arith_t newmkr = (omni::ptr_arith_t) g->pd_outb_mkr + avail;
+    omni::ptr_arith_t newmkr = g->outMkr() + avail;
 
     // If the new position is inside the buffer, set the end pointer.
     // Note that if avail is very large, newmkr may wrap around and be
     // < pd_outb_mkr.
 
-    if ((newmkr >= (omni::ptr_arith_t)g->pd_outb_mkr &&
-	 newmkr <  (omni::ptr_arith_t)g->pd_outb_end)) {
-
+    if ((newmkr >= g->outMkr() && newmkr < g->outEnd())) {
       g->pd_outb_end = (void*) newmkr;
     }
   }
@@ -1985,15 +1957,14 @@ giopImpl12::getReserveSpace(giopStream* g,omni::alignment_t align,size_t sz) {
     goto overflow;
   }
 
-  g->pd_outb_mkr = (void*) omni::align_to((omni::ptr_arith_t)g->pd_outb_mkr,
-					  align);
+  g->pd_outb_mkr = (void*)g->outMkr(align);
 
   if (sz == 0)
     return;
 
-  if ((omni::ptr_arith_t)g->pd_outb_mkr < (omni::ptr_arith_t)g->pd_outb_end) {
-    omni::ptr_arith_t newmkr = ((omni::ptr_arith_t)g->pd_outb_mkr + sz); 
-    if (newmkr <= (omni::ptr_arith_t)g->pd_outb_end)
+  if (g->outMkr() < g->outEnd()) {
+    omni::ptr_arith_t newmkr = g->outMkr() + sz;
+    if (newmkr <= g->outEnd())
       return;
     // Should never happen!!
     OMNIORB_ASSERT(0);
@@ -2012,26 +1983,39 @@ giopImpl12::getReserveSpace(giopStream* g,omni::alignment_t align,size_t sz) {
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl12::copyOutputData(giopStream* g,void* b, size_t sz,
+giopImpl12::copyOutputData(giopStream* g, void* b, size_t sz,
 			   omni::alignment_t align) {
-
+  
   if (outputHasReachedLimit(g)) {
     // Already reached the message size limit
     OMNIORB_THROW(MARSHAL,MARSHAL_MessageSizeExceedLimitOnClient,
 		  (CORBA::CompletionStatus)g->completion());
   }
 
-  omni::ptr_arith_t newmkr = omni::align_to((omni::ptr_arith_t)g->pd_outb_mkr,
-					    align);
-  OMNIORB_ASSERT(newmkr <= (omni::ptr_arith_t)g->pd_outb_end);
-
+  omni::ptr_arith_t newmkr = g->outMkr(align);
+  OMNIORB_ASSERT(newmkr <= g->outEnd());
+  
   g->pd_outb_mkr = (void*)newmkr;
 
-  if (sz >= giopStream::directSendCutOff
-#ifdef OMNIORB_ENABLE_ZIOP
-      && !g->pd_strand->compressor
-#endif
-      ) {
+  if (sz >= giopStream::directSendCutOff && !g->pd_strand->compressor) {
+
+    omni::ptr_arith_t outbuf_begin = g->outputBufferStart();
+
+    if (newmkr - outbuf_begin < giopStream::minChunkBeforeDirectSend) {
+      // Copy some of the data into the buffer, to prevent
+      // transmission of a small chunk.
+      size_t current = newmkr - outbuf_begin;
+      size_t avail   = g->outEnd() - newmkr;
+      size_t filler  = giopStream::minChunkBeforeDirectSend - current;
+      if (filler > avail)
+        filler = avail;
+
+      memcpy(g->pd_outb_mkr, b, filler);
+      sz -= filler;
+      g->pd_outb_mkr = (void*)(g->outMkr() + filler);
+      b = (void*)((omni::ptr_arith_t)b + filler);
+      newmkr = g->outMkr();
+    }
 
     // The fragment including this vector of bytes must end on a 8 byte
     // boundary. Therefore we may have to leave behind 0-7 bytes in the
@@ -2040,20 +2024,13 @@ giopImpl12::copyOutputData(giopStream* g,void* b, size_t sz,
     size_t leftover = (newmkr + sz) & 0x7;
 
     if (!g->outputFragmentSize()) {
-
-      omni::ptr_arith_t outbuf_begin = ((omni::ptr_arith_t) 
-					g->pd_currentOutputBuffer + 
-					g->pd_currentOutputBuffer->start);
-
-      CORBA::ULong fsz = (omni::ptr_arith_t) g->pd_outb_mkr - 
-            	         (omni::ptr_arith_t) outbuf_begin + sz - leftover - 12;
-
+      CORBA::ULong fsz = g->outMkr() - outbuf_begin + sz - leftover - 12;
       *((CORBA::ULong*)((omni::ptr_arith_t)outbuf_begin + 8)) = fsz;
     }
 
     outputFlush(g,1);
 
-    g->sendCopyChunk(b,sz - leftover);
+    g->sendCopyChunk(b, sz - leftover);
 
     if (leftover) {
       if (outputHasReachedLimit(g)) {
@@ -2067,16 +2044,18 @@ giopImpl12::copyOutputData(giopStream* g,void* b, size_t sz,
   }
 
   while (sz) {
-    size_t avail = (omni::ptr_arith_t) g->pd_outb_end -
-                   (omni::ptr_arith_t) g->pd_outb_mkr;
+    size_t avail = g->outEnd() - g->outMkr();
+
     if (avail > sz)
       avail = sz;
 
-    memcpy(g->pd_outb_mkr,b,avail);
+    memcpy(g->pd_outb_mkr, b, avail);
     sz -= avail;
-    g->pd_outb_mkr = (void*)((omni::ptr_arith_t) g->pd_outb_mkr + avail);
+
+    g->pd_outb_mkr = (void*)(g->outMkr() + avail);
 
     b = (void*)((omni::ptr_arith_t) b + avail);
+
     if (g->pd_outb_mkr == g->pd_outb_end) {
       outputFlush(g);
       if (sz && outputHasReachedLimit(g)) {
@@ -2090,29 +2069,19 @@ giopImpl12::copyOutputData(giopStream* g,void* b, size_t sz,
 
 
 ////////////////////////////////////////////////////////////////////////
-CORBA::ULong
+size_t
 giopImpl12::currentOutputPtr(const giopStream* g) {
 
-  CORBA::ULong fsz = (omni::ptr_arith_t) g->pd_outb_mkr - 
-                     ((omni::ptr_arith_t) g->pd_currentOutputBuffer + 
-		      g->pd_currentOutputBuffer->start);
+  size_t fsz = g->outMkr() - g->outputBufferStart();
 
   // Output offset is the sent message so far, plus the current buffer
   // minus 12 byte header.
-  CORBA::Long msz = g->outputMessageSize();
-
+  size_t msz = g->outputMessageSize();
   if (msz) {
-    if (!g->outputFragmentSize()) {
-      // At least one fragment has been output already; message has
-      // been extended by the current fragment size minus its 16 byte
-      // header (12 for GIOP header, plus 4 for request id).
-      return msz + fsz - 16;
-    }
-    else {
-      // Message is not being fragmented. Current pointer is just the
-      // current size plus the size sent so far.
-      return msz + fsz;
-    }
+    // At least one fragment has been output already; message has
+    // been extended by the current fragment size minus its 16 byte
+    // header (12 for GIOP header, plus 4 for request id).
+    return msz + fsz - 16;
   }
   else {
     // This is the first fragment -- message size is the fragment
@@ -2123,7 +2092,7 @@ giopImpl12::currentOutputPtr(const giopStream* g) {
 
 ////////////////////////////////////////////////////////////////////////
 void
-giopImpl12::outputSetFragmentSize(giopStream* g,CORBA::ULong msz) {
+giopImpl12::outputSetFragmentSize(giopStream* g, size_t msz) {
 
   if (msz > orbParameters::giopMaxMsgSize) {
     OMNIORB_THROW(MARSHAL,MARSHAL_MessageSizeExceedLimitOnClient,

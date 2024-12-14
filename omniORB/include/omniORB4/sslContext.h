@@ -3,66 +3,28 @@
 // sslContext.h               Created on: 29 May 2001
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2005-2008 Apasphere Ltd
+//    Copyright (C) 2005-2012 Apasphere Ltd
 //    Copyright (C) 2001      AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 // 
-
-/*
-  $Log$
-  Revision 1.1.4.5  2008/02/14 13:50:03  dgrisby
-  Initialise openssl only if necessary. Thanks Teemu Torma.
-
-  Revision 1.1.4.4  2006/01/10 12:24:04  dgrisby
-  Merge from omni4_0_develop pre 4.0.7 release.
-
-  Revision 1.1.4.3  2005/09/05 17:12:20  dgrisby
-  Merge again. Mainly SSL transport changes.
-
-  Revision 1.1.4.2  2005/01/06 23:08:22  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.4.1  2003/03/23 21:04:02  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.5  2002/09/05 14:29:01  dgrisby
-  Link force mechanism wasn't working with gcc.
-
-  Revision 1.1.2.4  2002/02/25 11:17:11  dpg1
-  Use tracedmutexes everywhere.
-
-  Revision 1.1.2.3  2001/09/14 11:10:35  sll
-  Do the right dllimport for win32.
-
-  Revision 1.1.2.2  2001/09/13 15:36:00  sll
-  Provide hooks to openssl for thread safety.
-  Switched to select v2 or v3 methods but accept only v3 or tls v1 protocol.
-  Added extra method set_supported_versions.
-
-  Revision 1.1.2.1  2001/06/11 18:11:07  sll
-  *** empty log message ***
-
-*/
 
 #ifndef __SSLCONTEXT_H__
 #define __SSLCONTEXT_H__
@@ -87,90 +49,206 @@ OMNI_FORCE_LINK(omnisslTP);
 #undef crypt
 
 OMNI_NAMESPACE_BEGIN(omni)
-  class omni_sslTransport_initialiser;
-OMNI_NAMESPACE_END(omni)
 
 class sslContext {
- public:
-  sslContext(const char* cafile, const char* keyfile, const char* password);
+public:
 
-  SSL_CTX* get_SSL_CTX() const { return pd_ctx; }
+  static _core_attr sslContext* singleton;
+
+  // sslContext singleton object. This object is used to manage all
+  // connections in the SSL transport.
+  //
+  // Application code can populate this pointer with a suitable
+  // sslContext object prior to calling CORBA::ORB_init. If it is not
+  // set, a default instance is created. This base class uses the
+  // global variables defined below to initialise itself, but an
+  // application-provided subclass may behave differently.
+  //
+  // The singleton is deleted by ORB::destroy(). If the application
+  // provides its own object here, and it calls ORB::destroy(), it
+  // must set the singleton again if it is going to call ORB_init()
+  // again.
   
-  // These three parameters must be set or else the default way to
+  
+  // These parameters must be set or else the default way to
   // initialise a sslContext singleton will not be used.
   static _core_attr const char* certificate_authority_file; // In PEM format
+  static _core_attr const char* certificate_authority_path; // Path
   static _core_attr const char* key_file;                   // In PEM format
   static _core_attr const char* key_file_password;
-
+  static _core_attr const char* cipher_list;
+  
   // These parameters can be overriden to adjust the verify mode and
   // verify callback passed to SSL_CTX_set_verify and the info
   // callback passed to SSL_CTX_set_info_callback.
-  static _core_attr int         verify_mode;
-  static _core_attr int       (*verify_callback)(int, X509_STORE_CTX*);
+  //
+  // If verify_mode_incoming is not -1 (the default), then incoming
+  // connections (i.e. connections accepted by a server) are given
+  // that mode instead of verify_mode.
 
-  static _core_attr void      (*info_callback)(const SSL *s,
-					       int where, int ret);
+  typedef int  (*omni_verify_cb)(int preverify_ok, X509_STORE_CTX *x509_ctx);
+  typedef void (*omni_info_cb)  (const SSL *ssl, int where, int ret);
+  
+  static _core_attr int            verify_mode;
+  static _core_attr int            verify_mode_incoming;
+  static _core_attr omni_verify_cb verify_callback;
+  static _core_attr omni_info_cb   info_callback;
 
-  // sslContext singleton object.
-  static _core_attr sslContext* singleton;
+  // If this parameter is true (the default), interceptor
+  // peerdetails() calls return a pointer to an
+  // sslContext::PeerDetails object; if false, peerdetails() returns
+  // an X509*.
 
-  virtual ~sslContext();
+  static _core_attr CORBA::Boolean full_peerdetails;
 
- protected:
-  virtual SSL_METHOD* set_method(); 
-  // Default to return SSLv23_method().
+  class PeerDetails {
+  public:
+    inline PeerDetails(SSL* s, X509* c, CORBA::Boolean v)
+      : pd_ssl(s), pd_cert(c), pd_verified(v) {}
 
-  virtual void set_supported_versions(); 
-  // Default to SSL_CTX_set_options(ssL_ctx, SSL_OP_NO_SSLv2); That is
-  // only accept SSL version 3 or TLS version 1.
+    ~PeerDetails();
 
-  virtual void set_CA();
-  // Default to read the certificates of the Certificate Authorities in the 
-  // file named by the static member certificate_authority_file.
+    inline SSL*           ssl()      { return pd_ssl; }
+    inline X509*          cert()     { return pd_cert; }
+    inline CORBA::Boolean verified() { return pd_verified; }
 
-  virtual void set_certificate();
-  // Default to read the certificate of this server from the file named
-  // by the static member key_file. 
+  private:
+    SSL*           pd_ssl;
+    X509*          pd_cert;
+    CORBA::Boolean pd_verified;
+  };
 
-  virtual void set_cipher();
-  // Default to call OpenSSL_add_all_algorithms().
 
-  virtual void set_privatekey();
-  // Default to read the private key of this server from the file named
-  // by the static member key_file. Notice that this file also contains
-  // the server's certificate.
+  sslContext(const char* cafile, const char* keyfile, const char* password);
+  // Construct with CA file, key and password.
 
-  virtual void seed_PRNG();
-  // On systems that does not provide a /dev/urandom, default to provide
-  // a seed for the PRNG using process ID and time of date. This is not
-  // a very good seed cryptographically. Secure applications should definitely
-  // override this method to provide a better seed.
-
-  virtual void set_DH();
-
-  virtual void set_ephemeralRSA();
-
-  virtual int set_verify_mode();
-  // Set the SSL verify mode.
-  // Defaults to return SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT.
+  sslContext(const char* cafile, const char* capath,
+             const char* keyfile, const char* password);
+  // Construct with CA file, CA path, key and password. Either cafile
+  // or capath, but not both, may be zero.
 
   sslContext();
+  // Construct empty, ready to set with set_globals().
+  
+  virtual ~sslContext();
 
-  friend class _OMNI_NS(omni_sslTransport_initialiser);
- private:
+  virtual void reinit(CORBA::Boolean read_globals=1);
+  // Re-initialise, replacing the SSL_CTX with a new one, with
+  // different keys or parameters. Note that the old one is leaked,
+  // because it may be in use in existing connections.
+  //
+  // If read_globals is true, reads new configuration from the global
+  // variables defined above; if false, uses the members set in this
+  // sslContext object.
 
-  void thread_setup();
-  void thread_cleanup();
 
+  //
+  // Methods to set parameters in this sslContext object. Start-up
+  // parameters must be set before ORB_init(). After ORB_init, load
+  // these parameters by calling reinit(false).
+
+  void update_CA(const char* cafile, const char* capath);
+  void update_key(const char* keyfile, const char* password);
+  void update_cipher_list(const char* cipher_list);
+  void update_verify_mode(int mode, int mode_incoming, omni_verify_cb callback);
+  void update_info_cb(omni_info_cb callback);
+
+
+  //
+  // Methods used internally
+  
+  virtual void copy_globals(CORBA::Boolean include_keys);
+  // Copy the state from the global variables into this context.
+  
   virtual void internal_initialise();
+  // Initialise the SSL_CTX from the parameters. Only called
+  // internally to omniORB.
 
-  const char* 	    pd_cafile;
-  const char* 	    pd_keyfile;
-  const char* 	    pd_password;
-  SSL_CTX*    	    pd_ctx;
-  omni_tracedmutex* pd_locks;
-  CORBA::Boolean    pd_ssl_owner;
+  inline ::SSL* ssl_new()
+  {
+    omni_tracedmutex_lock sync(pd_ctx_lock);
+    return SSL_new(pd_ctx);
+  }
+  
+  void set_incoming_verify(SSL* ssl);
+  // Set the verify mode on an incoming connection.
+  
+protected:
+  virtual const char* ctxType();
+  // Returns string form of the context type.
+  
+  //
+  // Virtual functions that populate the SSL_CTX in pd_ctx. Subclasses
+  // may override these if required. Thse are called while holding
+  // pd_ctx_lock.
+
+  SSL_CTX* get_SSL_CTX() const
+  {
+    // Get the SSL_CTX without locking. Should only be used by legacy
+    // subclasses that override the virtual set_... methods defined
+    // below,
+    return pd_ctx;
+  }
+
+  virtual SSL_METHOD* set_method(); 
+  // Method to pass to SSL_CTX_new. Defaults to return TLS_method().
+
+  virtual void set_supported_versions(); 
+  // Default to
+  //   SSL_CTX_set_options(ssl_ctx,
+  //                       SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
+  //                       SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+  // That is, only accept TLS 1.2 or later.
+
+  virtual void set_CA();
+  // Set CA details. Calls both SSL_CTX_load_verify_locations and
+  // SSL_CTX_set_client_CA_list.
+
+  virtual void set_certificate();
+  // Sets the certificate of this server by calling
+  // SSL_CTX_use_certificate_chain_file.
+
+  virtual void set_cipher_list();
+  // Sets the cipher list control string with SSL_CTX_set_cipher_list.
+  
+  virtual void set_privatekey();
+  // Sets the private key to the configured key file with
+  // SSL_CTX_use_PrivateKey_file. Notice that this file also contains
+  // the server's certificate.
+
+  virtual void set_DH();
+  // Set the Diffie-Hellman parameters.
+  
+  virtual void set_ephemeralRSA();
+  // Sets the RSA key for ephemeral RSA key exchange. The default
+  // implementation does nothing.
+
+  virtual void set_verify();
+  // Set the SSL verify mode and verify callback.
+
+  virtual void set_info_cb();
+  // Sets the info callback.
+
+  
+  virtual void create_ctx();
+  // Create the SSL_CTX.
+  
+  CORBA::String_var pd_cafile;
+  CORBA::String_var pd_capath;
+  CORBA::String_var pd_keyfile;
+  CORBA::String_var pd_password;
+  CORBA::String_var pd_password_in_ctx;
+  CORBA::String_var pd_cipher_list;
+  int               pd_verify_mode;
+  int               pd_verify_mode_incoming;
+  omni_verify_cb    pd_verify_cb;
+  omni_info_cb      pd_info_cb;
+
+  SSL_CTX*          pd_ctx;
+  omni_tracedmutex  pd_ctx_lock;
 };
+
+OMNI_NAMESPACE_END(omni)
 
 #undef _core_attr
 

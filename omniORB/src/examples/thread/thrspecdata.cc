@@ -8,14 +8,9 @@
 // which returns a value.
 //
 
-#include <omniORB4/CORBA_sysdep.h> // for HAVE_STD
+#include <iostream>
+using namespace std;
 
-#ifdef HAVE_STD
-#  include <iostream>
-   using namespace std;
-#else
-#  include <iostream.h>
-#endif
 #include <omnithread.h>
 
 class thread_with_data : public omni_thread {

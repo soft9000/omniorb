@@ -9,65 +9,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //
-
-/*
-  $Log$
-  Revision 1.1.4.2  2005/01/06 23:10:37  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.4.1  2003/03/23 21:02:07  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.9  2003/01/22 11:43:52  dgrisby
-  Minor error message fixes in registry code.
-
-  Revision 1.1.2.8  2002/07/03 15:46:40  dgrisby
-  Minor registry code bugfix.
-
-  Revision 1.1.2.7  2002/03/18 15:13:09  dpg1
-  Fix bug with old-style ORBInitRef in config file; look for
-  -ORBtraceLevel arg before anything else; update Windows registry
-  key. Correct error message.
-
-  Revision 1.1.2.6  2002/03/11 12:21:07  dpg1
-  ETS things.
-
-  Revision 1.1.2.5  2001/08/21 11:02:18  sll
-  orbOptions handlers are now told where an option comes from. This
-  is necessary to process DefaultInitRef and InitRef correctly.
-
-  Revision 1.1.2.4  2001/08/20 16:39:19  dpg1
-  Correct spelling mistake :-)
-
-  Revision 1.1.2.3  2001/08/20 15:38:56  sll
-  Multi-options, such as endPoint, InitRef are support in NT registry.
-
-  Revision 1.1.2.2  2001/08/20 10:43:28  sll
-  New orb configuration parsing now works with NT registry.
-
-  Revision 1.1.2.1  2001/08/20 08:19:24  sll
-  Read the new ORB configuration file format. Can still read old format.
-  Can also set configuration parameters from environment variables.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <orbOptions.h>
@@ -90,11 +47,10 @@ static void parseConfigReg(orbOptions& opt, HKEY rootkey);
 static void parseOldConfigReg(orbOptions& opt, HKEY rootkey);
 
 CORBA::Boolean
-orbOptions::importFromRegistry() throw (orbOptions::Unknown,
-					orbOptions::BadParam) {
+orbOptions::importFromRegistry() {
 
-  char* rootregname;
-  HKEY  rootkey;
+  const char* rootregname;
+  HKEY        rootkey;
 
   rootregname = NEW_REGKEY;
   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,rootregname,0,
@@ -346,8 +302,8 @@ void parseOldConfigReg(orbOptions& opt, HKEY rootkey) {
   }
   if (omniORB::trace(2)) {
     omniORB::logger l;
-    l << "For the moment this is accepted to maintain backward compatibility.\n"
-      << "omniORB: Please update to the new registry format ASAP.\n";
+    l << "For the moment this is accepted to maintain backward compatibility. "
+      << "Please update to the new registry format ASAP.\n";
   }
 
   DWORD index = 0;

@@ -8,32 +8,25 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //
 //    Global definitions and operators for the Fixed type
 
-// $Log$
-// Revision 1.1.2.1  2001/03/13 10:32:05  dpg1
-// Fixed point support.
-//
-
-#ifndef __fixed_h__
-#define __fixed_h__
+#ifndef __omniorb_fixed_h__
+#define __omniorb_fixed_h__
 
 
 //
@@ -86,7 +79,7 @@ public:
     CORBA::Fixed(val) { PR_setLimits(idl_digits, idl_scale); }
 
 #endif
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   _omni_Fixed(CORBA::LongLong val) :
     CORBA::Fixed(val) { PR_setLimits(idl_digits, idl_scale); }
 
@@ -94,12 +87,12 @@ public:
     CORBA::Fixed(val) { PR_setLimits(idl_digits, idl_scale); }
 
 #endif
-#ifndef NO_FLOAT
+#ifndef OMNI_NO_FLOAT
   _omni_Fixed(CORBA::Double val) :
     CORBA::Fixed(val) { PR_setLimits(idl_digits, idl_scale); }
 
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   _omni_Fixed(CORBA::LongDouble val) :
     CORBA::Fixed(val) { PR_setLimits(idl_digits, idl_scale); }
 
@@ -111,4 +104,4 @@ public:
     CORBA::Fixed(val) { PR_setLimits(idl_digits, idl_scale); }
 };
 
-#endif // __fixed_h__
+#endif // __omniorb_fixed_h__

@@ -3,86 +3,28 @@
 // cdrMemoryStream.cc         Created on: 13/1/99
 //                            Author    : Sai Lai Lo (sll)
 //
-//    Copyright (C) 2003-2006 Apasphere Ltd
+//    Copyright (C) 2003-2012 Apasphere Ltd
 //    Copyright (C) 1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
-//	*** PROPRIETORY INTERFACE ***
+//	*** PROPRIETARY INTERFACE ***
 //	
-
-/*
-  $Log$
-  Revision 1.1.6.5  2006/05/20 16:23:36  dgrisby
-  Minor cdrMemoryStream and TypeCode performance tweaks.
-
-  Revision 1.1.6.4  2005/11/17 17:03:26  dgrisby
-  Merge from omni4_0_develop.
-
-  Revision 1.1.6.3  2005/01/06 23:10:12  dgrisby
-  Big merge from omni4_0_develop.
-
-  Revision 1.1.6.2  2004/07/31 23:47:11  dgrisby
-  Properly set pd_clear_memory flag in all situations.
-
-  Revision 1.1.6.1  2003/03/23 21:02:24  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.4.10  2003/02/17 01:24:04  dgrisby
-  Grow cdrMemoryStreams exponentially rather than linearly.
-
-  Revision 1.1.4.9  2001/10/17 16:33:27  dpg1
-  New downcast mechanism for cdrStreams.
-
-  Revision 1.1.4.8  2001/08/22 13:29:48  dpg1
-  Re-entrant Any marshalling.
-
-  Revision 1.1.4.7  2001/08/17 17:12:34  sll
-  Modularise ORB configuration parameters.
-
-  Revision 1.1.4.6  2001/08/03 17:41:18  sll
-  System exception minor code overhaul. When a system exeception is raised,
-  a meaning minor code is provided.
-
-  Revision 1.1.4.5  2001/04/18 18:18:11  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.1.4.4  2000/11/15 17:18:20  sll
-  Added char, wchar codeset convertor support to cdrMemoryStream and
-  cdrEncapsulationStream.
-
-  Revision 1.1.4.3  2000/11/03 18:49:16  sll
-  Separate out the marshalling of byte, octet and char into 3 set of distinct
-  marshalling functions.
-  Renamed put_char_array and get_char_array to put_octet_array and
-  get_octet_array.
-  New string marshal member functions.
-
-  Revision 1.1.4.2  2000/10/10 10:14:27  sll
-  Extra ctor for cdrEncapsulationStream which initialise the buffer by
-  fetching data from the argument cdrStream.
-
-  Revision 1.1.4.1  2000/09/27 17:30:28  sll
-  *** empty log message ***
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <orbParameters.h>
@@ -271,50 +213,18 @@ cdrMemoryStream::copy_to(cdrStream& s, int size, omni::alignment_t align) {
 
 
 void
-cdrMemoryStream::rewindInputPtr()
-{
-  pd_inb_mkr = pd_bufp_8;
-  pd_inb_end = (pd_readonly_and_external_buffer) ? pd_inb_end : pd_outb_mkr;
-}
-
-void
-cdrMemoryStream::rewindPtrs()
-{
-  if (!pd_readonly_and_external_buffer) {
-    pd_outb_mkr = pd_inb_mkr = pd_inb_end = pd_bufp_8;
-  }
-  else {
-    pd_outb_mkr = pd_outb_end = 0;
-    pd_inb_mkr  = pd_bufp;
-  }
-}
-  
-CORBA::ULong 
-cdrMemoryStream::bufSize() const
-{
-  return (CORBA::ULong)((omni::ptr_arith_t)pd_outb_mkr - 
-			(omni::ptr_arith_t)pd_bufp_8);
-}
-
-void*
-cdrMemoryStream::bufPtr() const
-{
-  return pd_bufp_8;
-}
-
-void
 cdrMemoryStream::setByteSwapFlag(CORBA::Boolean littleendian)
 {
   pd_marshal_byte_swap = pd_unmarshal_byte_swap = (littleendian == ((CORBA::Boolean)omni::myByteOrder)) ? 0 : 1; 
 }
 
-CORBA::ULong
+size_t
 cdrMemoryStream::currentInputPtr() const
 {
   return ((omni::ptr_arith_t)pd_inb_mkr - (omni::ptr_arith_t)pd_bufp_8);
 }
 
-CORBA::ULong
+size_t
 cdrMemoryStream::currentOutputPtr() const
 {
   return ((omni::ptr_arith_t)pd_outb_mkr - (omni::ptr_arith_t)pd_bufp_8);
@@ -330,9 +240,9 @@ cdrMemoryStream::cdrMemoryStream(void* databuffer)
   pd_bufp = databuffer;
   pd_bufp_8 = databuffer;
 
-#if (SIZEOF_LONG == SIZEOF_PTR)
+#if (OMNI_SIZEOF_LONG == OMNI_SIZEOF_PTR)
   pd_inb_end = (void *) ULONG_MAX;
-#elif (SIZEOF_INT == SIZEOF_PTR)
+#elif (OMNI_SIZEOF_INT == OMNI_SIZEOF_PTR)
   pd_inb_end = (void *) UINT_MAX;
 #elif defined (_WIN64)
   pd_inb_end = (void *) _UI64_MAX;
@@ -659,13 +569,13 @@ cdrCountingStream::fetchInputData(omni::alignment_t,size_t)
 {
 }
 
-CORBA::ULong
+size_t
 cdrCountingStream::currentInputPtr() const 
 {
-  return (CORBA::ULong) pd_total;
+  return pd_total;
 }
 
-CORBA::ULong
+size_t
 cdrCountingStream::currentOutputPtr() const 
 { 
   return 0;

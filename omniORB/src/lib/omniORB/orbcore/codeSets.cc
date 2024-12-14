@@ -3,92 +3,28 @@
 // codeSets.cc                Created on: 18/10/2000
 //                            Author    : Duncan Grisby (dpg1)
 //
-//    Copyright (C) 2002-2008 Apasphere Ltd
+//    Copyright (C) 2002-2013 Apasphere Ltd
 //    Copyright (C) 2000 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Base implementation of code set conversion functions
 //
-
-/*
-  $Log$
-  Revision 1.1.4.6  2008/08/08 18:45:48  dgrisby
-  Add missing ISO-8859 and Windows code sets.
-
-  Revision 1.1.4.5  2006/08/17 16:21:21  dgrisby
-  Second call to server with no codeset information would fail.
-
-  Revision 1.1.4.4  2006/07/18 16:21:22  dgrisby
-  New experimental connection management extension; ORB core support
-  for it.
-
-  Revision 1.1.4.3  2006/07/02 22:52:05  dgrisby
-  Store self thread in task objects to avoid calls to self(), speeding
-  up Current. Other minor performance tweaks.
-
-  Revision 1.1.4.2  2006/06/05 11:25:30  dgrisby
-  Move codeset initialisation code to a more logical source file.
-
-  Revision 1.1.4.1  2003/03/23 21:02:24  dgrisby
-  Start of omniORB 4.1.x development branch.
-
-  Revision 1.1.2.12  2003/03/03 12:32:33  dgrisby
-  EBCDIC code sets. Thanks Coleman Corrigan.
-
-  Revision 1.1.2.11  2002/12/19 13:56:58  dgrisby
-  New Windows 1251 code set. (Thanks Vasily Tchekalkin).
-
-  Revision 1.1.2.10  2001/07/26 16:37:20  dpg1
-  Make sure static initialisers always run.
-
-  Revision 1.1.2.9  2001/07/26 11:28:58  dpg1
-  Print GIOP version information when listing code sets.
-
-  Revision 1.1.2.8  2001/07/25 10:56:28  dpg1
-  Fix static initialiser problem with codesets.
-
-  Revision 1.1.2.7  2001/06/13 20:12:32  sll
-  Minor updates to make the ORB compiles with MSVC++.
-
-  Revision 1.1.2.6  2001/05/31 16:18:12  dpg1
-  inline string matching functions, re-ordered string matching in
-  _ptrToInterface/_ptrToObjRef
-
-  Revision 1.1.2.5  2001/04/18 18:18:11  sll
-  Big checkin with the brand new internal APIs.
-
-  Revision 1.1.2.4  2000/11/22 14:37:59  dpg1
-  Code set marshalling functions now take a string length argument.
-
-  Revision 1.1.2.3  2000/11/15 17:18:47  sll
-  Added marshalling operators for the TAG_CODE_SETS component.
-
-  Revision 1.1.2.2  2000/11/02 10:16:27  dpg1
-  Correct some minor errors in code set implementation. Remove Big5
-  converter since it's wrong.
-
-  Revision 1.1.2.1  2000/10/27 15:42:07  dpg1
-  Initial code set conversion support. Not yet enabled or fully tested.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/omniInterceptors.h>
@@ -131,6 +67,15 @@ omniCodeSet::TCS_C* orbParameters::anyCharCodeSet = 0;
 
 omniCodeSet::TCS_W* orbParameters::anyWCharCodeSet = 0;
 //  set the preferred code set for wchar data inside anys
+//
+
+omniCodeSet::TCS_C* orbParameters::defaultCharCodeSet = 0;
+//  set the code set for char data sent to servers that have not specified one
+//
+
+omniCodeSet::TCS_W* orbParameters::defaultWCharCodeSet = 0;
+//  set the code set for wchar data sent to servers that have not specified one
+//
 
 
 //
@@ -533,11 +478,9 @@ omniIOR::unmarshal_TAG_CODE_SETS(const IOP::TaggedComponent& c, omniIOR& ior)
       if (tcs_c) break;
     }
   }
-  if (!tcs_c && (info.ForCharData.native_code_set ||
-		 info.ForCharData.conversion_code_sets.length())) {
-    // The server has specified its native code set or at least one
-    // conversion code set. But we cannot a TCS_C for any of these
-    // code set. In this case, we use the fallback code set.
+  if (!tcs_c) {
+    // The server either specified code sets we do not know, or did
+    // not specify any at all. We use the fallback code set.
     tcs_c = omniCodeSet::getTCS_C(omniCodeSet::ID_UTF_8,
 				  ior.getIORInfo()->version());
   }
@@ -558,11 +501,9 @@ omniIOR::unmarshal_TAG_CODE_SETS(const IOP::TaggedComponent& c, omniIOR& ior)
       if (tcs_w) break;
     }
   }
-  if (!tcs_w && (info.ForWcharData.native_code_set ||
-		 info.ForWcharData.conversion_code_sets.length())) {
-    // The server has specified its native code set or at least one
-    // conversion code set. But we cannot a TCS_W for any of these
-    // code set. In this case, we use the fallback code set.
+  if (!tcs_w) {
+    // The server either specified code sets we do not know, or did
+    // not specify any at all. We use the fallback code set.
     tcs_w = omniCodeSet::getTCS_W(omniCodeSet::ID_UTF_16,
 				  ior.getIORInfo()->version());
   }
@@ -583,117 +524,6 @@ static void write_codeset_name(char* buf, const char* cname,
   }
 }
 
-char*
-omniIOR::dump_TAG_CODE_SETS(const IOP::TaggedComponent& c)
-{
-
-  OMNIORB_ASSERT(c.tag == IOP::TAG_CODE_SETS);
-  cdrEncapsulationStream e(c.component_data.get_buffer(),
-			   c.component_data.length(),1);
-
-  CONV_FRAME::CodeSetComponentInfo info;
-  info <<= e;
-
-  CORBA::ULong bufsize = 0;
-  const char* ncs_c;
-  const char* ncs_w;
-
-  {
-    omniCodeSet::NCS_C* n;
-    n = omniCodeSet::getNCS_C(info.ForCharData.native_code_set);
-    if (n)
-      ncs_c = n->name();
-    else if (info.ForCharData.native_code_set == 0)
-      ncs_c = not_specified;
-    else
-      ncs_c = not_supported;
-    bufsize += strlen(ncs_c) + 1;
-  }
-
-  {
-    omniCodeSet::NCS_W* n;
-    n = omniCodeSet::getNCS_W(info.ForWcharData.native_code_set);
-    if (n)
-      ncs_w = n->name();
-    else if (info.ForWcharData.native_code_set == 0)
-      ncs_w = not_specified;
-    else
-      ncs_w = not_supported;
-    bufsize += strlen(ncs_w) + 1;
-  }
-
-  CORBA::ULong total,index;
-  const char** tcs_c;
-  const char** tcs_w;
-
-  total = info.ForCharData.conversion_code_sets.length();
-  tcs_c = new const char*[total+1];
-  for (index = 0; index < total; index++) {
-    omniCodeSet::TCS_C* t;
-    t = omniCodeSet::getTCS_C(info.ForCharData.conversion_code_sets[index],
-			      giopStreamImpl::maxVersion()->version());
-    if (t)
-      tcs_c[index] = t->name();
-    else if (info.ForCharData.conversion_code_sets[index] == 0)
-      tcs_c[index] = not_specified;
-    else
-      tcs_c[index] = not_supported;
-    bufsize += strlen(tcs_c[index]) + 3;
-  }
-  tcs_c[index] = 0;
-
-  total = info.ForWcharData.conversion_code_sets.length();
-  tcs_w = new const char*[total+1];
-  for (index = 0; index < total; index++) {
-    omniCodeSet::TCS_W* t;
-    t = omniCodeSet::getTCS_W(info.ForWcharData.conversion_code_sets[index],
-			      giopStreamImpl::maxVersion()->version());
-    if (t)
-      tcs_w[index] = t->name();
-    else if (info.ForWcharData.conversion_code_sets[index] == 0)
-      tcs_w[index] = not_specified;
-    else
-      tcs_w[index] = not_supported;
-    bufsize += strlen(tcs_w[index]) + 3;
-  }
-  tcs_w[index] = 0;
-
-  CORBA::String_var strbuf(CORBA::string_alloc(bufsize+256));
-  const char** p;
-  strcpy(strbuf,"TAG_CODE_SETS char native code set: ");
-  write_codeset_name(strbuf,ncs_c,info.ForCharData.native_code_set);
-  strcat(strbuf,"\n");
-  strcat(strbuf,"              char conversion code set: ");
-  p = tcs_c;
-  index = 0;
-  while (*p) {
-    if (index) 
-      strcat(strbuf,", ");
-    write_codeset_name(strbuf,*p,info.ForCharData.conversion_code_sets[index]);
-    p++; index++;
-  }
-  strcat(strbuf,"\n");
-
-  strcat(strbuf,"              wchar native code set: ");
-  write_codeset_name(strbuf,ncs_w,info.ForWcharData.native_code_set);
-  strcat(strbuf,"\n");
-  strcat(strbuf,"              wchar conversion code set: ");
-  p = tcs_w;
-  index = 0;
-  while (*p) {
-    if (index) 
-      strcat(strbuf,", ");
-    write_codeset_name(strbuf,*p,
-		       info.ForWcharData.conversion_code_sets[index]);
-    p++; index++;
-  }
-  strcat(strbuf,"\n");
-
-  delete [] tcs_c;
-  delete [] tcs_w;
-
-  return strbuf._retn();
-}
 
 //
 // Client side interceptor for code set service context
@@ -705,8 +535,8 @@ setCodeSetServiceContext(omniInterceptors::clientSendRequest_T::info_T& info)
 {
   omniCodeSet::TCS_C* tcs_c;
   omniCodeSet::TCS_W* tcs_w;
-  giopStrand& d = (giopStrand&)info.giop_c;
-  GIOP::Version ver = info.giop_c.version();
+
+  giopStrand& d = info.giop_c.strand();
 
   if (d.tcs_selected) {
     // giopStream::acquireClient never gives out the same strand
@@ -725,6 +555,7 @@ setCodeSetServiceContext(omniInterceptors::clientSendRequest_T::info_T& info)
     // into the 2 IORs a different set of codesets.
   }
 
+  GIOP::Version ver = info.giop_c.version();
   if (ver.minor < 1) {
     // Code set service context is only defined from GIOP 1.1 onwards,
     // so here we do not attempt to set a codeset service context.
@@ -737,11 +568,25 @@ setCodeSetServiceContext(omniInterceptors::clientSendRequest_T::info_T& info)
   }
 
   // Get codeset information from the IOR.
-  const omniIOR* ior = info.giop_c.ior();
-  tcs_c = ior->getIORInfo()->TCS_C();
-  tcs_w = ior->getIORInfo()->TCS_W();
+  const omniIOR::IORInfo* ior_info = info.giop_c.ior()->getIORInfo();
+  tcs_c = ior_info->TCS_C();
+  tcs_w = ior_info->TCS_W();
 
-  if (tcs_c || tcs_w) {
+  if (!(tcs_c || tcs_w)) {
+    // The IOR did not specify anything, so according to the CORBA
+    // specification, we should use the default ISO-8859-1 for char
+    // and nothing for wchar, as below. We allow the defaults to be
+    // overridden so we can gracefully handle badly behaved servers.
+    tcs_c = orbParameters::defaultCharCodeSet;
+    tcs_w = orbParameters::defaultWCharCodeSet;
+
+    if (omniORB::trace(25) && (tcs_c || tcs_w)) {
+      omniORB::logger log;
+      log << "Use default codesets for server that did not specify any.\n";
+    }
+  }
+
+  if (tcs_c) {
     d.tcs_c = tcs_c;
     d.tcs_w = tcs_w;
     d.version = ver;
@@ -795,13 +640,13 @@ static
 CORBA::Boolean
 getCodeSetServiceContext(omniInterceptors::serverReceiveRequest_T::info_T& info)
 {
-  giopStrand& d = (giopStrand&)(info.giop_s);
+  giopStrand&   d   = info.giop_s.strand();
   GIOP::Version ver = info.giop_s.version();
 
   if (ver.minor < 1) {
     // Code set service context is only defined from  GIOP 1.1 onwards
     if (!d.tcs_selected) {
-      d.tcs_c = omniCodeSet::getTCS_C(omniCodeSet::ID_8859_1,ver);
+      d.tcs_c = omniCodeSet::getTCS_C(omniCodeSet::ID_8859_1, ver);
       d.tcs_w = 0;
     }
     info.giop_s.TCS_C(d.tcs_c);
@@ -836,9 +681,9 @@ getCodeSetServiceContext(omniInterceptors::serverReceiveRequest_T::info_T& info)
 	// Client do not specify wchar TCS.
 	tcs_w = 0;
       }
-      d.version = ver;
-      d.tcs_c = tcs_c;
-      d.tcs_w = tcs_w;
+      d.version      = ver;
+      d.tcs_c        = tcs_c;
+      d.tcs_w        = tcs_w;
       d.tcs_selected = 1;
 
       if (omniORB::trace(25)) {
@@ -852,11 +697,19 @@ getCodeSetServiceContext(omniInterceptors::serverReceiveRequest_T::info_T& info)
   }
 
   if (!d.tcs_selected) {
-    // In the absence of any codeset negotiation, we choose 
-    // ISO-8859-1 as the transmission code set for char
-    d.version.major = ver.major; d.version.minor = ver.minor;
-    tcs_c = d.tcs_c = omniCodeSet::getTCS_C(omniCodeSet::ID_8859_1,ver);
-    tcs_w = d.tcs_w = 0;
+    // In the absence of any codeset negotiation, the specification
+    // says we should choose ISO-8859-1 as the transmission code set
+    // for char, and nothing for wchar. We allow that to be
+    // overridden.
+    d.version.major = ver.major;
+    d.version.minor = ver.minor;
+
+    tcs_c = d.tcs_c = orbParameters::defaultCharCodeSet;
+    tcs_w = d.tcs_w = orbParameters::defaultWCharCodeSet;
+
+    if (!tcs_c)
+      tcs_c = d.tcs_c = omniCodeSet::getTCS_C(omniCodeSet::ID_8859_1,ver);
+
     d.tcs_selected = 1;
   }
 
@@ -893,7 +746,7 @@ public:
 			1,
 			"-ORBnativeCharCodeSet <code set name, e.g. ISO-8859-1>") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
     
     omniCodeSet::NCS_C* v = omniCodeSet::getNCS_C(value);
     if (!v) {
@@ -925,7 +778,7 @@ public:
 			1,
 			"-ORBnativeWCharCodeSet <code set name, e.g. UTF-16>") {}
 
-  void visit(const char* value,orbOptions::Source) throw (orbOptions::BadParam) {
+  void visit(const char* value,orbOptions::Source) {
     
     omniCodeSet::NCS_W* v = omniCodeSet::getNCS_W(value);
     if (!v) {
@@ -946,6 +799,76 @@ public:
 };
 
 static nativeWCharCodeSetHandler nativeWCharCodeSetHandler_;
+
+
+/////////////////////////////////////////////////////////////////////////////
+class defaultCharCodeSetHandler : public orbOptions::Handler {
+public:
+
+  defaultCharCodeSetHandler() : 
+    orbOptions::Handler("defaultCharCodeSet",
+			"defaultCharCodeSet = <code set name, e.g. ISO-8859-1>",
+			1,
+			"-ORBdefaultCharCodeSet <code set name, e.g. ISO-8859-1>") {}
+
+  void visit(const char* value,orbOptions::Source) {
+    omniCodeSet::TCS_C* v = omniCodeSet::getTCS_C(value, omniCodeSetUtil::GIOP12);
+    if (!v) {
+      throw orbOptions::BadParam(key(),value,unknown_code_set_msg);
+    }
+    orbParameters::defaultCharCodeSet = v;
+  }
+
+  void dump(orbOptions::sequenceString& result) {
+
+    const char* v;
+    if (orbParameters::defaultCharCodeSet)
+      v = orbParameters::defaultCharCodeSet->name();
+    else
+      v = "nil";
+    orbOptions::addKVString(key(),v,result);
+  }
+};
+
+static defaultCharCodeSetHandler defaultCharCodeSetHandler_;
+
+/////////////////////////////////////////////////////////////////////////////
+class defaultWCharCodeSetHandler : public orbOptions::Handler {
+public:
+
+  defaultWCharCodeSetHandler() : 
+    orbOptions::Handler("defaultWCharCodeSet",
+			"defaultWCharCodeSet = <code set name, e.g. UTF-16>",
+			1,
+			"-ORBdefaultWCharCodeSet <code set name, e.g. UTF-16>") {}
+
+  void visit(const char* value,orbOptions::Source) {
+    omniCodeSet::TCS_W* v = omniCodeSet::getTCS_W(value, omniCodeSetUtil::GIOP12);
+    if (!v) {
+      throw orbOptions::BadParam(key(),value,unknown_code_set_msg);
+    }
+    orbParameters::defaultWCharCodeSet = v;
+
+    if (!orbParameters::defaultCharCodeSet) {
+      // If the wchar codeset is selected, we must have a char codeset.
+      orbParameters::defaultCharCodeSet =
+        omniCodeSet::getTCS_C(omniCodeSet::ID_UTF_8, omniCodeSetUtil::GIOP12);
+    }
+  }
+
+  void dump(orbOptions::sequenceString& result) {
+
+    const char* v;
+    if (orbParameters::defaultWCharCodeSet)
+      v = orbParameters::defaultWCharCodeSet->name();
+    else
+      v = "nil";
+    orbOptions::addKVString(key(),v,result);
+  }
+};
+
+static defaultWCharCodeSetHandler defaultWCharCodeSetHandler_;
+
 
 
 //
@@ -1000,6 +923,8 @@ public:
   omni_codeSet_initialiser() {
     orbOptions::singleton().registerHandler(nativeCharCodeSetHandler_);
     orbOptions::singleton().registerHandler(nativeWCharCodeSetHandler_);
+    orbOptions::singleton().registerHandler(defaultCharCodeSetHandler_);
+    orbOptions::singleton().registerHandler(defaultWCharCodeSetHandler_);
   }
 
   void attach() {

@@ -1,25 +1,23 @@
 //				Package : omnithread
 // omnithread/posix.cc		Created : 7/94 tjr
 //
-//    Copyright (C) 2003-2008 Apasphere Ltd
+//    Copyright (C) 2003-2018 Apasphere Ltd
 //    Copyright (C) 1994-1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omnithread library
 //
 //    The omnithread library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 
 //
@@ -78,10 +76,14 @@
 #include <errno.h>
 #include <time.h>
 #include <omnithread.h>
+#include <omniconfig.h>
 
-#if (defined(__GLIBC__) && __GLIBC__ >= 2) || defined(__SCO_VERSION__) || defined(__aix__) || defined (__cygwin__) || defined(__darwin__) || defined(__macos__)
+#if (defined(OMNI_HAVE_SYS_TIME_H) || defined(__GLIBC__) && __GLIBC__ >= 2) || defined(__SCO_VERSION__) || defined(__aix__) || defined (__cygwin__) || defined(__darwin__) || defined(__macos__)
 // typedef of struct timeval and gettimeofday();
 #include <sys/time.h>
+#endif
+
+#if (defined(OMNI_HAVE_UNISTD_H) || defined(__GLIBC__) && __GLIBC__ >= 2) || defined(__SCO_VERSION__) || defined(__aix__) || defined (__cygwin__) || defined(__darwin__) || defined(__macos__)
 #include <unistd.h>
 #endif
 
@@ -97,6 +99,14 @@
 
 #define DB(x) // x
 //#include <iostream.h> or #include <iostream> if DB is on.
+
+
+// If PthreadDraftVersion is not defined, assume it is modern
+
+#ifndef PthreadDraftVersion
+#  define PthreadDraftVersion 10
+#endif
+
 
 #if (PthreadDraftVersion <= 6)
 #define ERRNO(x) (((x) != 0) ? (errno) : 0)
@@ -133,7 +143,7 @@ omni_mutex::omni_mutex(void)
 
 omni_mutex::~omni_mutex(void)
 {
-    THROW_ERRORS(pthread_mutex_destroy(&posix_mutex));
+    pthread_mutex_destroy(&posix_mutex);
 }
 
 
@@ -155,7 +165,7 @@ omni_condition::omni_condition(omni_mutex* m) : mutex(m)
 
 omni_condition::~omni_condition(void)
 {
-    THROW_ERRORS(pthread_cond_destroy(&posix_cond));
+    pthread_cond_destroy(&posix_cond);
 }
 
 void
@@ -322,9 +332,9 @@ omni_thread::init_t::init_t(void)
 #endif
 
 #if (PthreadDraftVersion == 4)
-    THROW_ERRORS(pthread_keycreate(&self_key, NULL));
+    THROW_ERRORS(pthread_keycreate(&self_key, 0));
 #else
-    THROW_ERRORS(pthread_key_create(&self_key, NULL));
+    THROW_ERRORS(pthread_key_create(&self_key, 0));
 #endif
 
 #ifdef PthreadSupportThreadPriority
@@ -443,12 +453,12 @@ omni_thread_wrapper(void* ptr)
     // Now invoke the thread function with the given argument.
     //
 
-    if (me->fn_void != NULL) {
+    if (me->fn_void != 0) {
 	(*me->fn_void)(me->thread_arg);
 	omni_thread::exit();
     }
 
-    if (me->fn_ret != NULL) {
+    if (me->fn_ret != 0) {
 	void* return_value = (*me->fn_ret)(me->thread_arg);
 	omni_thread::exit(return_value);
     }
@@ -463,7 +473,7 @@ omni_thread_wrapper(void* ptr)
 
     // should never get here.
 
-    return NULL;
+    return 0;
 }
 
 
@@ -478,7 +488,7 @@ omni_thread::omni_thread(void (*fn)(void*), void* arg, priority_t pri)
 {
     common_constructor(arg, pri, 1);
     fn_void = fn;
-    fn_ret = NULL;
+    fn_ret = 0;
 }
 
 // construct an undetached thread running a given function.
@@ -486,7 +496,7 @@ omni_thread::omni_thread(void (*fn)(void*), void* arg, priority_t pri)
 omni_thread::omni_thread(void* (*fn)(void*), void* arg, priority_t pri)
 {
     common_constructor(arg, pri, 0);
-    fn_void = NULL;
+    fn_void = 0;
     fn_ret = fn;
 }
 
@@ -495,8 +505,8 @@ omni_thread::omni_thread(void* (*fn)(void*), void* arg, priority_t pri)
 omni_thread::omni_thread(void* arg, priority_t pri)
 {
     common_constructor(arg, pri, 1);
-    fn_void = NULL;
-    fn_ret = NULL;
+    fn_void = 0;
+    fn_ret = 0;
 }
 
 // common part of all constructors.
@@ -615,7 +625,7 @@ omni_thread::start(void)
 void
 omni_thread::start_undetached(void)
 {
-    if ((fn_void != NULL) || (fn_ret != NULL))
+    if ((fn_void != 0) || (fn_ret != 0))
 	throw omni_thread_invalid();
 
     detached = 0;
@@ -768,7 +778,13 @@ omni_thread::exit(void* return_value)
 	DB(cerr << "omni_thread::exit: thread " << me->id() << " detached "
 	   << me->detached << " return value " << return_value << endl);
 
-	if (me->_values) {
+	if (me->detached) {
+	  delete me;
+	}
+	else if (me->_values) {
+	  // Delete per-thread state here, to ensure value destructors
+	  // are executed by this thread.
+	  
 	  for (key_t i=0; i < me->_value_alloc; i++) {
 	    if (me->_values[i]) {
 	      delete me->_values[i];
@@ -776,10 +792,8 @@ omni_thread::exit(void* return_value)
 	  }
 	  delete [] me->_values;
 	  me->_values = 0;
+	  me->_value_alloc = 0;
 	}
-
-	if (me->detached)
-	  delete me;
       }
     else
       {
@@ -815,12 +829,20 @@ omni_thread::self(void)
 }
 
 
+unsigned long
+omni_thread::plat_id()
+{
+    volatile pthread_t thread_id = pthread_self();
+    return (unsigned long)thread_id;
+}
+
+
 void
 omni_thread::yield(void)
 {
 #if (PthreadDraftVersion == 6)
 
-    pthread_yield(NULL);
+    pthread_yield(0);
 
 #elif (PthreadDraftVersion < 9)
 
@@ -902,7 +924,7 @@ omni_thread::get_time(unsigned long* abs_sec, unsigned long* abs_nsec,
 #if defined(__linux__) || defined(__GLIBC__) || defined(__aix__) || defined(__SCO_VERSION__) || defined(__darwin__) || defined(__macos__)
 
     struct timeval tv;
-    gettimeofday(&tv, NULL); 
+    gettimeofday(&tv, 0); 
     abs.tv_sec = tv.tv_sec;
     abs.tv_nsec = tv.tv_usec * 1000;
 
@@ -974,7 +996,7 @@ public:
   }
   inline ~omni_thread_dummy()
   {
-    THROW_ERRORS(pthread_setspecific(self_key, 0));
+    pthread_setspecific(self_key, 0);
   }
 };
 
@@ -997,8 +1019,3 @@ omni_thread::release_dummy()
   omni_thread_dummy* dummy = (omni_thread_dummy*)self;
   delete dummy;
 }
-
-
-#define INSIDE_THREAD_IMPL_CC
-#include "threaddata.cc"
-#undef INSIDE_THREAD_IMPL_CC

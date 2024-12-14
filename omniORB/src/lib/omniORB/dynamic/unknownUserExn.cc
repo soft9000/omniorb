@@ -9,19 +9,17 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
@@ -129,12 +127,14 @@ static CORBA::TypeCode_ptr _0RL_tc_CORBA_mUnknownUserException = CORBA::TypeCode
 
 static void _0RL_CORBA_mUnknownUserException_marshal_fn(cdrStream& _s, void* _v)
 {
+  CORBA::Any::PR_marshalExceptionRepoId(_s, _0RL_tc_CORBA_mUnknownUserException->id());
   CORBA::UnknownUserException* _p = (CORBA::UnknownUserException*)_v;
   CORBA::Any& a = _p->exception();
   a >>= _s;
 }
 static void _0RL_CORBA_mUnknownUserException_unmarshal_fn(cdrStream& _s, void*& _v)
 {
+  CORBA::Any::PR_unmarshalExceptionRepoId(_s);
   CORBA::Any* a = new CORBA::Any();
   *a <<= _s;
 

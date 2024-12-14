@@ -1,15 +1,10 @@
-ifeq ($(ThreadSystem),Solaris)
-CXXSRCS = solaris.cc
-DIR_CPPFLAGS = $(OMNITHREAD_CPPFLAGS)
-endif
-
 ifeq ($(ThreadSystem),Posix)
-CXXSRCS = posix.cc
+CXXSRCS = posix.cc threaddata.cc
 DIR_CPPFLAGS = $(OMNITHREAD_CPPFLAGS) $(OMNITHREAD_POSIX_CPPFLAGS)
 endif
 
 ifeq ($(ThreadSystem),NT)
-CXXSRCS = nt.cc
+CXXSRCS = nt.cc threaddata.cc
 DIR_CPPFLAGS = $(OMNITHREAD_CPPFLAGS)
 MSVC_STATICLIB_CXXNODEBUGFLAGS += -D_WINSTATIC
 MSVC_STATICLIB_CXXDEBUGFLAGS += -D_WINSTATIC
@@ -18,7 +13,7 @@ MSVC_DLL_CXXDEBUGFLAGS += -D_OMNITHREAD_DLL
 endif
 
 ifeq ($(ThreadSystem),NTPosix)
-CXXSRCS = posix.cc
+CXXSRCS = posix.cc threaddata.cc
 DIR_CPPFLAGS = $(OMNITHREAD_CPPFLAGS)
 MSVC_STATICLIB_CXXNODEBUGFLAGS += -D_WINSTATIC
 MSVC_STATICLIB_CXXDEBUGFLAGS += -D_WINSTATIC
@@ -26,14 +21,9 @@ MSVC_DLL_CXXNODEBUGFLAGS += -D_OMNITHREAD_DLL
 MSVC_DLL_CXXDEBUGFLAGS += -D_OMNITHREAD_DLL
 endif
 
-ifeq ($(ThreadSystem),Mach)
-CXXSRCS = mach.cc
-DIR_CPPFLAGS = $(OMNITHREAD_CPPFLAGS)
-endif
-
 ifeq ($(ThreadSystem),vxWorks)
-CXXSRCS = vxWorks.cc
-OBJS = vxWorks.o
+CXXSRCS = vxWorks.cc threaddata.cc
+OBJS = vxWorks.o threaddata.o
 DIR_CPPFLAGS = $(OMNITHREAD_CPPFLAGS)
 endif
 
@@ -67,6 +57,7 @@ namespec := $(LIB_NAME) $(vers)
 ifndef NoStaticLibrary
 
 staticlib := static/$(patsubst %,$(LibNoDebugPattern),$(LIB_NAME)$(major))
+MDFLAGS += -p static/
 
 mkstatic::
 	@(dir=static; $(CreateDir))
@@ -107,6 +98,7 @@ endif
 ifdef BuildSharedLibrary
 
 shlib := shared/$(shell $(SharedLibraryFullName) $(namespec))
+MDFLAGS += -p shared/
 
 ifdef Win32Platform
 # in case of Win32 lossage:
@@ -193,6 +185,7 @@ endif
 #####################################################
 
 dbuglib := debug/$(patsubst %,$(LibDebugPattern),$(LIB_NAME)$(major))
+MDFLAGS += -p debug/
 
 mkstaticdbug::
 	@(dir=debug; $(CreateDir))
@@ -222,6 +215,7 @@ veryclean::
 ifdef BuildSharedLibrary
 
 dbugshlib := shareddebug/$(shell $(SharedLibraryDebugFullName) $(namespec))
+MDFLAGS += -p shareddebug/
 
 dbugimps  := $(patsubst $(DLLNoDebugSearchPattern),$(DLLDebugSearchPattern), \
                $(LIB_IMPORTS))

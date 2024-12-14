@@ -21,16 +21,17 @@ module Compression {
 
   typedef unsigned short CompressorId;
 
-  const CompressorId COMPRESSORID_NONE  = 0;
-  const CompressorId COMPRESSORID_GZIP  = 1;
-  const CompressorId COMPRESSORID_PKZIP = 2;
-  const CompressorId COMPRESSORID_BZIP2 = 3;
-  const CompressorId COMPRESSORID_ZLIB  = 4;
-  const CompressorId COMPRESSORID_LZMA  = 5;
-  const CompressorId COMPRESSORID_LZO   = 6;
-  const CompressorId COMPRESSORID_RZIP  = 7;
-  const CompressorId COMPRESSORID_7X    = 8;
-  const CompressorId COMPRESSORID_XAR   = 9;
+  const CompressorId COMPRESSORID_NONE      = 0;
+  const CompressorId COMPRESSORID_GZIP      = 1;
+  const CompressorId COMPRESSORID_PKZIP     = 2;
+  const CompressorId COMPRESSORID_BZIP2     = 3;
+  const CompressorId COMPRESSORID_ZLIB      = 4;
+  const CompressorId COMPRESSORID_LZMA      = 5;
+  const CompressorId COMPRESSORID_LZO       = 6;
+  const CompressorId COMPRESSORID_RZIP      = 7;
+  const CompressorId COMPRESSORID_7X        = 8;
+  const CompressorId COMPRESSORID_XAR       = 9;
+  const CompressorId COMPRESSORID_OMNI_ZSTD = 101; // omniORB extension
 
   typedef unsigned short CompressionLevel;
   typedef float          CompressionRatio;

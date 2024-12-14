@@ -9,110 +9,22 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //   Implementation of CORBA::Context.
 //
-
-/*
- $Log$
- Revision 1.14.2.3  2006/04/28 18:40:46  dgrisby
- Merge from omni4_0_develop.
-
- Revision 1.14.2.2  2004/10/13 17:58:20  dgrisby
- Abstract interfaces support; values support interfaces; value bug fixes.
-
- Revision 1.14.2.1  2003/03/23 21:02:51  dgrisby
- Start of omniORB 4.1.x development branch.
-
- Revision 1.12.2.13  2002/01/16 11:31:56  dpg1
- Race condition in use of registerNilCorbaObject/registerTrackedObject.
- (Reported by Teemu Torma).
-
- Revision 1.12.2.12  2001/11/27 14:35:07  dpg1
- Context, DII fixes.
-
- Revision 1.12.2.11  2001/11/06 15:41:35  dpg1
- Reimplement Context. Remove CORBA::Status. Tidying up.
-
- Revision 1.12.2.10  2001/09/24 10:41:08  dpg1
- Minor codes for Dynamic library and omniORBpy.
-
- Revision 1.12.2.9  2001/09/19 17:26:44  dpg1
- Full clean-up after orb->destroy().
-
- Revision 1.12.2.8  2001/08/17 17:07:05  sll
- Remove the use of omniORB::logStream.
-
- Revision 1.12.2.7  2001/06/13 20:10:03  sll
- Minor update to make the ORB compiles with MSVC++.
-
- Revision 1.12.2.6  2001/04/19 09:14:16  sll
- Scoped where appropriate with the omni namespace.
-
- Revision 1.12.2.5  2000/12/05 17:41:00  dpg1
- New cdrStream functions to marshal and unmarshal raw strings.
-
- Revision 1.12.2.4  2000/11/03 19:07:31  sll
- Use new marshalling functions for byte, octet and char. Use get_octet_array
- instead of get_char_array.
-
- Revision 1.12.2.3  2000/10/06 16:40:53  sll
- Changed to use cdrStream.
-
- Revision 1.12.2.2  2000/09/27 17:25:40  sll
- Changed include/omniORB3 to include/omniORB4.
-
- Revision 1.12.2.1  2000/07/17 10:35:40  sll
- Merged from omni3_develop the diff between omni3_0_0_pre3 and omni3_0_0.
-
- Revision 1.13  2000/07/13 15:26:03  dpg1
- Merge from omni3_develop for 3.0 release.
-
- Revision 1.9.6.4  2000/06/22 10:40:11  dpg1
- exception.h renamed to exceptiondefs.h to avoid name clash on some
- platforms.
-
- Revision 1.9.6.3  1999/10/29 13:18:10  djr
- Changes to ensure mutexes are constructed when accessed.
-
- Revision 1.9.6.2  1999/10/14 16:21:55  djr
- Implemented logging when system exceptions are thrown.
-
- Revision 1.9.6.1  1999/09/22 14:26:29  djr
- Major rewrite of orbcore to support POA.
-
- Revision 1.9  1999/06/26 18:03:30  sll
- Corrected minor bug in marshal.
-
- Revision 1.8  1999/06/25 13:50:24  sll
- Renamed compatibility flag to omniORB_27_CompatibleAnyExtraction.
-
- Revision 1.7  1999/06/22 14:59:03  sll
- set_one_value now correctly use the any extraction operator for string.
- It takes into account of the configuration variable copyStringInAnyExtraction.
-
- Revision 1.6  1999/05/25 17:39:35  sll
- Added check for invalid arguments using magic number.
-
- Revision 1.5  1999/04/21 11:24:37  djr
- Added marshalling methods, plus a few minor mods.
-
-*/
 
 #include <omniORB4/CORBA.h>
 #include <omniORB4/objTracker.h>
@@ -137,6 +49,7 @@ OMNI_NAMESPACE_BEGIN(omni)
 static ContextImpl* default_context = 0;
 
 ContextImpl::ContextImpl(const char* name, CORBA::Context_ptr parent)
+  : pd_lock("ContextImpl::pd_lock")
 {
   if( !name )  name = "";
   else if( *name )  check_context_name(name);
@@ -157,10 +70,9 @@ ContextImpl::~ContextImpl()
 {
   // This destructor can only be called when the reference count
   // has gone to zero, and there are no children.
-  if( pd_refCount || pd_children )
-    throw omniORB::fatalException(__FILE__, __LINE__,
-		  "Application deleted a CORBA::Context explicitly");
 
+  OMNIORB_USER_CHECK(pd_refCount == 0);
+  OMNIORB_USER_CHECK(!pd_children);
   OMNIORB_USER_CHECK(this != default_context);
   // This fails if the application releases the default context too many times.
 
@@ -383,14 +295,10 @@ ContextImpl::decrRefCount()
   {
     omni_tracedmutex_lock sync(pd_lock);
 
-    if( !pd_refCount ) {
-      if( omniORB::traceLevel > 0 ) {
-	omniORB::logger log;
-	log <<
-	  "omniORB: WARNING -- CORBA::release() was called too many times\n"
-	  " for a CORBA::Context object - the object has already been\n"
-	  " destroyed.\n";
-      }
+    if (!pd_refCount) {
+      omniORB::logs(1, "Warning: CORBA::release() was called too many times "
+                    "for a CORBA::Context object - the object has already "
+                    "been destroyed.");
       return;
     }
 
@@ -745,7 +653,7 @@ CORBA::Context::filterContext(CORBA::Context_ptr ctxt,
   do {
     omni_tracedmutex_lock sync(c->pd_lock);
     int i;
-    CORBA::ULong top, bottom, j, z1, z2;
+    CORBA::ULong top, bottom, z1, z2;
 
     for (i=0; i < whichlen; i++) {
 

@@ -19,157 +19,11 @@
 //  General Public License for more details.
 //
 //  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//  02111-1307, USA.
+//  along with this program.  If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //   
 //   Abstract Syntax Tree objects and support functions
-
-// $Id$
-// $Log$
-// Revision 1.22.2.10  2008/10/28 15:59:05  dgrisby
-// Pollution of global namespace with TypeCode and Principal.
-//
-// Revision 1.22.2.9  2008/02/28 17:40:38  dgrisby
-// iostream include left over from debugging caused mysterious failure of
-// omniidl on HP-UX.
-//
-// Revision 1.22.2.8  2007/12/05 11:15:15  dgrisby
-// Segfault on omniidl exit with forward declaration to previously
-// fully-declared valuetype.
-//
-// Revision 1.22.2.7  2007/10/29 11:32:32  dgrisby
-// Error with escaped identifiers in union members.
-//
-// Revision 1.22.2.6  2006/11/02 14:00:54  dgrisby
-// Remove a few warnings.
-//
-// Revision 1.22.2.5  2006/05/24 18:30:53  dgrisby
-// Segfault with some uses of aliases to unknown types.
-//
-// Revision 1.22.2.4  2005/05/10 22:07:31  dgrisby
-// Merge again.
-//
-// Revision 1.22.2.3  2004/02/16 10:10:33  dgrisby
-// More valuetype, including value boxes. C++ mapping updates.
-//
-// Revision 1.22.2.2  2003/09/04 14:00:24  dgrisby
-// ValueType IDL updates.
-//
-// Revision 1.22.2.1  2003/03/23 21:01:48  dgrisby
-// Start of omniORB 4.1.x development branch.
-//
-// Revision 1.16.2.12  2002/04/30 14:59:37  dgrisby
-// omniidl segfault when checking a non-existent identifier is not a forward.
-//
-// Revision 1.16.2.11  2001/11/08 16:31:20  dpg1
-// Minor tweaks.
-//
-// Revision 1.16.2.10  2001/10/29 17:42:42  dpg1
-// Support forward-declared structs/unions, ORB::create_recursive_tc().
-//
-// Revision 1.16.2.9  2001/10/17 16:48:32  dpg1
-// Minor error message tweaks
-//
-// Revision 1.16.2.8  2001/08/29 11:55:22  dpg1
-// Enumerator nodes record their value.
-//
-// Revision 1.16.2.7  2001/06/12 11:35:25  dpg1
-// Minor omniidl tweaks for valuetype.
-//
-// Revision 1.16.2.6  2001/06/08 17:12:22  dpg1
-// Merge all the bug fixes from omni3_develop.
-//
-// Revision 1.16.2.5  2001/03/13 10:32:11  dpg1
-// Fixed point support.
-//
-// Revision 1.16.2.4  2000/11/01 12:45:56  dpg1
-// Update to CORBA 2.4 specification.
-//
-// Revision 1.16.2.3  2000/10/27 16:31:08  dpg1
-// Clean up of omniidl dependencies and types, from omni3_develop.
-//
-// Revision 1.16.2.2  2000/10/10 10:18:50  dpg1
-// Update omniidl front-end from omni3_develop.
-//
-// Revision 1.14.2.9  2000/08/29 10:20:26  dpg1
-// Operations and attributes now have repository ids.
-//
-// Revision 1.14.2.8  2000/08/25 13:33:02  dpg1
-// Multiple comments preceding a declaration are now properly attached on
-// all platforms
-//
-// Revision 1.14.2.7  2000/08/07 15:34:36  dpg1
-// Partial back-port of long long from omni3_1_develop.
-//
-// Revision 1.14.2.6  2000/07/26 10:59:14  dpg1
-// Incorrect error report when inheriting typedef to forward declared
-// interface
-//
-// Revision 1.14.2.5  2000/06/08 14:36:19  dpg1
-// Comments and pragmas are now objects rather than plain strings, so
-// they can have file,line associated with them.
-//
-// Revision 1.14.2.4  2000/06/05 18:13:26  dpg1
-// Comments can be attached to subsequent declarations (with -K). Better
-// idea of most recent decl in operation declarations
-//
-// Revision 1.14.2.3  2000/03/16 17:35:21  dpg1
-// Bug with comments in input when keepComments is false.
-//
-// Revision 1.14.2.2  2000/03/07 10:31:26  dpg1
-// More sensible idea of the "most recent" declaration.
-//
-// Revision 1.14.2.1  2000/03/06 15:03:49  dpg1
-// Minor bug fixes to omniidl. New -nf and -k flags.
-//
-// Revision 1.14  2000/02/03 14:50:07  dpg1
-// Native declarations can now be used as types.
-//
-// Revision 1.13  2000/01/05 11:21:08  dpg1
-// Removed warning about signed/unsigned comparison.
-// * can only be the last character of a context key.
-//
-// Revision 1.12  1999/12/28 18:15:45  dpg1
-// Bounds of string constants now checked.
-//
-// Revision 1.11  1999/11/30 18:06:19  dpg1
-// Alias dereferencing bugs.
-//
-// Revision 1.10  1999/11/22 11:07:46  dpg1
-// Correctly report error with interface which tries to inherit from
-// CORBA::Object.
-//
-// Revision 1.9  1999/11/17 17:17:00  dpg1
-// Changes to remove static initialisation of objects.
-//
-// Revision 1.8  1999/11/04 17:15:52  dpg1
-// Typo.
-//
-// Revision 1.7  1999/11/02 17:07:27  dpg1
-// Changes to compile on Solaris.
-//
-// Revision 1.6  1999/11/01 20:19:57  dpg1
-// Support for union switch types declared inside the switch statement.
-//
-// Revision 1.5  1999/11/01 16:38:40  dpg1
-// Missed an update when adding recursive union detection.
-//
-// Revision 1.4  1999/11/01 10:05:00  dpg1
-// New file attribute to AST.
-//
-// Revision 1.3  1999/10/29 15:42:43  dpg1
-// DeclaredType() now takes extra DeclRepoId* argument.
-// Code to detect recursive structs and unions.
-//
-// Revision 1.2  1999/10/29 10:00:43  dpg1
-// Added code to find a value for the default case in a union.
-//
-// Revision 1.1  1999/10/27 14:05:59  dpg1
-// *** empty log message ***
-//
 
 #include <idlast.h>
 #include <idlrepoId.h>
@@ -1032,11 +886,11 @@ Const(const char* file, int line, IDL_Boolean mainFile,
       }
       break;
     }
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case IdlType::tk_longlong:   v_.longlong_   = expr->evalAsLongLong();  break;
   case IdlType::tk_ulonglong:  v_.ulonglong_  = expr->evalAsULongLong(); break;
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
   case IdlType::tk_longdouble: v_.longdouble_ = expr->evalAsLongDouble();break;
 #endif
   case IdlType::tk_wchar:      v_.wchar_      = expr->evalAsWChar();     break;
@@ -1115,11 +969,11 @@ CONST_AS(IDL_Boolean,      constAsBoolean,    tk_boolean,    boolean_)
 CONST_AS(IDL_Char,         constAsChar,       tk_char,       char_)
 CONST_AS(IDL_Octet,        constAsOctet,      tk_octet,      octet_)
 CONST_AS(const char*,      constAsString,     tk_string,     string_)
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 CONST_AS(IDL_LongLong,     constAsLongLong,   tk_longlong,   longlong_)
 CONST_AS(IDL_ULongLong,    constAsULongLong,  tk_ulonglong,  ulonglong_)
 #endif
-#ifdef HAS_LongDouble
+#ifdef OMNI_HAS_LongDouble
 CONST_AS(IDL_LongDouble,   constAsLongDouble, tk_longdouble, longdouble_)
 #endif
 CONST_AS(IDL_WChar,        constAsWChar,      tk_wchar,      wchar_)
@@ -1162,7 +1016,7 @@ kindAsString() const
 {
   if (alias_)     return "typedef declarator";
   if (attribute_) return "attribute declarator";
-                  return "declarator";
+  return "declarator";
 }
 
 void
@@ -1565,7 +1419,7 @@ setType(IdlType* type)
   case IdlType::tk_ulong:     v_.ulong_     = value_->evalAsULong();     break;
   case IdlType::tk_boolean:   v_.boolean_   = value_->evalAsBoolean();   break;
   case IdlType::tk_char:      v_.char_      = value_->evalAsChar();      break;
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case IdlType::tk_longlong:  v_.longlong_  = value_->evalAsLongLong();  break;
   case IdlType::tk_ulonglong: v_.ulonglong_ = value_->evalAsULongLong(); break;
 #endif
@@ -1593,7 +1447,7 @@ LABEL_AS(IDL_UShort,       labelAsUShort,     tk_ushort,     ushort_)
 LABEL_AS(IDL_ULong,        labelAsULong,      tk_ulong,      ulong_)
 LABEL_AS(IDL_Boolean,      labelAsBoolean,    tk_boolean,    boolean_)
 LABEL_AS(IDL_Char,         labelAsChar,       tk_char,       char_)
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
 LABEL_AS(IDL_LongLong,     labelAsLongLong,   tk_longlong,   longlong_)
 LABEL_AS(IDL_ULongLong,    labelAsULongLong,  tk_ulonglong,  ulonglong_)
 #endif
@@ -1785,7 +1639,7 @@ Union::
 // come up with a default label value. Loops are O(n^2), but n will
 // usually be quite small. ***
 #define UNION_SWITCH(lt, op, defstart, islastdef, nextdef) { \
-  lt label; \
+  lt label = defstart; \
   for (c = cases; c; c = (UnionCase*)c->next()) { \
     for (l = c->labels(); l; l = (CaseLabel*)l->next()) { \
       l->setType(t); \
@@ -1860,7 +1714,7 @@ finishConstruction(IdlType* switchType, IDL_Boolean constrType,
   case IdlType::tk_short:
     UNION_SWITCH(IDL_Short, Short, -0x8000, defVal==0x7fff, ++defVal)
   case IdlType::tk_long:
-    UNION_SWITCH(IDL_Long, Long, -0x80000000, defVal==0x7fffffff, ++defVal)
+    UNION_SWITCH(IDL_Long, Long, (-0x7fffffff)-1, defVal==0x7fffffff, ++defVal)
   case IdlType::tk_ushort:
     UNION_SWITCH(IDL_UShort, UShort, 0xffff, defVal==0, --defVal)
   case IdlType::tk_ulong:
@@ -1869,10 +1723,10 @@ finishConstruction(IdlType* switchType, IDL_Boolean constrType,
     UNION_SWITCH(IDL_Boolean, Boolean, 0, defVal==1, defVal=1)
   case IdlType::tk_char:
     UNION_SWITCH(IDL_Char, Char, 0xff, defVal==0, --defVal)
-#ifdef HAS_LongLong
+#ifdef OMNI_HAS_LongLong
   case IdlType::tk_longlong:
     UNION_SWITCH(IDL_LongLong, LongLong,
-		 _CORBA_LONGLONG_CONST(-0x8000000000000000),
+		 _CORBA_LONGLONG_CONST(-0x7fffffffffffffff) - 1,
 		 defVal==_CORBA_LONGLONG_CONST(0x7fffffffffffffff), ++defVal)
   case IdlType::tk_ulonglong:
     UNION_SWITCH(IDL_ULongLong, ULongLong,
