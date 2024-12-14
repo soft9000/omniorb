@@ -3,7 +3,7 @@
 # CORBA.py                   Created on: 1999/06/08
 #                            Author    : Duncan Grisby (dpg1)
 #
-#    Copyright (C) 2002-2006 Apasphere Ltd
+#    Copyright (C) 2002-2014 Apasphere Ltd
 #    Copyright (C) 1999 AT&T Laboratories Cambridge
 #
 #    This file is part of the omniORBpy library
@@ -20,213 +20,26 @@
 #    GNU Lesser General Public License for more details.
 #
 #    You should have received a copy of the GNU Lesser General Public
-#    License along with this library; if not, write to the Free
-#    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-#    MA 02111-1307, USA
+#    License along with this library. If not, see http://www.gnu.org/licenses/
 #
 #
 # Description:
 #    Definitions for CORBA module
 
-
-# $Id$
-# $Log$
-# Revision 1.31.2.14  2009/03/13 13:57:56  dgrisby
-# Bind orb.register_initial_reference. Thanks Wei Jiang.
-#
-# Revision 1.31.2.13  2006/09/07 15:29:57  dgrisby
-# Use boxes.idl to build standard value boxes.
-#
-# Revision 1.31.2.12  2006/07/26 17:49:59  dgrisby
-# Support unchecked_narrow.
-#
-# Revision 1.31.2.11  2006/07/11 13:53:09  dgrisby
-# Implement missing TypeCode creation functions.
-#
-# Revision 1.31.2.10  2006/03/06 18:30:31  dgrisby
-# Missing module name in use of minor code.
-#
-# Revision 1.31.2.9  2006/02/28 12:41:59  dgrisby
-# New _NP_postUnmarshal hook on valuetypes.
-#
-# Revision 1.31.2.8  2006/02/22 13:05:15  dgrisby
-# __repr__ and _narrow methods for valuetypes.
-#
-# Revision 1.31.2.7  2006/01/19 17:28:44  dgrisby
-# Merge from omnipy2_develop.
-#
-# Revision 1.31.2.6  2005/11/09 12:33:31  dgrisby
-# Support POA LocalObjects.
-#
-# Revision 1.31.2.5  2005/04/25 18:28:16  dgrisby
-# Implement narrow as a no-op if the Python classes have the right inheritance.
-#
-# Revision 1.31.2.4  2005/01/07 00:22:34  dgrisby
-# Big merge from omnipy2_develop.
-#
-# Revision 1.31.2.3  2003/09/04 14:08:41  dgrisby
-# Correct register_value_factory semantics.
-#
-# Revision 1.31.2.2  2003/05/20 17:10:25  dgrisby
-# Preliminary valuetype support.
-#
-# Revision 1.31.2.1  2003/03/23 21:51:43  dgrisby
-# New omnipy3_develop branch.
-#
-# Revision 1.28.2.17  2003/03/07 11:56:04  dgrisby
-# Missing TypeCode creation functions.
-#
-# Revision 1.28.2.16  2002/09/21 23:27:11  dgrisby
-# New omniORB.any helper module.
-#
-# Revision 1.28.2.15  2002/06/11 20:21:31  dgrisby
-# Missed out wchar, wstring TypeCodes.
-#
-# Revision 1.28.2.14  2002/05/27 01:02:37  dgrisby
-# Fix bug with scope lookup in generated code. Fix TypeCode clean-up bug.
-#
-# Revision 1.28.2.13  2002/05/26 00:56:57  dgrisby
-# Minor bug in ORB __del__.
-#
-# Revision 1.28.2.12  2002/03/11 15:40:05  dpg1
-# _get_interface support, exception minor codes.
-#
-# Revision 1.28.2.11  2002/01/18 15:49:45  dpg1
-# Context support. New system exception construction. Fix None call problem.
-#
-# Revision 1.28.2.10  2001/09/20 14:51:25  dpg1
-# Allow ORB reinitialisation after destroy(). Clean up use of omni namespace.
-#
-# Revision 1.28.2.9  2001/08/21 12:48:27  dpg1
-# Meaningful exception minor code strings.
-#
-# Revision 1.28.2.8  2001/08/01 10:12:36  dpg1
-# Main thread policy.
-#
-# Revision 1.28.2.7  2001/06/15 10:59:27  dpg1
-# Apply fixes from omnipy1_develop.
-#
-# Revision 1.28.2.6  2001/05/14 12:48:27  dpg1
-# Report exception minor code in hex.
-#
-# Revision 1.28.2.5  2001/04/10 11:11:14  dpg1
-# TypeCode support and tests for Fixed point.
-#
-# Revision 1.28.2.4  2001/04/09 15:22:17  dpg1
-# Fixed point support.
-#
-# Revision 1.28.2.3  2000/11/22 14:43:58  dpg1
-# Support code set conversion and wchar/wstring.
-#
-# Revision 1.28.2.2  2000/11/01 15:29:01  dpg1
-# Support for forward-declared structs and unions
-# RepoIds in indirections are now resolved at the time of use
-#
-# Revision 1.28.2.1  2000/10/13 13:55:30  dpg1
-# Initial support for omniORB 4.
-#
-# Revision 1.28  2000/08/21 10:20:19  dpg1
-# Merge from omnipy1_develop for 1.1 release
-#
-# Revision 1.27.2.2  2000/08/17 08:46:06  dpg1
-# Support for omniORB.LOCATION_FORWARD exception
-#
-# Revision 1.27.2.1  2000/08/07 09:19:24  dpg1
-# Long long support
-#
-# Revision 1.27  2000/07/10 18:44:26  dpg1
-# Remove partial IR stubs. Add TypeCodes for System Exceptions.
-#
-# Revision 1.26  2000/06/27 15:09:01  dpg1
-# Fix to _is_a(). CORBA.Object registered in the objref map.
-#
-# Revision 1.25  2000/06/02 14:25:51  dpg1
-# orb.run() now properly exits when the ORB is shut down
-#
-# Revision 1.24  2000/05/16 10:43:24  dpg1
-# Add TC_foo names for TypeCode constants.
-#
-# Revision 1.23  2000/04/27 11:05:26  dpg1
-# Add perform_work(), work_pending(), shutdown(), and destroy() operations.
-#
-# Revision 1.22  2000/03/29 10:15:47  dpg1
-# Exceptions now more closely follow the interface of
-# exceptions.Exception.
-#
-# Revision 1.21  2000/03/28 14:46:36  dpg1
-# Undo the last change.
-#
-# Revision 1.20  2000/03/28 09:33:21  dpg1
-# CORBA.Exception no longer derives from exceptions.Exception.
-#
-# Revision 1.19  2000/03/03 17:41:28  dpg1
-# Major reorganisation to support omniORB 3.0 as well as 2.8.
-#
-# Revision 1.17  2000/01/31 10:51:42  dpg1
-# Fix to exception throwing.
-#
-# Revision 1.16  2000/01/18 17:14:13  dpg1
-# Support for pickle
-#
-# Revision 1.15  1999/12/07 12:35:33  dpg1
-# id() function added.
-#
-# Revision 1.14  1999/11/25 14:12:34  dpg1
-# sleep()ing for maxint seconds wasn't a good idea, since some platforms
-# use milliseconds for their sleep system call.
-#
-# Revision 1.13  1999/11/25 14:01:45  dpg1
-# orb.run() now uses time.sleep() to sleep, rather than blocking in
-# impl_is_ready(). This means Python can interrupt the sleep.
-#
-# Revision 1.12  1999/11/10 16:08:21  dpg1
-# Some types weren't registered properly.
-#
-# Revision 1.11  1999/10/18 08:25:57  dpg1
-# _is_a() now works properly for local objects.
-#
-# Revision 1.10  1999/09/29 11:25:55  dpg1
-# Nil objects now map to None. They work too, which is more than can be
-# said for the old mapping...
-#
-# Revision 1.9  1999/09/27 09:06:37  dpg1
-# Friendly error message if there is no thread support.
-#
-# Revision 1.8  1999/09/24 13:28:37  dpg1
-# RootPOA added to list_initial_services() list.
-#
-# Revision 1.7  1999/09/24 09:22:01  dpg1
-# Added copyright notices.
-#
-# Revision 1.6  1999/09/22 15:46:11  dpg1
-# Fake POA implemented.
-#
-# Revision 1.5  1999/09/13 14:51:46  dpg1
-# Any coercion implemented. TypeCode() constructor now complies to
-# latest spec.
-#
-# Revision 1.4  1999/09/13 09:55:02  dpg1
-# Initial references support. __methods__ added.
-#
-# Revision 1.3  1999/07/29 14:16:56  dpg1
-# Server side, TypeCode creation interface.
-#
-# Revision 1.2  1999/07/19 15:47:05  dpg1
-# TypeCode and Any support.
-#
-# Revision 1.1  1999/06/08 16:21:52  dpg1
-# Initial revision
-#
-
 """
 Main omniORB CORBA module
 """
 
-
 import _omnipy
 import omniORB
 
-import threading, types, time, exceptions, string
+import threading, types, time
+
+try:
+    property
+except NameError:
+    def property(*args):
+        return None
 
 
 #############################################################################
@@ -235,8 +48,13 @@ import threading, types, time, exceptions, string
 #                                                                           #
 #############################################################################
 
-TRUE  = 1
-FALSE = 0
+try:
+    TRUE  = True
+    FALSE = False
+
+except NameError:
+    TRUE  = 1
+    FALSE = 0
 
 
 
@@ -246,7 +64,9 @@ FALSE = 0
 #                                                                           #
 #############################################################################
 
-class Exception (exceptions.Exception):
+__base_Exception = Exception
+
+class Exception (__base_Exception):
     pass
 
 OMGVMCID = 0x4f4d0000
@@ -262,12 +82,15 @@ completion_status = omniORB.Enum("IDL:omg.org/CORBA/completion_status:1.0",
                                   COMPLETED_MAYBE))
 
 class SystemException (Exception):
-    def __init__(self, minor=0, completed=COMPLETED_NO):
+    def __init__(self, minor=0, completed=COMPLETED_NO, info=None):
         self.minor = minor
-        if type(completed) == types.IntType:
+        if isinstance(completed, int):
             self.completed = completion_status._item(completed)
         else:
             self.completed = completed
+
+        self._info = info
+            
         Exception.__init__(self, minor, self.completed)
 
     def __repr__(self):
@@ -277,9 +100,15 @@ class SystemException (Exception):
         else:
             minorName = "omniORB." + minorName
 
-        return "CORBA.%s(%s, CORBA.%s)" % (self.__class__.__name__,
-                                           minorName,
-                                           self.completed)
+        if self._info is not None:
+            info = ", %r" % self._info
+        else:
+            info = ""
+
+        return "CORBA.%s(%s, CORBA.%s%s)" % (self.__class__.__name__,
+                                             minorName,
+                                             self.completed,
+                                             info)
     def __str__(self):
         return self.__repr__()
 
@@ -310,7 +139,7 @@ class UserException (Exception):
             except AttributeError:
                 vals.append("%s=<not set>" % attr)
 
-        return "%s(%s)" % (cname, string.join(vals, ", "))
+        return "%s(%s)" % (cname, ", ".join(vals))
 
     def __str__(self):
         return self.__repr__()
@@ -402,7 +231,8 @@ PRIVATE_MEMBER = 0
 PUBLIC_MEMBER  = 1
 
 
-class TypeCode:
+class TypeCode(object):
+    
     class Bounds (UserException):
         pass
     class BadKind (UserException):
@@ -439,12 +269,8 @@ class TypeCode:
     def type_modifier(self):            return self._t.type_modifier()
     def concrete_base_type(self):       return self._t.concrete_base_type()
 
-    __methods__ = ["equal", "equivalent", "get_compact_typecode",
-                   "kind", "id", "name", "member_count", "member_name",
-                   "member_type", "member_label", "discriminator_type",
-                   "default_index", "length", "content_type",
-                   "fixed_digits", "fixed_scale", "member_visibility",
-                   "type_modifier", "concrete_base_type"]
+
+omniORB._CORBA_dict = globals()
 
 import tcInternal
 _d_TypeCode = tcInternal.tv_TypeCode
@@ -493,7 +319,8 @@ def id(obj):
 #                                                                           #
 #############################################################################
 
-class Any:
+class Any(object):
+    
     def __init__(self, t, v):
         if not isinstance(t, TypeCode):
             raise TypeError("Argument 1 must be a TypeCode.")
@@ -515,8 +342,6 @@ class Any:
     def __repr__(self):
         return "CORBA.Any(%s, %s)" % (repr(self._t), repr(self._v))
 
-    __methods__ = ["typecode", "value"]
-
 _d_any = tcInternal.tv_any
 
 
@@ -526,60 +351,46 @@ _d_any = tcInternal.tv_any
 #                                                                           #
 #############################################################################
 
-if _omnipy.coreVersion() == "2.8.0":
-    ORB_ID = "omniORB2"
-elif _omnipy.coreVersion()[0] == "3":
-    ORB_ID = "omniORB3"
-elif _omnipy.coreVersion()[0] == "4":
-    ORB_ID = "omniORB4"
-else:
-    ORB_ID = "UnknownORB"
+ORB_ID = "omniORB4"
 
 def ORB_init(argv=[], orb_identifier = ORB_ID):
     if _omnipy.need_ORB_init():
-        omniORB.poaCache.clear()
-        omniORB.orb = ORB(argv, orb_identifier)
+        omniORB.orb = _omnipy.ORB_init(argv, orb_identifier)
         omniORB.rootPOA = None
 
     return omniORB.orb
 
 
-class ORB:
+class ORB(object):
     """omnipy ORB object"""
 
-    def __init__(self, argv, orb_identifier):
-        self.__release = None
-        _omnipy.ORB_init(self, argv, orb_identifier)
-        self.__release = _omnipy.orb_func.releaseRef
-        self.__context = None
-
-    def __del__(self):
-        if self.__release:
-            self.__release(self)
+    def __init__(self, orb):
+        self._obj     = orb
+        self._context = None
 
     def id(self):
         return ORB_ID
 
     def string_to_object(self, ior):
-        return _omnipy.orb_func.string_to_object(self, ior)
+        return self._obj.string_to_object(ior)
 
     def object_to_string(self, obj):
-        return _omnipy.orb_func.object_to_string(self, obj)
+        return self._obj.object_to_string(obj)
 
     def register_initial_reference(self, identifier, obj):
-        return _omnipy.orb_func.register_initial_reference(self, identifier, obj)
+        return self._obj.register_initial_reference(identifier, obj)
 
     def list_initial_services(self):
-        return _omnipy.orb_func.list_initial_services(self)
+        return self._obj.list_initial_services()
 
     def resolve_initial_references(self, identifier):
-        return _omnipy.orb_func.resolve_initial_references(self, identifier)
+        return self._obj.resolve_initial_references(identifier)
 
     def work_pending(self):
-        return _omnipy.orb_func.work_pending(self)
+        return self._obj.work_pending()
 
     def perform_work(self):
-        _omnipy.orb_func.perform_work(self)
+        self._obj.perform_work()
 
     def run(self):
         # We have to use a timeout rather than just blocking in run(),
@@ -587,14 +398,14 @@ class ORB:
 
         timeout = 0.000001 # 1 usec
 
-        shutdown = _omnipy.orb_func.run_timeout(self, timeout)
+        shutdown = self._obj.run_timeout(timeout)
 
         try:
             while not shutdown:
                 if timeout < 1.0:
                     timeout = timeout * 1.1
 
-                shutdown = _omnipy.orb_func.run_timeout(self, timeout)
+                shutdown = self._obj.run_timeout(timeout)
 
         except BAD_INV_ORDER:
             # If a shutdown races with the timeout occurring, we will
@@ -603,12 +414,10 @@ class ORB:
             pass
 
     def shutdown(self, wait_for_completion):
-        omniORB.poaCache.clear()
-        _omnipy.orb_func.shutdown(self, wait_for_completion)
+        self._obj.shutdown(wait_for_completion)
 
     def destroy(self):
-        omniORB.poaCache.clear()
-        _omnipy.orb_func.destroy(self)
+        self._obj.destroy()
 
 
     # TypeCode operations
@@ -663,10 +472,10 @@ class ORB:
     # Context operation
     def get_default_context(self):
         omniORB.lock.acquire()
-        if self.__context is None:
-            self.__context = Context("", None)
+        if self._context is None:
+            self._context = Context("", None)
         omniORB.lock.release()
-        return self.__context
+        return self._context
 
     # ValueFactory operations
     def register_value_factory(self, repoId, factory):
@@ -683,31 +492,12 @@ class ORB:
         if isinstance(val, Any):
             val = val._v
 
-        import PortableServer
-        p = PortableServer._create_policy(ptype, val)
-        if p: return p
-
-        import BiDirPolicy
-        p = BiDirPolicy._create_policy(ptype, val)
-        if p: return p
+        for maker in omniORB.policyMakers:
+            p = maker(ptype, val)
+            if p is not None:
+                return p
 
         raise PolicyError(BAD_POLICY)
-
-
-    __methods__ = ["string_to_object", "object_to_string",
-                   "register_initial_reference",
-                   "list_initial_services", "resolve_initial_references",
-                   "work_pending", "perform_work", "run",
-                   "shutdown", "destroy",
-                   "create_struct_tc", "create_union_tc",
-                   "create_enum_tc", "create_alias_tc",
-                   "create_exception_tc", "create_interface_tc",
-                   "create_string_tc", "create_sequence_tc",
-                   "create_array_tc", "create_recursive_tc",
-                   "create_value_tc", "create_value_box_tc",
-                   "create_abstract_interface_tc", "create_local_interface_tc",
-                   "get_default_context", "register_value_factory",
-                   "lookup_value_factory"]
 
     class InvalidName (UserException):
         _NP_RepositoryId = "IDL:omg.org/CORBA/ORB/InvalidName:1.0"
@@ -726,18 +516,15 @@ class ORB:
 #                                                                           #
 #############################################################################
 
-class Object:
+class Object(object):
     """ CORBA::Object base class """
 
     _NP_RepositoryId = ""
 
     _nil = None
 
-    def __init__(self):
-        self.__release = _omnipy.releaseObjref
-
-    def __del__(self):
-        self.__release(self)
+    def __init__(self, obj):
+        self._obj = obj
 
     def __getstate__(self):
         return ORB_init().object_to_string(self)
@@ -745,11 +532,8 @@ class Object:
     def __setstate__(self, state):
         o = ORB_init().string_to_object(state)
         self.__dict__.update(o.__dict__)
-        def dummy(): pass # Why doesn't dummy want an argument? ***
-        o.__del__ = dummy
 
     def _get_interface(self):
-        import omniORB
         if omniORB.orb is None:
             raise BAD_INV_ORDER(omniORB.BAD_INV_ORDER_ORBHasShutdown,
                                 COMPLETED_NO)
@@ -757,7 +541,7 @@ class Object:
         omniORB.importIRStubs()
 
         try:
-            return _omnipy.invoke(self, "_interface", _d_Object_interface, ())
+            return self._obj.invoke("_interface", _d_Object_interface, ())
         except Exception:
             pass
 
@@ -769,17 +553,17 @@ class Object:
         return interf._narrow(InterfaceDef)
     
     def _is_a(self, repoId):
-        return _omnipy.isA(self, repoId)
+        return self._obj.isA(repoId)
     
     def _non_existent(self):
-        return _omnipy.nonExistent(self)
+        return self._obj.nonExistent()
     
     def _is_equivalent(self, other_object):
         if self == other_object: return TRUE
-        return _omnipy.isEquivalent(self, other_object)
+        return self._obj.isEquivalent(other_object)
     
     def _hash(self, maximum):
-        return _omnipy.hash(self, maximum)
+        return self._obj.hash(maximum)
     
     def _duplicate(self, obj):
         return self
@@ -795,7 +579,8 @@ class Object:
                 return self
         except KeyError:
             pass
-        return _omnipy.narrow(self, repoId, 1)
+
+        return self._obj.narrow(repoId, 1)
 
     def _unchecked_narrow(self, dest):
         repoId = dest._NP_RepositoryId
@@ -805,10 +590,73 @@ class Object:
                 return self
         except KeyError:
             pass
-        return _omnipy.narrow(self, repoId, 0)
 
-    __methods__ = ["_is_a", "_non_existent", "_is_equivalent",
-                   "_get_interface", "_hash", "_narrow", "_unchecked_narrow"]
+        return self._obj.narrow(repoId, 0)
+
+    def _NP_disconnect(self):
+        """_NP_disconnect()
+
+        Forcibly disconnect all connections associated with this
+        object reference.
+        """
+        self._obj.disconnect()
+
+
+    def _dynamic_op(self, name, in_args=[], out_args=[], excs=[]):
+        """_dynamic_op(name, in_args=[], out_args=[], excs=[])
+
+        Returns a function that calls the operation named 'name'.
+        
+        in_args is a list of TypeCodes of in arguments.
+        
+        out_args is a list of TypeCodes of out arguments. If out_args
+        is set to None, the operation is oneway.
+
+        excs is a list of exception TypeCodes.
+
+        The resulting function is called with the same calling
+        convention as a normal static operation.
+        """
+        in_l  = []
+        for in_arg in in_args:
+            if not isinstance(in_arg, TypeCode):
+                raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType,
+                                COMPLETED_NO)
+            in_l.append(in_arg._d)
+
+        in_d = tuple(in_l)
+
+        if out_args is not None:
+            out_l = []
+            for out_arg in out_args:
+                if not isinstance(out_arg, TypeCode):
+                    raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType,
+                                    COMPLETED_NO)
+                out_l.append(out_arg._d)
+            out_d = tuple(out_l)
+        else:
+            out_d = None
+
+        exc_d = {}
+        for exc in excs:
+            if not isinstance(exc, TypeCode):
+                raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType,
+                                COMPLETED_NO)
+            d = exc._d
+            exc_d[d[2]] = d
+
+        op_desc = (in_d, out_d, exc_d)
+
+        def omni_dynamic_op(*args):
+            return self._obj.invoke(name, op_desc, args)
+
+        try:
+            omni_dynamic_op.__name__ = "dynamic<%s>" % name
+        except AttributeError:
+            pass
+
+        return omni_dynamic_op
+
 
 _d_Object  = (omniORB.tcInternal.tv_objref, Object._NP_RepositoryId, "Object")
 TC_Object  = _tc_Object = omniORB.tcInternal.createTypeCode(_d_Object)
@@ -830,9 +678,8 @@ class LocalObject (Object):
     _NP_RepositoryId = "IDL:omg.org/CORBA/LocalObject:1.0"
 
     def __init__(self):
-        # Override base Object __init__
-        def no_release(obj): pass
-        self._Object__release = no_release
+        pass
+
 
 _d_LocalObject  = (omniORB.tcInternal.tv_local_interface, LocalObject._NP_RepositoryId, "LocalObject")
 TC_LocalObject  = _tc_LocalObject = omniORB.tcInternal.createTypeCode(_d_LocalObject)
@@ -846,7 +693,7 @@ omniORB.registerType(LocalObject._NP_RepositoryId, _d_LocalObject, _tc_LocalObje
 #                                                                           #
 #############################################################################
 
-class ValueBase:
+class ValueBase(object):
     """ CORBA::ValueBase base class """
 
     _NP_RepositoryId = "IDL:omg.org/CORBA/ValueBase:1.0"
@@ -900,7 +747,7 @@ class ValueBase:
                     except AttributeError:
                         vals.append("%s=<not set>" % attr)
 
-            return "%s(%s)" % (cname, string.join(vals, ", "))
+            return "%s(%s)" % (cname, ", ".join(vals))
         finally:
             try:
                 del self.__in_repr
@@ -952,12 +799,10 @@ class Policy (Object):
     def __init__(self):
         raise RuntimeError("Cannot construct objects of this type.")
 
-    def __del__(self):
-        # Override base CORBA.Object
-        pass
-
     def _get_policy_type(self):
         return self._policy_type
+
+    policy_type = property(_get_policy_type)
 
     def copy(self):
         return self
@@ -983,9 +828,6 @@ class Policy (Object):
         else:
             return None
 
-    __methods__ = ["_get_policy_type", "copy", "destroy"] + Object.__methods__
-
-
 
 #############################################################################
 #                                                                           #
@@ -1004,30 +846,25 @@ class Context (Object):
         else:
             self.__values = {}
 
-    def __del__(self):
-        pass
-
     def set_one_value(self, name, val):
-        if type(name) is not types.StringType or \
-           type(val) is not types.StringType:
+        if not (isinstance(name, str) and isinstance(val, str)):
             raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
         
         self.__values[name] = val
 
     def set_values(self, values):
-        if type(values) is not types.DictType:
+        if not isinstance(values, dict):
             raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
         
-        for k,v in values.items():
-            if type(k) is not types.StringType or \
-               type(v) is not types.StringType:
+        for k,v in values.iteritems():
+            if not (isinstance(k, str) and isinstance(v, str)):
                 raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType,
                                 COMPLETED_NO)
 
         self.__values.update(values)
 
     def get_values(self, pattern, start_scope=None):
-        if type(pattern) is not types.StringType:
+        if not isinstance(pattern, str):
             raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
         
         ctxt = self
@@ -1044,7 +881,7 @@ class Context (Object):
         return r
 
     def delete_values(self, pattern):
-        if type(pattern) is not types.StringType or pattern == "":
+        if not isinstance(pattern, str) or pattern == "":
             raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
 
         found = 0
@@ -1054,7 +891,7 @@ class Context (Object):
                 # Wildcard
                 pattern = pattern[:-1]
                 pl = len(pattern)
-                for k in self.__values.keys():
+                for k in self.__values.iterkeys():
                     if k[:pl] == pattern:
                         found = 1
                         del self.__values[k]
@@ -1105,12 +942,12 @@ class Context (Object):
                 # Wildcard
                 pattern = pattern[:-1]
                 pl = len(pattern)
-                for k,v in self.__values.items():
-                    if k[:pl] == pattern and not values.has_key(k):
+                for k,v in self.__values.iteritems():
+                    if k[:pl] == pattern and k not in values:
                         values[k] = v
             else:
                 # Not a wildcard
-                if not values.has_key(pattern):
+                if pattern not in values:
                     v = self.__values.get(pattern)
                     if v:
                         values[pattern] = v
@@ -1119,11 +956,7 @@ class Context (Object):
             self.__parent._get_values(patterns, values)
 
         return values
-        
-    __methods__ = ["set_one_value", "set_values", "get_values",
-                   "delete_values", "create_child"] + Object.__methods__
-
-
+    
 
 #############################################################################
 #                                                                           #
@@ -1144,18 +977,12 @@ fixed = omniORB.fixed
 
 #############################################################################
 #                                                                           #
-# Wide character things (only for Pythons with Unicode support)             #
+# Wide character things for compatibility with standard Python mapping      #
 #                                                                           #
 #############################################################################
 
-try:
-    wstr = unichr
-    word = ord
-except NameError:
-    def wstr(c):
-        raise NO_IMPLEMENT(omniORB.NO_IMPLEMENT_Unsupported, COMPLETED_NO)
-    def word(c):
-        raise NO_IMPLEMENT(omniORB.NO_IMPLEMENT_Unsupported, COMPLETED_NO)
+wstr = unichr
+word = ord
 
 
 #############################################################################
@@ -1169,7 +996,7 @@ except NameError:
 # omniORB.importIRStubs() to import the full IfR declarations.
 
 # typedef string Identifier
-class Identifier:
+class Identifier(object):
     _NP_RepositoryId = "IDL:omg.org/CORBA/Identifier:1.0"
     def __init__(self):
         raise RuntimeError("Cannot construct objects of this type.")
@@ -1215,7 +1042,7 @@ del _minor, _completed, g, r, d, t, exc
 #############################################################################
 
 # typedef ... PolicyErrorCode
-class PolicyErrorCode:
+class PolicyErrorCode(object):
     _NP_RepositoryId = "IDL:omg.org/CORBA/PolicyErrorCode:1.0"
     def __init__(self, *args, **kw):
         raise RuntimeError("Cannot construct objects of this type.")

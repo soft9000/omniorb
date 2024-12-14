@@ -3,7 +3,7 @@
 // pyLocalObjects.cc          Created on: 2005/10/20
 //                            Author    : Duncan Grisby (dgrisby)
 //
-//    Copyright (C) 2005-2008 Apasphere Ltd.
+//    Copyright (C) 2005-2014 Apasphere Ltd.
 //    Copyright (C) 1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORBpy library
@@ -20,28 +20,13 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Implementation of Python servant object
 
-// $Id$
-
-// $Log$
-// Revision 1.1.2.2  2008/10/09 15:04:36  dgrisby
-// Python exceptions occurring during unmarshalling were not properly
-// handled. Exception state left set when at traceLevel 0 (thanks
-// Morarenko Kirill).
-//
-// Revision 1.1.2.1  2005/11/09 12:33:32  dgrisby
-// Support POA LocalObjects.
-//
-
 #include <omnipy.h>
-#include <pyThreadCache.h>
 
 
 //
@@ -324,13 +309,12 @@ Py_AdapterActivatorObj::_ptrToObjRef(const char* id)
 CORBA::LocalObject_ptr
 omniPy::getLocalObjectForPyObject(PyObject* pyobj)
 {
-  PyObject* pyrepoId = PyObject_GetAttrString(pyobj,(char*)"_NP_RepositoryId");
+  PyRefHolder pyrepoId(PyObject_GetAttrString(pyobj,(char*)"_NP_RepositoryId"));
 
-  if (!(pyrepoId && PyString_Check(pyrepoId)))
+  if (!(pyrepoId.valid() && String_Check(pyrepoId)))
     return 0;
 
-  PyRefHolder holder(pyrepoId);
-  const char* repoId = PyString_AS_STRING(pyrepoId);
+  const char* repoId = String_AS_STRING(pyrepoId.obj());
 
   if (omni::ptrStrMatch(repoId, PortableServer::ServantActivator::_PD_repoId))
     return new Py_ServantActivatorObj(pyobj);
@@ -393,10 +377,17 @@ Py_ServantActivator::incarnate(const PortableServer::ObjectId& oid,
 		  CORBA::COMPLETED_MAYBE);
   }
   PortableServer::POA::_duplicate(poa);
+
+#if (PY_VERSION_HEX < 0x03000000) // Python 2
   argtuple = Py_BuildValue((char*)"s#N",
 			   (const char*)oid.NP_data(), oid.length(),
 			   omniPy::createPyPOAObject(poa));
-
+#else
+  argtuple = Py_BuildValue((char*)"y#N",
+			   (const char*)oid.NP_data(), oid.length(),
+			   omniPy::createPyPOAObject(poa));
+#endif
+  
   // Do the up-call
   pyservant = PyEval_CallObject(method, argtuple);
   Py_DECREF(method);
@@ -422,7 +413,7 @@ Py_ServantActivator::incarnate(const PortableServer::ObjectId& oid,
     if (evalue)
       erepoId = PyObject_GetAttrString(evalue, (char*)"_NP_RepositoryId");
 
-    if (!(erepoId && PyString_Check(erepoId))) {
+    if (!(erepoId && String_Check(erepoId))) {
       PyErr_Clear();
       Py_XDECREF(erepoId);
       if (omniORB::trace(1)) {
@@ -439,15 +430,14 @@ Py_ServantActivator::incarnate(const PortableServer::ObjectId& oid,
       OMNIORB_THROW(UNKNOWN, UNKNOWN_PythonException, CORBA::COMPLETED_MAYBE);
     }
 
-    if (omni::strMatch(PyString_AS_STRING(erepoId),
+    if (omni::strMatch(String_AS_STRING(erepoId),
 		       PortableServer::ForwardRequest::_PD_repoId)) {
       Py_DECREF(erepoId); Py_DECREF(etype); Py_XDECREF(etraceback);
       PyObject* pyfr = PyObject_GetAttrString(evalue,
 					      (char*)"forward_reference");
       Py_DECREF(evalue);
       if (pyfr) {
-	CORBA::Object_ptr fr = (CORBA::Object_ptr)omniPy::getTwin(pyfr,
-								  OBJREF_TWIN);
+	CORBA::Object_ptr fr = omniPy::getObjRef(pyfr);
 	if (fr) {
 	  PortableServer::ForwardRequest ex(fr);
 	  Py_DECREF(pyfr);
@@ -462,8 +452,7 @@ Py_ServantActivator::incarnate(const PortableServer::ObjectId& oid,
     }
 
     // Is it a LOCATION_FORWARD?
-    if (omni::strMatch(PyString_AS_STRING(erepoId),
-		       "omniORB.LOCATION_FORWARD")) {
+    if (omni::strMatch(String_AS_STRING(erepoId), "omniORB.LOCATION_FORWARD")) {
       Py_DECREF(erepoId); Py_DECREF(etype); Py_XDECREF(etraceback);
       omniPy::handleLocationForward(evalue);
     }
@@ -506,12 +495,23 @@ Py_ServantActivator::etherealize(const PortableServer::ObjectId& oid,
 		  CORBA::COMPLETED_NO);
   }
   PortableServer::POA::_duplicate(poa);
+
+#if (PY_VERSION_HEX < 0x03000000) // Python 2
   argtuple = Py_BuildValue((char*)"s#NNii",
 			   (const char*)oid.NP_data(), oid.length(),
 			   omniPy::createPyPOAObject(poa),
 			   pyos->pyServant(),
 			   (int)cleanup_in_progress,
 			   (int)remaining_activations);
+#else
+  argtuple = Py_BuildValue((char*)"y#NNii",
+			   (const char*)oid.NP_data(), oid.length(),
+			   omniPy::createPyPOAObject(poa),
+			   pyos->pyServant(),
+			   (int)cleanup_in_progress,
+			   (int)remaining_activations);
+#endif
+  
   // Do the up-call
   result = PyEval_CallObject(method, argtuple);
   Py_DECREF(method);
@@ -553,11 +553,19 @@ Py_ServantLocator::preinvoke(const PortableServer::ObjectId& oid,
 		  CORBA::COMPLETED_NO);
   }
   PortableServer::POA::_duplicate(poa);
+
+#if (PY_VERSION_HEX < 0x03000000) // Python 2
   argtuple = Py_BuildValue((char*)"s#Ns",
 			   (const char*)oid.NP_data(), oid.length(),
 			   omniPy::createPyPOAObject(poa),
 			   operation);
-
+#else
+  argtuple = Py_BuildValue((char*)"y#Ns",
+			   (const char*)oid.NP_data(), oid.length(),
+			   omniPy::createPyPOAObject(poa),
+			   operation);
+#endif
+  
   // Do the up-call
   rettuple = PyEval_CallObject(method, argtuple);
   Py_DECREF(method);
@@ -595,7 +603,7 @@ Py_ServantLocator::preinvoke(const PortableServer::ObjectId& oid,
     if (evalue)
       erepoId = PyObject_GetAttrString(evalue, (char*)"_NP_RepositoryId");
 
-    if (!(erepoId && PyString_Check(erepoId))) {
+    if (!(erepoId && String_Check(erepoId))) {
       PyErr_Clear();
       Py_XDECREF(erepoId);
       if (omniORB::trace(1)) {
@@ -612,15 +620,14 @@ Py_ServantLocator::preinvoke(const PortableServer::ObjectId& oid,
       OMNIORB_THROW(UNKNOWN, UNKNOWN_PythonException, CORBA::COMPLETED_MAYBE);
     }
 
-    if (omni::strMatch(PyString_AS_STRING(erepoId),
+    if (omni::strMatch(String_AS_STRING(erepoId),
 		       PortableServer::ForwardRequest::_PD_repoId)) {
       Py_DECREF(erepoId); Py_DECREF(etype); Py_XDECREF(etraceback);
       PyObject* pyfr = PyObject_GetAttrString(evalue,
 					      (char*)"forward_reference");
       Py_DECREF(evalue);
       if (pyfr) {
-	CORBA::Object_ptr fr = (CORBA::Object_ptr)omniPy::getTwin(pyfr,
-								  OBJREF_TWIN);
+	CORBA::Object_ptr fr = omniPy::getObjRef(pyfr);
 	if (fr) {
 	  PortableServer::ForwardRequest ex(fr);
 	  Py_DECREF(pyfr);
@@ -634,8 +641,7 @@ Py_ServantLocator::preinvoke(const PortableServer::ObjectId& oid,
       }
     }
     // Is it a LOCATION_FORWARD?
-    if (omni::strMatch(PyString_AS_STRING(erepoId),
-		       "omniORB.LOCATION_FORWARD")) {
+    if (omni::strMatch(String_AS_STRING(erepoId), "omniORB.LOCATION_FORWARD")) {
       Py_DECREF(erepoId); Py_DECREF(etype); Py_XDECREF(etraceback);
       omniPy::handleLocationForward(evalue);
     }
@@ -678,12 +684,23 @@ Py_ServantLocator::postinvoke(const PortableServer::ObjectId& oid,
 		  CORBA::COMPLETED_NO);
   }
   PortableServer::POA::_duplicate(poa);
+
+#if (PY_VERSION_HEX < 0x03000000) // Python 2
   argtuple = Py_BuildValue((char*)"s#NsNN",
 			   (const char*)oid.NP_data(), oid.length(),
 			   omniPy::createPyPOAObject(poa),
 			   operation,
 			   (PyObject*)cookie,
 			   pyos->pyServant());
+#else
+  argtuple = Py_BuildValue((char*)"y#NsNN",
+			   (const char*)oid.NP_data(), oid.length(),
+			   omniPy::createPyPOAObject(poa),
+			   operation,
+			   (PyObject*)cookie,
+			   pyos->pyServant());
+#endif
+
   // Do the up-call
   result = PyEval_CallObject(method, argtuple);
   Py_DECREF(method);
@@ -725,11 +742,7 @@ Py_AdapterActivator::unknown_adapter(PortableServer::POA_ptr parent,
   Py_DECREF(argtuple);
 
   if (pyresult) {
-    if (!PyInt_Check(pyresult)) {
-      Py_DECREF(pyresult);
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
-    }
-    CORBA::Boolean result = PyInt_AS_LONG(pyresult);
+    CORBA::Boolean result = PyObject_IsTrue(pyresult);
     Py_DECREF(pyresult);
     return result;
   }

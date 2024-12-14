@@ -8,19 +8,17 @@
 //    This file is part of the omniORB library
 //
 //    The omniORB library is free software; you can redistribute it and/or
-//    modify it under the terms of the GNU Library General Public
+//    modify it under the terms of the GNU Lesser General Public
 //    License as published by the Free Software Foundation; either
-//    version 2 of the License, or (at your option) any later version.
+//    version 2.1 of the License, or (at your option) any later version.
 //
 //    This library is distributed in the hope that it will be useful,
 //    but WITHOUT ANY WARRANTY; without even the implied warranty of
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-//    Library General Public License for more details.
+//    Lesser General Public License for more details.
 //
-//    You should have received a copy of the GNU Library General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-//    02111-1307, USA
+//    You should have received a copy of the GNU Lesser General Public
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //    Proprietary omniORB connection management API
@@ -31,14 +29,14 @@
 #define DLL_EXPORT
 #endif
 
-#include <omniORB4/CORBA.h>
-#include <omniORB4/omniConnectionMgmt.h>
-
 #if defined(__VMS)
 #include <Python.h>
 #else
 #include PYTHON_INCLUDE
 #endif
+
+#include <omniORB4/CORBA.h>
+#include <omniORB4/omniConnectionMgmt.h>
 
 #include <omniORBpy.h>
 #include "../omnipy.h"
@@ -128,6 +126,8 @@ extern "C" {
     {0,0}
   };
 
+#if (PY_VERSION_HEX < 0x03000000)
+
   void DLL_EXPORT init_omniConnMgmt()
   {
     PyObject* m = Py_InitModule((char*)"_omniConnMgmt",
@@ -139,5 +139,38 @@ extern "C" {
     omnipyApi        = (omniORBpyAPI*)PyCObject_AsVoidPtr(pyapi);
     Py_DECREF(pyapi);
   }
+
+#else
+
+  static struct PyModuleDef omniConnectionMgmtmodule = {
+    PyModuleDef_HEAD_INIT,
+    "_omniConnMgmt",
+    "omniORBpy connection management",
+    -1,
+    omniConnectionMgmt_methods,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+  };
+
+  PyMODINIT_FUNC
+  PyInit__omniConnMgmt(void)
+  {
+    PyObject* m = PyModule_Create(&omniConnectionMgmtmodule);
+    if (!m)
+      return 0;
+
+    // Get hold of the omniORBpy C++ API.
+    PyObject* omnipy = PyImport_ImportModule((char*)"_omnipy");
+    PyObject* pyapi  = PyObject_GetAttrString(omnipy, (char*)"API");
+    omnipyApi        = (omniORBpyAPI*)PyCapsule_GetPointer(pyapi,
+                                                           "_omnipy.API");
+    Py_DECREF(pyapi);
+
+    return m;
+  }
+
+#endif
 };
 

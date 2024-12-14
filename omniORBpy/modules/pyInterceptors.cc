@@ -3,7 +3,7 @@
 // pyInterceptors.cc          Created on: 2003/05/27
 //                            Author    : Duncan Grisby (dgrisby)
 //
-//    Copyright (C) 2003-2006 Apasphere Ltd.
+//    Copyright (C) 2003-2012 Apasphere Ltd.
 //
 //    This file is part of the omniORBpy library
 //
@@ -19,30 +19,10 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
-//    Python request interceptors
-
-// $Id$
-// $Log$
-// Revision 1.1.4.3  2006/06/05 11:51:00  dgrisby
-// Track ORB core interceptor change.
-//
-// Revision 1.1.4.2  2005/07/22 17:41:08  dgrisby
-// Update from omnipy2_develop.
-//
-// Revision 1.1.4.1  2005/01/07 00:22:32  dgrisby
-// Big merge from omnipy2_develop.
-//
-// Revision 1.1.2.2  2003/07/26 23:17:43  dgrisby
-// Avoid spurious warning about lack of return value.
-//
-// Revision 1.1.2.1  2003/05/28 10:13:01  dgrisby
-// Preliminary interceptor support. General clean-up.
-//
+//    Python interceptors
 
 #include <omnipy.h>
 #include <pyThreadCache.h>
@@ -65,27 +45,8 @@ static PyObject* serverReceiveRequestFns      = 0;
 static PyObject* serverReceiveRequestCredsFns = 0;
 static PyObject* serverSendReplyFns           = 0;
 static PyObject* serverSendExceptionFns       = 0;
-
-
-static inline
-CORBA::ULong
-pyNumberToULong(PyObject* obj, CORBA::CompletionStatus completion)
-{
-  if (PyInt_Check(obj)) {
-    long r = PyInt_AS_LONG(obj);
-    if (r >= 0)
-      return r;
-  }
-  if (PyLong_Check(obj)) {
-    CORBA::ULong r = PyLong_AsUnsignedLong(obj);
-    if (r == (CORBA::ULong)-1 && PyErr_Occurred())
-      PyErr_Clear();
-    else
-      return r;
-  }
-  OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, completion);
-  return 0;
-}
+static PyObject* assignUpcallThreadFns        = 0;
+static PyObject* assignAMIThreadFns           = 0;
 
 
 static
@@ -96,18 +57,14 @@ callInterceptorsAndSetContexts(PyObject*                fnlist,
 			       IOP::ServiceContextList& service_contexts,
 			       CORBA::CompletionStatus  completion)
 {
-  PyObject* argtuple;
-  if (exrepoid)
-    argtuple = PyTuple_New(3);
-  else
-    argtuple = PyTuple_New(2);
+  omniPy::PyRefHolder argtuple(PyTuple_New(exrepoid ? 3 : 2));
 
   PyObject* ctxtlist = PyList_New(0);
-  PyTuple_SetItem(argtuple, 0, PyString_FromString(opname));
+  PyTuple_SetItem(argtuple, 0, String_FromString(opname));
   PyTuple_SetItem(argtuple, 1, ctxtlist);
 
   if (exrepoid)
-    PyTuple_SetItem(argtuple, 2, PyString_FromString(exrepoid));
+    PyTuple_SetItem(argtuple, 2, String_FromString(exrepoid));
 
   CORBA::ULong sclen = service_contexts.length();
   CORBA::ULong sci   = sclen;
@@ -137,28 +94,27 @@ callInterceptorsAndSetContexts(PyObject*                fnlist,
 	    OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, completion);
 	  }
 	  service_contexts[sci].context_id =
-	    pyNumberToULong(PyTuple_GET_ITEM(sc, 0), completion);
+	    omniPy::getULongVal(PyTuple_GET_ITEM(sc, 0), completion);
 
 	  PyObject* data = PyTuple_GET_ITEM(sc, 1);
 
-	  if (!PyString_Check(data))
+	  if (!RawString_Check(data))
 	    OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, completion);
 
-	  service_contexts[sci].context_data.length(PyString_GET_SIZE(data));
+          CORBA::ULong size;
+          const char*  str = RawString_AS_STRING_AND_SIZE(data, size);
 
-	  memcpy(service_contexts[sci].context_data.NP_data(),
-		 PyString_AS_STRING(data),
-		 PyString_GET_SIZE(data));
+	  service_contexts[sci].context_data.length(size);
+
+	  memcpy(service_contexts[sci].context_data.NP_data(), str, size);
 	}
 	PyList_SetSlice(ctxtlist, 0, PyList_GET_SIZE(ctxtlist), 0);
       }
     }
   }
-  catch (...) {
-    Py_DECREF(argtuple);
-    throw;
+  catch (Py_BAD_PARAM& bp) {
+    bp.logInfoAndThrow();
   }
-  Py_DECREF(argtuple);
 }
 
 static
@@ -174,31 +130,35 @@ getContextsAndCallInterceptors(PyObject*                fnlist,
   int i;
   int sclen = service_contexts.length();
 
-  PyObject* argtuple = PyTuple_New(pass_peer_info ? 3 : 2);
-  PyObject* sctuple  = PyTuple_New(sclen);
+  omniPy::PyRefHolder argtuple(PyTuple_New(pass_peer_info ? 3 : 2));
 
-  PyTuple_SET_ITEM(argtuple, 0, PyString_FromString(opname));
+  PyObject* sctuple = PyTuple_New(sclen);
+  PyTuple_SET_ITEM(argtuple, 0, String_FromString(opname));
   PyTuple_SET_ITEM(argtuple, 1, sctuple);
 
   if (pass_peer_info) {
     PyObject* peer_info = PyDict_New();
     PyObject* value;
     if (peer_address) {
-      value = PyString_FromString(peer_address);
+      value = String_FromString(peer_address);
     }
     else {
       Py_INCREF(Py_None);
       value = Py_None;
     }
     PyDict_SetItemString(peer_info, "address", value);
+    Py_DECREF(value);
+
     if (peer_identity) {
-      value = PyString_FromString(peer_identity);
+      value = String_FromString(peer_identity);
     }
     else {
       Py_INCREF(Py_None);
       value = Py_None;
     }
     PyDict_SetItemString(peer_info, "identity", value);
+    Py_DECREF(value);
+
     PyTuple_SET_ITEM(argtuple, 2, peer_info);
   }
 
@@ -210,7 +170,7 @@ getContextsAndCallInterceptors(PyObject*                fnlist,
     const char* data = (const char*)service_contexts[i].context_data.NP_data();
     int len = service_contexts[i].context_data.length();
     
-    PyTuple_SET_ITEM(sc, 1, PyString_FromStringAndSize(data, len));
+    PyTuple_SET_ITEM(sc, 1, RawString_FromStringAndSize(data, len));
     PyTuple_SET_ITEM(sctuple, i, sc);
   }
 
@@ -229,11 +189,9 @@ getContextsAndCallInterceptors(PyObject*                fnlist,
       Py_DECREF(result);
     }
   }
-  catch (...) {
-    Py_DECREF(argtuple);
-    throw;
+  catch (Py_BAD_PARAM& bp) {
+    bp.logInfoAndThrow();
   }
-  Py_DECREF(argtuple);
 }
 
 
@@ -274,10 +232,10 @@ pyClientReceiveReplyFn(omniInterceptors::clientReceiveReply_T::info_T& info)
 
   if (PyList_Size(clientReceiveReplyCredsFns)) {
 
-    giopStrand& strand = (omni::giopStrand&) info.giop_c;
+    giopStrand&     strand     = info.giop_c.strand();
     giopConnection* connection = strand.connection;
-    const char* address  = connection->peeraddress();
-    const char* identity = connection->peeridentity();
+    const char*     address    = connection->peeraddress();
+    const char*     identity   = connection->peeridentity();
 
     getContextsAndCallInterceptors(clientReceiveReplyCredsFns,
 				   info.giop_c.operation(),
@@ -309,10 +267,10 @@ pyServerReceiveRequestFn(omniInterceptors::
 
   if (PyList_Size(serverReceiveRequestCredsFns)) {
 
-    giopStrand& strand = (omni::giopStrand&) info.giop_s;
+    giopStrand&     strand     = info.giop_s.strand();
     giopConnection* connection = strand.connection;
-    const char* address  = connection->peeraddress();
-    const char* identity = connection->peeridentity();
+    const char*     address    = connection->peeraddress();
+    const char*     identity   = connection->peeridentity();
 
     getContextsAndCallInterceptors(serverReceiveRequestCredsFns,
 				   info.giop_s.operation(),
@@ -358,6 +316,87 @@ pyServerSendExceptionFn(omniInterceptors::serverSendException_T::info_T& info)
   return 1;
 }
 
+
+template<class infoT>
+static
+void
+assignThreadFn(infoT& info, PyObject* fns)
+{
+  OMNIORB_ASSERT(fns);
+
+  omnipyThreadCache::lock _t;
+
+  omniPy::PyRefHolder post_list(PyList_New(0));
+
+  int i;
+  for (i=0; i < PyList_GET_SIZE(fns); ++i) {
+    PyObject* interceptor = PyList_GET_ITEM(fns, i);
+    PyObject* result      = PyObject_CallObject(interceptor, 0);
+
+    if (!result)
+      omniPy::handlePythonException();
+    
+    if (result == Py_None) {
+      // Simple function
+      Py_DECREF(result);
+    }
+    else {
+      if (!PyIter_Check(result))
+        OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
+
+      // A generator function. Call next() on it once
+      PyList_Append(post_list, result);
+
+      result = PyIter_Next(result);
+      
+      if (!result) {
+        if (PyErr_Occurred())
+          omniPy::handlePythonException();
+
+        // The iterator terminated too soon
+        OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
+      }
+      Py_DECREF(result);
+    }
+  }
+  {
+    omniPy::InterpreterUnlocker _u;
+    info.run();
+  }
+
+  // Reverse-iterate over functions
+  for (i = PyList_GET_SIZE(post_list) - 1; i >= 0; --i) {
+
+    PyObject* gen    = PyList_GET_ITEM(post_list, i);
+    PyObject* result = PyIter_Next(gen);
+
+    if (result) {
+      // Not expecting this -- next() should have raised StopIteration
+      Py_DECREF(result);
+    }
+    else {
+      // If an error occurred, we just swallow it.
+      if (PyErr_Occurred())
+        PyErr_Clear();
+    }
+  }
+}
+
+static
+void
+pyAssignUpcallThreadFn(omniInterceptors::assignUpcallThread_T::info_T& info)
+{
+  assignThreadFn(info, assignUpcallThreadFns);
+}
+
+static
+void
+pyAssignAMIThreadFn(omniInterceptors::assignAMIThread_T::info_T& info)
+{
+  assignThreadFn(info, assignAMIThreadFns);
+}
+
+
 void
 omniPy::
 registerInterceptors()
@@ -378,7 +417,14 @@ registerInterceptors()
 
   if (serverSendExceptionFns)
     interceptors->serverSendException.add(pyServerSendExceptionFn);
+
+  if (assignUpcallThreadFns)
+    interceptors->assignUpcallThread.add(pyAssignUpcallThreadFn);
+
+  if (assignAMIThreadFns)
+    interceptors->assignAMIThread.add(pyAssignAMIThreadFn);
 }
+
 
 #define CHECK_ORB_NOT_INITIALISED() \
   do { \
@@ -535,6 +581,59 @@ extern "C" {
     return Py_None;
   }
 
+  static char addAssignUpcallThread_doc [] =
+  "addAssignUpcallThread(interceptor) -> None\n"
+  "\n"
+  "Install an interceptor for when a thread is assigned to perform upcalls.\n";
+
+  static PyObject* pyInterceptor_addAssignUpcallThread(PyObject* self,
+                                                       PyObject* args)
+  {
+    PyObject* interceptor;
+
+    if (!PyArg_ParseTuple(args, (char*)"O", &interceptor))
+      return 0;
+
+    RAISE_PY_BAD_PARAM_IF(!PyCallable_Check(interceptor),
+			  BAD_PARAM_WrongPythonType);
+
+    CHECK_ORB_NOT_INITIALISED();
+
+    if (!assignUpcallThreadFns)
+      assignUpcallThreadFns = PyList_New(0);
+
+    PyList_Append(assignUpcallThreadFns, interceptor);
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
+
+  static char addAssignAMIThread_doc [] =
+  "addAssignAMIThread(interceptor) -> None\n"
+  "\n"
+  "Install an interceptor for when a thread is assigned to perform AMI calls.\n";
+
+  static PyObject* pyInterceptor_addAssignAMIThread(PyObject* self,
+                                                    PyObject* args)
+  {
+    PyObject* interceptor;
+
+    if (!PyArg_ParseTuple(args, (char*)"O", &interceptor))
+      return 0;
+
+    RAISE_PY_BAD_PARAM_IF(!PyCallable_Check(interceptor),
+			  BAD_PARAM_WrongPythonType);
+
+    CHECK_ORB_NOT_INITIALISED();
+
+    if (!assignAMIThreadFns)
+      assignAMIThreadFns = PyList_New(0);
+
+    PyList_Append(assignAMIThreadFns, interceptor);
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
+
+
   static PyMethodDef pyInterceptor_methods[] = {
     {(char*)"addClientSendRequest",
      pyInterceptor_addClientSendRequest,
@@ -561,9 +660,21 @@ extern "C" {
      METH_VARARGS,
      addServerSendException_doc},
 
+    {(char*)"addAssignUpcallThread",
+     pyInterceptor_addAssignUpcallThread,
+     METH_VARARGS,
+     addAssignUpcallThread_doc},
+
+    {(char*)"addAssignAMIThread",
+     pyInterceptor_addAssignAMIThread,
+     METH_VARARGS,
+     addAssignAMIThread_doc},
+
     {NULL,NULL}
   };
 }
+
+#if (PY_VERSION_HEX < 0x03000000)
 
 void
 omniPy::initInterceptorFunc(PyObject* d)
@@ -572,3 +683,29 @@ omniPy::initInterceptorFunc(PyObject* d)
 			      pyInterceptor_methods);
   PyDict_SetItemString(d, (char*)"interceptor_func", m);
 }
+
+#else
+
+ static struct PyModuleDef interceptor_func_module = {
+   PyModuleDef_HEAD_INIT,
+   "_omnipy.interceptor_func",
+   "omniORB Interceptor API",
+   -1,
+   pyInterceptor_methods,
+   NULL,
+   NULL,
+   NULL,
+   NULL
+ };
+
+void
+omniPy::initInterceptorFunc(PyObject* d)
+{
+  PyObject* m = PyModule_Create(&interceptor_func_module);
+  if (!m)
+    return;
+
+  PyDict_SetItemString(d, (char*)"interceptor_func", m);
+}
+
+#endif

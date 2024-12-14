@@ -3,7 +3,7 @@
 // omniORBpy.h                Created on: 2002/05/25
 //                            Author    : Duncan Grisby (dgrisby)
 //
-//    Copyright (C) 2002 Duncan Grisby
+//    Copyright (C) 2002-2018 Duncan Grisby
 //
 //    This file is part of the omniORBpy library
 //
@@ -19,9 +19,7 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //    Header for the C++ API to omniORBpy
@@ -36,9 +34,16 @@
 #include <omniORB4/CORBA.h>
 
 // The omniORBpy C++ API consists of a singleton structure containing
-// function pointers. A pointer to the API struct is stored as a
-// PyCObject in the _omnipy module with the name API. Access it with
-// code like:
+// function pointers.
+//
+// In Python 3.x, a pointer to the API struct is stored in a PyCapsule
+// named "_omnipy.API". Access it with code like:
+//
+//      omniORBpyAPI* api = (omniORBpyAPI*)PyCapsule_Import("_omnipy.API", 0);
+// 
+//
+// In Python 2.x, a pointer to the API struct is stored as a PyCObject
+// in the _omnipy module with the name API. Access it with code like:
 //
 //      PyObject*     omnipy = PyImport_ImportModule((char*)"_omnipy");
 //      PyObject*     pyapi  = PyObject_GetAttrString(omnipy, (char*)"API");
@@ -93,8 +98,40 @@ struct omniORBpyAPI {
   PyObject* (*unmarshalTypeDesc)(cdrStream& stream, CORBA::Boolean hold_lock);
   // Unmarshal a TypeCode from the stream, giving a type descriptor.
 
+  void* (*acquireGIL)();
+  // Acquire the Python Global Interpreter Lock in a way consistent
+  // with omniORB's threads. Returns an opaque pointer that must be
+  // given to releaseGIL to release the lock.
+
+  void (*releaseGIL)(void* ptr);
+  // Release the Python Global Interpreter Lock acquired with
+  // acquireGIL.
+
   omniORBpyAPI();
   // Constructor for the singleton. Sets up the function pointers.
+};
+
+
+// Python GIL acquisition class
+
+class omniORBpyLock {
+public:
+  inline omniORBpyLock(omniORBpyAPI* api, CORBA::Boolean do_it=1)
+    : api_(api), ptr_(0), do_it_(do_it)
+  {
+    if (do_it)
+      ptr_ = api->acquireGIL();
+  }
+
+  inline ~omniORBpyLock()
+  {
+    if (do_it_)
+      api_->releaseGIL(ptr_);
+  }
+private:
+  omniORBpyAPI*  api_;
+  void*          ptr_;
+  CORBA::Boolean do_it_;
 };
 
 
@@ -135,6 +172,18 @@ catch (const CORBA::exc& ex) { \
 // pointers to functions with this signature:
 
 typedef PyObject* (*omniORBpyPseudoFn)(const CORBA::Object_ptr);
+
+
+// Extensions may register functions to translate Python Policy
+// objects to C++ CORBA::Policy objects. _omnipy.policyFns is a
+// dictionary mapping CORBA::PolicyType to PyCObjects containing
+// functions pointers. Functions take a policy value (i.e. the value
+// inside the Python Policy object, not the Policy object itself), and
+// must return a valid CORBA::Policy object, CORBA::Policy::_nil, or
+// throw a CORBA::SystemException.
+
+typedef CORBA::Policy_ptr (*omniORBpyPolicyFn)(PyObject*);
+
 
 
 #endif // _omniORBpy_h_

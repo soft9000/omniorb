@@ -3,7 +3,7 @@
 // pyAbstractIntf.cc          Created on: 2003/05/21
 //                            Author    : Duncan Grisby (dgrisby)
 //
-//    Copyright (C) 2003-2005 Apasphere Ltd.
+//    Copyright (C) 2003-2014 Apasphere Ltd.
 //
 //    This file is part of the omniORBpy library
 //
@@ -19,22 +19,11 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    Abstract interface support
-
-// $Log$
-// Revision 1.1.2.2  2005/06/24 17:36:08  dgrisby
-// Support for receiving valuetypes inside Anys; relax requirement for
-// old style classes in a lot of places.
-//
-// Revision 1.1.2.1  2003/07/10 22:13:25  dgrisby
-// Abstract interface support.
-//
 
 #include <omnipy.h>
 
@@ -52,39 +41,66 @@ validateTypeAbstractInterface(PyObject* d_o, PyObject* a_o,
     return;
 
   // Object reference?
-  if (omniPy::getTwin(a_o, OBJREF_TWIN))
+  if (omniPy::getObjRef(a_o))
     return;
 
   // Value?
-  if (omniPy::isInstance(a_o, omniPy::pyCORBAValueBase)) {
+  if (PyObject_IsInstance(a_o, omniPy::pyCORBAValueBase)) {
     // Does it support the interface?
     PyObject* repoId    = PyTuple_GET_ITEM(d_o, 1);
     PyObject* skelclass = PyDict_GetItem(omniPy::pyomniORBskeletonMap, repoId);
 
-    if (!skelclass)
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!skelclass) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("No skeleton class for %r",
+					      "O", repoId));
+    }
 
-    if (!omniPy::isInstance(a_o, skelclass))
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!PyObject_IsInstance(a_o, skelclass)) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Valuetype %r does not support "
+					      "abstract interface %r",
+					      "OO",
+					      a_o->ob_type,
+					      PyTuple_GET_ITEM(d_o, 2)));
+    }
 
     // Check the instance matches the valuetype it claims to be.
     repoId = PyObject_GetAttr(a_o, omniPy::pyNP_RepositoryId);
-    if (!repoId)
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!repoId) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Valuetype %r has no "
+					      "repository id",
+					      "O", a_o->ob_type));
+    }
 
     PyObject* valuedesc = PyDict_GetItem(omniPy::pyomniORBtypeMap, repoId);
 
     Py_DECREF(repoId);
 
-    if (!valuedesc)
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!valuedesc) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Unknown valuetype %r",
+					      "O", repoId));
+    }
 
-    omniPy::validateTypeValue(valuedesc, a_o, compstatus, track);
+    try {
+      omniPy::validateTypeValue(valuedesc, a_o, compstatus, track);
+    }
+    catch (Py_BAD_PARAM& bp) {
+      bp.add(omniPy::formatString("Valuetype in abstract interface %r", "O",
+				  PyTuple_GET_ITEM(d_o, 2)));
+      throw;
+    }
     return;
   }
-  OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+  THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+		     omniPy::formatString("Expecting abstract interface %r, "
+					  "got %r",
+					  "OO",
+					  PyTuple_GET_ITEM(d_o, 2),
+					  a_o->ob_type));
 }
-
 
 
 void
@@ -102,8 +118,7 @@ marshalPyObjectAbstractInterface(cdrStream& stream,
   }
 
   // Object reference?
-  CORBA::Object_ptr obj;
-  obj = (CORBA::Object_ptr)omniPy::getTwin(a_o, OBJREF_TWIN);
+  CORBA::Object_ptr obj = omniPy::getObjRef(a_o);
   if (obj) {
     stream.marshalBoolean(1);
     CORBA::Object::_marshalObjRef(obj, stream);
@@ -124,7 +139,7 @@ unmarshalPyObjectAbstractInterface(cdrStream& stream, PyObject* d_o)
 
   if (is_objref) {
     PyObject* pyrepoId = PyTuple_GET_ITEM(d_o, 1);
-    const char* repoId = PyString_AS_STRING(pyrepoId);
+    const char* repoId = String_AS_STRING(pyrepoId);
 
     CORBA::Object_ptr obj = omniPy::UnMarshalObjRef(repoId, stream);
     return omniPy::createPyCorbaObjRef(repoId, obj);
@@ -144,35 +159,63 @@ copyArgumentAbstractInterface(PyObject* d_o, PyObject* a_o,
     return Py_None;
   }
 
-  if (omniPy::getTwin(a_o, OBJREF_TWIN)) {
+  if (omniPy::getObjRef(a_o)) {
     return omniPy::copyObjRefArgument(PyTuple_GET_ITEM(d_o, 1),
 				      a_o, compstatus);
   }
-  if (omniPy::isInstance(a_o, omniPy::pyCORBAValueBase)) {
+  if (PyObject_IsInstance(a_o, omniPy::pyCORBAValueBase)) {
     // Does it support the interface?
     PyObject* repoId    = PyTuple_GET_ITEM(d_o, 1);
     PyObject* skelclass = PyDict_GetItem(omniPy::pyomniORBskeletonMap, repoId);
 
-    if (!skelclass)
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!skelclass) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("No skeleton class for %r",
+					      "O", repoId));
+    }
 
-    if (!omniPy::isInstance(a_o, skelclass))
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!PyObject_IsInstance(a_o, skelclass)) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Valuetype %r does not support "
+					      "abstract interface %r",
+					      "OO",
+					      a_o->ob_type,
+					      PyTuple_GET_ITEM(d_o, 2)));
+    }
 
     // Check the instance matches the valuetype it claims to be.
     repoId = PyObject_GetAttr(a_o, omniPy::pyNP_RepositoryId);
-    if (!repoId)
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!repoId) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Valuetype %r has no "
+					      "repository id",
+					      "O", a_o->ob_type));
+    }
 
     PyObject* valuedesc = PyDict_GetItem(omniPy::pyomniORBtypeMap, repoId);
 
     Py_DECREF(repoId);
 
-    if (!valuedesc)
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+    if (!valuedesc) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Unknown valuetype %r",
+					      "O", repoId));
+    }
 
-    return omniPy::copyArgumentValue(valuedesc, a_o, compstatus);
+    try {
+      return omniPy::copyArgumentValue(valuedesc, a_o, compstatus);
+    }
+    catch (Py_BAD_PARAM& bp) {
+      bp.add(omniPy::formatString("Valuetype in abstract interface %r", "O",
+				  PyTuple_GET_ITEM(d_o, 2)));
+      throw;
+    }
   }
-  OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+  THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+		     omniPy::formatString("Expecting abstract interface %r, "
+					  "got %r",
+					  "OO",
+					  PyTuple_GET_ITEM(d_o, 2),
+					  a_o->ob_type));
   return 0;
 }

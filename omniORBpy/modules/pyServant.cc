@@ -3,7 +3,7 @@
 // pyServant.cc               Created on: 1999/07/29
 //                            Author    : Duncan Grisby (dpg1)
 //
-//    Copyright (C) 2003-2008 Apasphere Ltd
+//    Copyright (C) 2003-2014 Apasphere Ltd
 //    Copyright (C) 1999 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORBpy library
@@ -20,98 +20,10 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
-//
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //    Implementation of Python servant object
-
-// $Id$
-
-// $Log$
-// Revision 1.1.4.12  2009/05/06 16:50:28  dgrisby
-// Updated copyright.
-//
-// Revision 1.1.4.11  2008/10/09 15:04:36  dgrisby
-// Python exceptions occurring during unmarshalling were not properly
-// handled. Exception state left set when at traceLevel 0 (thanks
-// Morarenko Kirill).
-//
-// Revision 1.1.4.10  2008/02/01 16:29:17  dgrisby
-// Error with implementation of operations with names clashing with
-// Python keywords.
-//
-// Revision 1.1.4.9  2006/07/05 10:47:14  dgrisby
-// Propagate exceptions out of _default_POA.
-//
-// Revision 1.1.4.8  2005/11/09 12:33:32  dgrisby
-// Support POA LocalObjects.
-//
-// Revision 1.1.4.7  2005/07/22 17:41:07  dgrisby
-// Update from omnipy2_develop.
-//
-// Revision 1.1.4.6  2005/06/24 17:36:00  dgrisby
-// Support for receiving valuetypes inside Anys; relax requirement for
-// old style classes in a lot of places.
-//
-// Revision 1.1.4.5  2005/04/14 13:50:59  dgrisby
-// New traceTime, traceInvocationReturns functions; removal of omniORB::logf.
-//
-// Revision 1.1.4.4  2005/01/25 11:45:48  dgrisby
-// Merge from omnipy2_develop; set RPM version.
-//
-// Revision 1.1.4.3  2005/01/07 00:22:33  dgrisby
-// Big merge from omnipy2_develop.
-//
-// Revision 1.1.4.2  2003/05/20 17:10:24  dgrisby
-// Preliminary valuetype support.
-//
-// Revision 1.1.4.1  2003/03/23 21:51:57  dgrisby
-// New omnipy3_develop branch.
-//
-// Revision 1.1.2.13  2003/01/27 11:56:58  dgrisby
-// Correctly handle invalid returns from application code.
-//
-// Revision 1.1.2.12  2002/03/18 12:40:38  dpg1
-// Support overriding _non_existent.
-//
-// Revision 1.1.2.11  2002/03/11 15:40:04  dpg1
-// _get_interface support, exception minor codes.
-//
-// Revision 1.1.2.10  2002/01/18 15:49:44  dpg1
-// Context support. New system exception construction. Fix None call problem.
-//
-// Revision 1.1.2.9  2001/09/24 10:48:28  dpg1
-// Meaningful minor codes.
-//
-// Revision 1.1.2.8  2001/06/15 10:59:26  dpg1
-// Apply fixes from omnipy1_develop.
-//
-// Revision 1.1.2.7  2001/06/01 11:09:26  dpg1
-// Make use of new omni::ptrStrCmp() and omni::strCmp().
-//
-// Revision 1.1.2.6  2001/05/29 17:10:14  dpg1
-// Support for in process identity.
-//
-// Revision 1.1.2.5  2001/05/14 12:47:22  dpg1
-// Fix memory leaks.
-//
-// Revision 1.1.2.4  2001/05/10 15:16:03  dpg1
-// Big update to support new omniORB 4 internals.
-//
-// Revision 1.1.2.3  2001/03/13 10:38:08  dpg1
-// Fixes from omnipy1_develop
-//
-// Revision 1.1.2.2  2000/12/04 18:57:24  dpg1
-// Fix deadlock when trying to lock omniORB internal lock while holding
-// the Python interpreter lock.
-//
-// Revision 1.1.2.1  2000/10/13 13:55:27  dpg1
-// Initial support for omniORB 4.
-//
-
 
 #include <omnipy.h>
 #include <pyThreadCache.h>
@@ -120,6 +32,107 @@
 #include <omniORB4/IOP_S.h>
 
 
+//
+// Python type used to hold a pointer to a Py_omniServant
+
+extern "C" {
+
+  struct pyServantObj {
+    PyObject_HEAD
+    omniPy::Py_omniServant* svt;
+  };
+
+  static void
+  pyServantObj_dealloc(pyServantObj* self)
+  {
+    PyObject_Del((PyObject*)self);
+  }
+
+  static PyMethodDef pyServantObj_methods[] = {
+    {0,0}
+  };
+
+  static PyTypeObject pyServantType = {
+    PyVarObject_HEAD_INIT(0,0)
+    (char*)"_omnipy.pyServantObj",     /* tp_name */
+    sizeof(pyServantObj),              /* tp_basicsize */
+    0,                                 /* tp_itemsize */
+    (destructor)pyServantObj_dealloc,  /* tp_dealloc */
+    0,                                 /* tp_print */
+    0,                                 /* tp_getattr */
+    0,                                 /* tp_setattr */
+    0,                                 /* tp_compare */
+    0,                                 /* tp_repr */
+    0,                                 /* tp_as_number */
+    0,                                 /* tp_as_sequence */
+    0,                                 /* tp_as_mapping */
+    0,                                 /* tp_hash  */
+    0,                                 /* tp_call */
+    0,                                 /* tp_str */
+    0,                                 /* tp_getattro */
+    0,                                 /* tp_setattro */
+    0,                                 /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT,                /* tp_flags */
+    (char*)"omni Servant",             /* tp_doc */
+    0,                                 /* tp_traverse */
+    0,                                 /* tp_clear */
+    0,                                 /* tp_richcompare */
+    0,                                 /* tp_weaklistoffset */
+    0,                                 /* tp_iter */
+    0,                                 /* tp_iternext */
+    pyServantObj_methods,              /* tp_methods */
+  };
+}
+
+static inline PyObject*
+pyServantObj_alloc(omniPy::Py_omniServant* svt)
+{
+  pyServantObj* self = PyObject_New(pyServantObj, &pyServantType);
+  self->svt = svt;
+  return (PyObject*)self;
+}
+
+static inline void
+setSvt(PyObject* obj, omniPy::Py_omniServant* svt)
+{
+  PyObject* pysvt = pyServantObj_alloc(svt);
+  PyObject_SetAttr(obj, omniPy::pyservantAttr, pysvt);
+  Py_DECREF(pysvt);
+}
+
+static inline omniPy::Py_omniServant*
+getSvt(PyObject* obj)
+{
+  omniPy::Py_omniServant* svt;
+  PyObject* pysvt = PyObject_GetAttr(obj, omniPy::pyservantAttr);
+  if (pysvt) {
+    svt = ((pyServantObj*)pysvt)->svt;
+    Py_DECREF(pysvt);
+  }
+  else {
+    PyErr_Clear();
+    svt = 0;
+  }
+  return svt;
+}
+
+static inline void
+remSvt(PyObject* obj)
+{
+  PyObject_DelAttr(obj, omniPy::pyservantAttr);
+}
+
+
+void
+omniPy::initServant(PyObject* mod)
+{
+  int r = PyType_Ready(&pyServantType);
+  OMNIORB_ASSERT(r == 0);
+}
+
+
+
+//
 // Implementation classes for ServantManagers and AdapterActivator
 
 class Py_ServantActivatorSvt :
@@ -279,13 +292,13 @@ Py_omniServant::Py_omniServant(PyObject* pyservant, PyObject* opdict,
   pyskeleton_ = PyObject_GetAttrString(pyservant_, (char*)"_omni_skeleton");
   OMNIORB_ASSERT(pyskeleton_);
 
-  omniPy::setTwin(pyservant, (omniPy::Py_omniServant*)this, SERVANT_TWIN);
+  setSvt(pyservant, this);
 }
 
 omniPy::
 Py_omniServant::~Py_omniServant()
 {
-  omniPy::remTwin(pyservant_, SERVANT_TWIN);
+  remSvt(pyservant_);
   Py_DECREF(pyservant_);
   Py_DECREF(opdict_);
   Py_DECREF(pyskeleton_);
@@ -362,17 +375,19 @@ Py_omniServant::_default_POA()
 {
   {
     omnipyThreadCache::lock _t;
-    PyObject* pyPOA = PyObject_CallMethod(pyservant_,
-					  (char*)"_default_POA", 0);
-    if (pyPOA) {
-      PortableServer::POA_ptr poa =
-	(PortableServer::POA_ptr)omniPy::getTwin(pyPOA, POA_TWIN);
 
-      Py_DECREF(pyPOA);
-      if (poa) {
-	return PortableServer::POA::_duplicate(poa);
+    omniPy::PyRefHolder
+      pyPOA(PyObject_CallMethod(pyservant_, (char*)"_default_POA", 0));
+
+    if (pyPOA.valid()) {
+      omniPy::PyRefHolder
+        pyobj(PyObject_GetAttrString(pyPOA, (char*)"_obj"));
+
+      if (pyobj.valid() && omniPy::pyPOACheck(pyobj)) {
+        return PortableServer::POA::_duplicate(((PyPOAObject*)pyobj)->poa);
       }
       else {
+        PyErr_Clear();
         omniORB::logs(1, "Python servant returned an invalid object from "
                       "_default_POA.");
         OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType,
@@ -396,9 +411,10 @@ omniPy::
 Py_omniServant::_non_existent()
 {
   omnipyThreadCache::lock _t;
-  PyObject* result = PyObject_CallMethod(pyservant_,
-					 (char*)"_non_existent", 0);
-  if (!result) {
+
+  omniPy::PyRefHolder result(PyObject_CallMethod(pyservant_,
+                                                 (char*)"_non_existent", 0));
+  if (!result.valid()) {
     if (omniORB::trace(1)) {
       {
 	omniORB::logger l;
@@ -412,12 +428,7 @@ Py_omniServant::_non_existent()
     OMNIORB_THROW(UNKNOWN, UNKNOWN_PythonException, CORBA::COMPLETED_NO);
   }
 
-  if (!PyInt_Check(result))
-    OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
-
-  long i = PyInt_AS_LONG(result);
-  Py_DECREF(result);
-  return i ? 1 : 0;
+  return PyObject_IsTrue(result);
 }
 
 
@@ -448,10 +459,12 @@ Py_omniServant::_is_a(const char* logical_type_id)
     return 1;
   else {
     omnipyThreadCache::lock _t;
-    PyObject* pyisa = PyObject_CallMethod(omniPy::pyomniORBmodule,
-					  (char*)"static_is_a", (char*)"Os",
-					  pyskeleton_, logical_type_id);
-    if (!pyisa) {
+    omniPy::PyRefHolder pyisa(PyObject_CallMethod(omniPy::pyomniORBmodule,
+                                                  (char*)"static_is_a",
+                                                  (char*)"Os",
+                                                  pyskeleton_,
+                                                  logical_type_id));
+    if (!pyisa.valid()) {
       if (omniORB::trace(1))
         PyErr_Print();
       else
@@ -460,10 +473,7 @@ Py_omniServant::_is_a(const char* logical_type_id)
       OMNIORB_THROW(UNKNOWN, UNKNOWN_PythonException, CORBA::COMPLETED_NO);
     }
 
-    OMNIORB_ASSERT(PyInt_Check(pyisa));
-
-    CORBA::Boolean isa = PyInt_AS_LONG(pyisa);
-    Py_DECREF(pyisa);
+    CORBA::Boolean isa = PyObject_IsTrue(pyisa);
 
     if (isa)
       return 1;
@@ -474,14 +484,10 @@ Py_omniServant::_is_a(const char* logical_type_id)
       pyisa = PyObject_CallMethod(pyservant_, (char*)"_is_a",
 				  (char*)"s", logical_type_id);
 
-      if (pyisa && PyInt_Check(pyisa)) {
-	CORBA::Boolean isa = PyInt_AS_LONG(pyisa);
-	Py_DECREF(pyisa);
-	return isa;
-      }
-      if (!pyisa) {
+      if (pyisa.valid())
+        return PyObject_IsTrue(pyisa);
+      else
 	omniPy::handlePythonException();
-      }
     }
   }
   return 0;
@@ -525,14 +531,25 @@ Py_omniServant::_dispatch(omniCallHandle& handle)
   PyObject* exc_d = PyTuple_GET_ITEM(desc,2);
   PyObject* ctxt_d;
 
-  if (PyTuple_GET_SIZE(desc) == 4)
-    ctxt_d = PyTuple_GET_ITEM(desc,3);
+  OMNIORB_ASSERT(PyTuple_Check(in_d));
+  OMNIORB_ASSERT(out_d == Py_None || PyTuple_Check(out_d));
+  OMNIORB_ASSERT(exc_d == Py_None || PyDict_Check(exc_d));
+
+  if (PyTuple_GET_SIZE(desc) >= 4) {
+    ctxt_d = PyTuple_GET_ITEM(desc, 3);
+    if (ctxt_d == Py_None) {
+      ctxt_d = 0;
+    }
+    else {
+      OMNIORB_ASSERT(PyList_Check(ctxt_d));
+    }
+  }
   else
     ctxt_d = 0;
 
   Py_omniCallDescriptor call_desc(op, 0,
 				  (out_d == Py_None),
-				  in_d, out_d, exc_d, ctxt_d, 0, 1);
+				  in_d, out_d, exc_d, ctxt_d);
   try {
     omniPy::InterpreterUnlocker _u;
     handle.upcall(this, call_desc);
@@ -559,20 +576,46 @@ void
 omniPy::
 Py_omniServant::remote_dispatch(Py_omniCallDescriptor* pycd)
 {
-  const char* op     = pycd->op();
-  PyObject*   method = PyObject_GetAttrString(pyservant_, (char*)op);
+  const char* op      = pycd->op();
+  PyObject*   propget = 0;
+  PyObject*   propset = 0;
+  PyObject*   method  = PyObject_GetAttrString(pyservant_, (char*)op);
+
+  omniPy::PyRefHolder holder(method);
 
   if (!method) {
     PyErr_Clear();
-    PyObject* word = PyDict_GetItemString(omniPy::pyomniORBwordMap, op);
-    if (word) {
-      // Keyword -- look up mangled name
-      method = PyObject_GetAttr(pyservant_, word);
+
+    if (op[0] == '_') {
+      if (op[1] == 'g' && op[2] == 'e' && op[3] == 't' && op[4] == '_') {
+	propget = holder.change(String_FromString(op + 5));
+	PyObject* word = PyDict_GetItem(omniPy::pyomniORBwordMap, propget);
+	if (word) {
+	  Py_INCREF(word);
+	  propget = holder.change(word);
+	}
+      }
+      else if (op[1] == 's' && op[2] == 'e' && op[3] == 't' && op[4] == '_') {
+	propset = holder.change(String_FromString(op + 5));
+	PyObject* word = PyDict_GetItem(omniPy::pyomniORBwordMap, propset);
+	if (word) {
+	  Py_INCREF(word);
+	  propset = holder.change(word);
+	}
+      }
+      else if (omni::strMatch(op, "_interface")) {
+	method = holder.change(PyObject_GetAttrString(pyservant_,
+						      (char*)"_get_interface"));
+      }
     }
-    else if (omni::strMatch(op, "_interface")) {
-      method = PyObject_GetAttrString(pyservant_, (char*)"_get_interface");
+    else {
+      PyObject* word = PyDict_GetItemString(omniPy::pyomniORBwordMap, op);
+      if (word) {
+	// Keyword -- look up mangled name
+	method = holder.change(PyObject_GetAttr(pyservant_, word));
+      }
     }
-    if (!method) {
+    if (!method && !propget && !propset) {
       if (omniORB::trace(1)) {
 	omniORB::logger l;
 	l << "Python servant for `" << repoId_ << "' has no method named `"
@@ -584,13 +627,44 @@ Py_omniServant::remote_dispatch(Py_omniCallDescriptor* pycd)
     }
   }
 
-  PyObject* args   = pycd->args();
-  PyObject* result = PyEval_CallObject(method, args);
-  Py_DECREF(method);
+  //
+  // Do the call
+
+  PyObject* args = pycd->args();
+  PyObject* result;
+
+  if (method) {
+    result = PyObject_CallObject(method, args);
+  }
+  else if (propget) {
+    if (PyTuple_GET_SIZE(args) != 0)
+      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
+
+    result = PyObject_GetAttr(pyservant_, propget);
+  }
+  else {
+    OMNIORB_ASSERT(propset);
+
+    if (PyTuple_GET_SIZE(args) != 1)
+      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
+
+    if (PyObject_SetAttr(pyservant_, propset, PyTuple_GetItem(args, 0)) != -1) {
+      Py_INCREF(Py_None);
+      result = Py_None;
+    }
+    else {
+      result = 0;
+    }
+  }
 
   if (result) {
     // No exception was thrown. Set the return value
-    pycd->setAndValidateReturnedValues(result);
+    try {
+      pycd->setAndValidateReturnedValues(result);
+    }
+    catch (Py_BAD_PARAM& bp) {
+      bp.logInfoAndThrow();
+    }
   }
   else {
     // An exception of some sort was thrown
@@ -603,7 +677,7 @@ Py_omniServant::remote_dispatch(Py_omniCallDescriptor* pycd)
     if (evalue)
       erepoId = PyObject_GetAttrString(evalue, (char*)"_NP_RepositoryId");
 
-    if (!(erepoId && PyString_Check(erepoId))) {
+    if (!(erepoId && String_Check(erepoId))) {
       PyErr_Clear();
       Py_XDECREF(erepoId);
       if (omniORB::trace(1)) {
@@ -620,7 +694,7 @@ Py_omniServant::remote_dispatch(Py_omniCallDescriptor* pycd)
       OMNIORB_THROW(UNKNOWN, UNKNOWN_PythonException, CORBA::COMPLETED_MAYBE);
     }
 
-    PyObject* exc_d = pycd->exc_d_;
+    PyObject* exc_d = pycd->exc_d();
 
     // Is it a user exception?
     if (exc_d != Py_None) {
@@ -630,14 +704,18 @@ Py_omniServant::remote_dispatch(Py_omniCallDescriptor* pycd)
 
       if (edesc) {
 	Py_DECREF(erepoId); Py_DECREF(etype); Py_XDECREF(etraceback);
-	PyUserException ex(edesc, evalue, CORBA::COMPLETED_MAYBE);
-	ex._raise();
+        try {
+          PyUserException ex(edesc, evalue, CORBA::COMPLETED_MAYBE);
+          ex._raise();
+        }
+        catch (Py_BAD_PARAM& bp) {
+          bp.logInfoAndThrow();
+        }
       }
     }
 
     // Is it a LOCATION_FORWARD?
-    if (omni::strMatch(PyString_AS_STRING(erepoId),
-		       "omniORB.LOCATION_FORWARD")) {
+    if (omni::strMatch(String_AS_STRING(erepoId), "omniORB.LOCATION_FORWARD")) {
       Py_DECREF(erepoId); Py_DECREF(etype); Py_XDECREF(etraceback);
       omniPy::handleLocationForward(evalue);
     }
@@ -652,20 +730,46 @@ void
 omniPy::
 Py_omniServant::local_dispatch(Py_omniCallDescriptor* pycd)
 {
-  const char* op     = pycd->op();
-  PyObject*   method = PyObject_GetAttrString(pyservant_, (char*)op);
+  const char* op      = pycd->op();
+  PyObject*   propget = 0;
+  PyObject*   propset = 0;
+  PyObject*   method  = PyObject_GetAttrString(pyservant_, (char*)op);
+
+  omniPy::PyRefHolder holder(method);
 
   if (!method) {
     PyErr_Clear();
-    PyObject* word = PyDict_GetItemString(omniPy::pyomniORBwordMap, op);
-    if (word) {
-      // Keyword -- look up mangled name
-      method = PyObject_GetAttr(pyservant_, word);
+
+    if (op[0] == '_') {
+      if (op[1] == 'g' && op[2] == 'e' && op[3] == 't' && op[4] == '_') {
+	propget = holder.change(String_FromString(op + 5));
+	PyObject* word = PyDict_GetItem(omniPy::pyomniORBwordMap, propget);
+	if (word) {
+	  Py_INCREF(word);
+	  propget = holder.change(word);
+	}
+      }
+      else if (op[1] == 's' && op[2] == 'e' && op[3] == 't' && op[4] == '_') {
+	propset = holder.change(String_FromString(op + 5));
+	PyObject* word = PyDict_GetItem(omniPy::pyomniORBwordMap, propset);
+	if (word) {
+	  Py_INCREF(word);
+	  propset = holder.change(word);
+	}
+      }
+      else if (omni::strMatch(op, "_interface")) {
+	method = holder.change(PyObject_GetAttrString(pyservant_,
+						      (char*)"_get_interface"));
+      }
     }
-    else if (omni::strMatch(op, "_interface")) {
-      method = PyObject_GetAttrString(pyservant_, (char*)"_get_interface");
+    else {
+      PyObject* word = PyDict_GetItemString(omniPy::pyomniORBwordMap, op);
+      if (word) {
+	// Keyword -- look up mangled name
+	method = holder.change(PyObject_GetAttr(pyservant_, word));
+      }
     }
-    if (!method) {
+    if (!method && !propget && !propset) {
       if (omniORB::trace(1)) {
 	omniORB::logger l;
 	l << "Python servant for `" << repoId_ << "' has no method named `"
@@ -677,47 +781,72 @@ Py_omniServant::local_dispatch(Py_omniCallDescriptor* pycd)
     }
   }
 
-  PyObject* in_d   = pycd->in_d_;
-  int       in_l   = pycd->in_l_;
-  PyObject* out_d  = pycd->out_d_;
-  int       out_l  = pycd->out_l_;
-  PyObject* exc_d  = pycd->exc_d_;
-  PyObject* ctxt_d = pycd->ctxt_d_;
+  PyObject* in_d;
+  int       in_l;
+  PyObject* out_d;
+  int       out_l;
+  PyObject* exc_d;
+  PyObject* ctxt_d;
+  pycd->setDescriptors(in_d, in_l, out_d, out_l, exc_d, ctxt_d);
 
-  PyObject* args   = pycd->args();
+  PyObject* args = pycd->args();
 
   // Copy args which would otherwise have reference semantics
   PyObject* argtuple = PyTuple_New(in_l + (ctxt_d ? 1 : 0));
+  omniPy::PyRefHolder argtuple_holder(argtuple);
+
   PyObject* t_o;
 
   int i;
 
-  try {
-    for (i=0; i < in_l; ++i) {
+  for (i=0; i < in_l; ++i) {
+    try {
       t_o = copyArgument(PyTuple_GET_ITEM(in_d, i),
 			 PyTuple_GET_ITEM(args, i),
 			 CORBA::COMPLETED_NO);
-      OMNIORB_ASSERT(t_o);
-      PyTuple_SET_ITEM(argtuple, i, t_o);
     }
-    if (ctxt_d) {
-      t_o = filterContext(ctxt_d, PyTuple_GET_ITEM(args, in_l));
-      OMNIORB_ASSERT(t_o);
-      PyTuple_SET_ITEM(argtuple, in_l, t_o);
+    catch (Py_BAD_PARAM& bp) {
+      bp.add(omniPy::formatString("Operation %r parameter %d", "si",
+				  pycd->op(), i));
+      throw;
     }
+    OMNIORB_ASSERT(t_o);
+    PyTuple_SET_ITEM(argtuple, i, t_o);
   }
-  catch (...) {
-    Py_DECREF(argtuple);
-    Py_DECREF(method);
-    throw;
+  if (ctxt_d) {
+    t_o = filterContext(ctxt_d, PyTuple_GET_ITEM(args, in_l));
+    OMNIORB_ASSERT(t_o);
+    PyTuple_SET_ITEM(argtuple, in_l, t_o);
   }
 
   //
   // Do the call
 
-  PyObject* result = PyEval_CallObject(method, argtuple);
-  Py_DECREF(method);
-  Py_DECREF(argtuple);
+  PyObject* result;
+
+  if (method) {
+    result = PyObject_CallObject(method, argtuple);
+  }
+  else if (propget) {
+    if (PyTuple_GET_SIZE(argtuple) != 0)
+      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
+
+    result = PyObject_GetAttr(pyservant_, propget);
+  }
+  else {
+    OMNIORB_ASSERT(propset);
+    if (PyTuple_GET_SIZE(argtuple) != 1)
+      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
+
+    if (PyObject_SetAttr(pyservant_, propset,
+			 PyTuple_GetItem(argtuple, 0)) != -1) {
+      Py_INCREF(Py_None);
+      result = Py_None;
+    }
+    else {
+      result = 0;
+    }
+  }
 
   if (result) {
     PyObject* retval = 0;
@@ -728,27 +857,48 @@ Py_omniServant::local_dispatch(Py_omniCallDescriptor* pycd)
 	  pycd->setReturnedValues(result);
 	  return;
 	}
-	else
-	  OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType,
-			CORBA::COMPLETED_MAYBE);
+	else {
+	  THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, CORBA::COMPLETED_MAYBE,
+			     omniPy::formatString("Operation %r should return "
+						  "None, got %r",
+						  "sO",
+						  pycd->op(),
+						  result->ob_type));
+	}
       }
       else if (out_l == 1) {
-	retval = copyArgument(PyTuple_GET_ITEM(out_d, 0),
-			      result, CORBA::COMPLETED_MAYBE);
+	try {
+	  retval = copyArgument(PyTuple_GET_ITEM(out_d, 0),
+				result, CORBA::COMPLETED_MAYBE);
+	}
+	catch (Py_BAD_PARAM& bp) {
+	  bp.add(omniPy::formatString("Operation %r return value",
+				      "s", pycd->op()));
+	  throw;
+	}
       }
       else {
-	if (!PyTuple_Check(result) || PyTuple_GET_SIZE(result) != out_l)
-	  OMNIORB_THROW(BAD_PARAM,
-			BAD_PARAM_WrongPythonType,
-			CORBA::COMPLETED_MAYBE);
-
+	if (!PyTuple_Check(result) || PyTuple_GET_SIZE(result) != out_l) {
+	  THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, CORBA::COMPLETED_MAYBE,
+			     omniPy::formatString("Operation %r should return "
+						  "%d-tuple, got %r",
+						  "siO",
+						  pycd->op(), out_l,
+						  result->ob_type));
+	}
 	retval = PyTuple_New(out_l);
 	
 	for (i=0; i < out_l; ++i) {
-	  t_o = copyArgument(PyTuple_GET_ITEM(out_d, i),
-			     PyTuple_GET_ITEM(result, i),
-			     CORBA::COMPLETED_MAYBE);
-
+	  try {
+	    t_o = copyArgument(PyTuple_GET_ITEM(out_d, i),
+			       PyTuple_GET_ITEM(result, i),
+			       CORBA::COMPLETED_MAYBE);
+	  }
+	  catch (Py_BAD_PARAM& bp) {
+	    bp.add(omniPy::formatString("Operation %r return value %d",
+					"si", pycd->op(), i));
+	    throw;
+	  }
 	  PyTuple_SET_ITEM(retval, i, t_o);
 	}
       }
@@ -772,7 +922,7 @@ Py_omniServant::local_dispatch(Py_omniCallDescriptor* pycd)
     if (evalue)
       erepoId = PyObject_GetAttrString(evalue, (char*)"_NP_RepositoryId");
 
-    if (!(erepoId && PyString_Check(erepoId))) {
+    if (!(erepoId && String_Check(erepoId))) {
       PyErr_Clear();
       Py_XDECREF(erepoId);
       if (omniORB::trace(1)) {
@@ -803,8 +953,7 @@ Py_omniServant::local_dispatch(Py_omniCallDescriptor* pycd)
     }
 
     // Is it a LOCATION_FORWARD?
-    if (omni::strMatch(PyString_AS_STRING(erepoId),
-		       "omniORB.LOCATION_FORWARD")) {
+    if (omni::strMatch(String_AS_STRING(erepoId), "omniORB.LOCATION_FORWARD")) {
       Py_DECREF(erepoId); Py_DECREF(etype); Py_XDECREF(etraceback);
       omniPy::handleLocationForward(evalue);
     }
@@ -869,7 +1018,7 @@ Py_AdapterActivatorSvt::_ptrToInterface(const char* repoId)
 
 static
 omniPy::Py_omniServant*
-newSpecialServant(PyObject* pyservant, PyObject* opdict, char* repoId)
+newSpecialServant(PyObject* pyservant, PyObject* opdict, const char* repoId)
 {
   if (omni::ptrStrMatch(repoId, PortableServer::ServantActivator::_PD_repoId))
     return new Py_ServantActivatorSvt(pyservant, opdict, repoId);
@@ -891,33 +1040,33 @@ omniPy::getServantForPyObject(PyObject* pyservant)
   Py_omniServant* pyos;
 
   // Is there a Py_omniServant already?
-  pyos = (omniPy::Py_omniServant*)omniPy::getTwin(pyservant, SERVANT_TWIN);
+  pyos = getSvt(pyservant);
   if (pyos) {
     pyos->_locked_add_ref();
     return pyos;
   }
 
   // Is it an instance of the right class?
-  if (!omniPy::isInstance(pyservant, omniPy::pyServantClass))
+  if (!PyObject_IsInstance(pyservant, omniPy::pyServantClass))
     return 0;
 
   PyObject* opdict = PyObject_GetAttrString(pyservant, (char*)"_omni_op_d");
   if (!(opdict && PyDict_Check(opdict)))
     return 0;
 
-  PyObject* pyrepoId = PyObject_GetAttrString(pyservant,
-					      (char*)"_NP_RepositoryId");
-  if (!(pyrepoId && PyString_Check(pyrepoId))) {
+  PyObject* pyrepoId = PyObject_GetAttr(pyservant, pyNP_RepositoryId);
+
+  if (!(pyrepoId && String_Check(pyrepoId))) {
     Py_DECREF(opdict);
     return 0;
   }
   if (PyObject_HasAttrString(pyservant, (char*)"_omni_special")) {
 
-    pyos = newSpecialServant(pyservant, opdict, PyString_AS_STRING(pyrepoId));
+    pyos = newSpecialServant(pyservant, opdict, String_AS_STRING(pyrepoId));
   }
   else {
     pyos = new omniPy::Py_omniServant(pyservant, opdict,
-				      PyString_AS_STRING(pyrepoId));
+				      String_AS_STRING(pyrepoId));
   }
   Py_DECREF(opdict);
   Py_DECREF(pyrepoId);

@@ -3,7 +3,7 @@
 // cxxAPI.cc                  Created on: 2002/05/25
 //                            Author    : Duncan Grisby (dgrisby)
 //
-//    Copyright (C) 2002 Duncan Grisby
+//    Copyright (C) 2002-2013 Apasphere Ltd
 //
 //    This file is part of the omniORBpy library
 //
@@ -19,9 +19,7 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //    omniORBpy C++ API.
@@ -91,17 +89,9 @@ lockedPyObjRefToCxxObjRef(PyObject* py_obj)
   if (py_obj == Py_None) {
     return CORBA::Object::_nil();
   }
-  CORBA::Object_ptr obj = (CORBA::Object_ptr)omniPy::getTwin(py_obj,
-							     OBJREF_TWIN);
-  if (!obj) {
-    // The ORB doesn't have an OBJREF_TWIN. Perhaps that's what we're
-    // dealing with...
-    CORBA::ORB_ptr orb = (CORBA::ORB_ptr)omniPy::getTwin(py_obj, ORB_TWIN);
-    obj = orb;
-  }
-  if (!obj) {
+  CORBA::Object_ptr obj = omniPy::getObjRef(py_obj);
+  if (!obj)
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, CORBA::COMPLETED_NO);
-  }
 
   if (obj->_NP_is_pseudo()) {
     return CORBA::Object::_duplicate(obj);
@@ -143,17 +133,27 @@ impl_handlePythonSystemException()
 }
 
 static void
+locked_marshalPyObject(cdrStream& stream, PyObject* desc, PyObject* obj)
+{
+  try {
+    omniPy::validateType(desc, obj, CORBA::COMPLETED_NO);
+    omniPy::marshalPyObject(stream, desc, obj);
+  }
+  catch (Py_BAD_PARAM& bp) {
+    bp.logInfoAndThrow();
+  }
+}
+
+static void
 impl_marshalPyObject(cdrStream& stream, PyObject* desc, PyObject* obj,
 		     CORBA::Boolean hold_lock)
 {
   if (hold_lock) {
-    omniPy::validateType(desc, obj, CORBA::COMPLETED_NO);
-    omniPy::marshalPyObject(stream, desc, obj);
+    locked_marshalPyObject(stream, desc, obj);
   }
   else {
     omnipyThreadCache::lock _t;
-    omniPy::validateType(desc, obj, CORBA::COMPLETED_NO);
-    omniPy::marshalPyObject(stream, desc, obj);
+    locked_marshalPyObject(stream, desc, obj);
   }
 }    
 
@@ -195,16 +195,30 @@ impl_unmarshalTypeDesc(cdrStream& stream, CORBA::Boolean hold_lock)
   }
 }
 
+static void*
+impl_aquireGIL()
+{
+  return (void*)omnipyThreadCache::acquire();
+}
+
+static void
+impl_releaseGIL(void* ptr)
+{
+  omnipyThreadCache::release((omnipyThreadCache::CacheNode*)ptr);
+}
+
 
 omniORBpyAPI::omniORBpyAPI()
-  : cxxObjRefToPyObjRef(impl_cxxObjRefToPyObjRef),
-    pyObjRefToCxxObjRef(impl_pyObjRefToCxxObjRef),
-    handleCxxSystemException(impl_handleCxxSystemException),
+  : cxxObjRefToPyObjRef	       (impl_cxxObjRefToPyObjRef),
+    pyObjRefToCxxObjRef	       (impl_pyObjRefToCxxObjRef),
+    handleCxxSystemException   (impl_handleCxxSystemException),
     handlePythonSystemException(impl_handlePythonSystemException),
-    marshalPyObject(impl_marshalPyObject),
-    unmarshalPyObject(impl_unmarshalPyObject),
-    marshalTypeDesc(impl_marshalTypeDesc),
-    unmarshalTypeDesc(impl_unmarshalTypeDesc)
+    marshalPyObject  	       (impl_marshalPyObject),
+    unmarshalPyObject	       (impl_unmarshalPyObject),
+    marshalTypeDesc  	       (impl_marshalTypeDesc),
+    unmarshalTypeDesc	       (impl_unmarshalTypeDesc),
+    acquireGIL	     	       (impl_aquireGIL),
+    releaseGIL	     	       (impl_releaseGIL)
 {}
 
 

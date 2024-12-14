@@ -1,36 +1,72 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
-            "http://www.w3.org/TR/REC-html40/loose.dtd">
-<HTML>
-<HEAD>
-
-<META http-equiv="Content-Type" content="text/html; charset=US-ASCII">
-<META name="GENERATOR" content="hevea 1.10">
-<LINK rel="stylesheet" type="text/css" href="omniORBpy.css">
-<TITLE>References</TITLE>
-</HEAD>
-<BODY >
-<A HREF="omniORBpy010.html"><IMG SRC="previous_motif.gif" ALT="Previous"></A>
-<A HREF="index.html"><IMG SRC="contents_motif.gif" ALT="Up"></A>
-<HR>
-<H1 CLASS="chapter">References</H1><DL CLASS="thebibliography"><DT CLASS="dt-thebibliography">
-<A NAME="rfc2396"><FONT COLOR=purple>[BLFIM98]</FONT></A></DT><DD CLASS="dd-thebibliography">
-T. Berners-Lee, R. Fielding, U.C. Irvine, and L. Masinter.
-<EM>U</EM><EM>niform </EM><EM>R</EM><EM>esource </EM><EM>I</EM><EM>dentifiers (</EM><EM>URI</EM><EM>): Generic Syntax</EM>.
-RFC 2396, August 1998.</DD><DT CLASS="dt-thebibliography"><A NAME="corbaservices"><FONT COLOR=purple>[OMG98]</FONT></A></DT><DD CLASS="dd-thebibliography">
-Object Management Group.
-<EM>CORBAServices</EM><EM>: Common Object Services Specification</EM>, December
-1998.</DD><DT CLASS="dt-thebibliography"><A NAME="inschapters"><FONT COLOR=purple>[OMG00]</FONT></A></DT><DD CLASS="dd-thebibliography">
-Object Management Group.
-<EM>Interoperable Naming Service revised chapters</EM>, August 2000.
-From <A HREF="http://www.omg.org/cgi-bin/doc?ptc/00-08-07"><TT>http://www.omg.org/cgi-bin/doc?ptc/00-08-07</TT></A>.</DD><DT CLASS="dt-thebibliography"><A NAME="corba26-spec"><FONT COLOR=purple>[OMG01a]</FONT></A></DT><DD CLASS="dd-thebibliography">
-Object Management Group.
-<EM>The </EM><EM>C</EM><EM>ommon </EM><EM>O</EM><EM>bject </EM><EM>R</EM><EM>equest </EM><EM>B</EM><EM>roker: </EM><EM>A</EM><EM>rchitecture and
-Specification</EM>, 2.6 edition, December 2001.
-From <A HREF="http://www.omg.org/cgi-bin/doc?formal/01-12-01"><TT>http://www.omg.org/cgi-bin/doc?formal/01-12-01</TT></A>.</DD><DT CLASS="dt-thebibliography"><A NAME="pythonmapping"><FONT COLOR=purple>[OMG01b]</FONT></A></DT><DD CLASS="dd-thebibliography">
-Object Management Group.
-<EM>Python Language Mapping Specification</EM>, February 2001.
-<A HREF="http://www.omg.org/technology/documents/formal/python.htm"><TT>http://www.omg.org/technology/documents/formal/python.htm</TT></A>.</DD></DL><HR>
-<A HREF="omniORBpy010.html"><IMG SRC="previous_motif.gif" ALT="Previous"></A>
-<A HREF="index.html"><IMG SRC="contents_motif.gif" ALT="Up"></A>
-</BODY>
-</HTML>
+<!DOCTYPE html>
+<html >
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="generator" content="hevea 2.34">
+<link rel="stylesheet" type="text/css" href="omniORBpy.css">
+<title>Asynchronous Method Invocation</title>
+</head>
+<body >
+<a href="omniORBpy010.html"><img src="previous_motif.svg" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.svg" alt="Up"></a>
+<a href="omniORBpy012.html"><img src="next_motif.svg" alt="Next"></a>
+<hr>
+<h1 id="sec127" class="chapter">Chapter&#XA0;11&#XA0;&#XA0;Asynchronous Method Invocation</h1>
+<p>
+<a id="chap:ami"></a></p><p>omniORB 4.2 supports Asynchronous Method Invocation, AMI, as defined
+in the CORBA Messaging specification. It supports both the polling and
+callback models of asynchronous calls. Note that omniORB does not
+support the other parts of the Messaging specification such as Quality
+of Service, Routing and Persistent requests.</p><p>While omniORB mainly targets the 2.6 version of the CORBA
+specification, the AMI support follows the CORBA Messaging
+specification as described in the CORBA 3.1 specification, chapter
+17&#XA0;[<a href="omniORBpy013.html#corba31-spec">OMG08</a>]. That version of the specification is largely
+the same as the one in CORBA 2.6. The only significant difference is
+that exception replies in the callback model use a simpler
+interface-independent mapping.</p>
+<h2 id="sec128" class="section">11.1&#XA0;&#XA0;Implied IDL</h2>
+<p>AMI works by defining some additional <span style="font-style:italic">implied IDL</span> for each
+interface in the real IDL. The implied IDL contains type and
+operation definitions that enable asynchronous calls.</p><p>As a guide to the implied IDL, there is a special <span style="font-family:monospace">ami</span>
+back-end to omniidl that outputs the implied IDL for the given input
+IDL. For example, given the Echo example IDL:</p><div class="lstlisting"><span style="font-size:small"><span style="font-style:italic"><span style="font-size:small">// echo.idl</span></span></span><span style="font-size:small">
+</span><span style="font-size:small"><span style="font-weight:bold">interface</span></span><span style="font-size:small"> </span><span style="font-size:small">Echo</span><span style="font-size:small"> {</span><span style="font-size:small">
+</span><span style="font-size:small">  </span><span style="font-size:small"><span style="font-weight:bold">string</span></span><span style="font-size:small"> </span><span style="font-size:small">echoString</span><span style="font-size:small">(</span><span style="font-size:small"><span style="font-weight:bold">in</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">string</span></span><span style="font-size:small"> </span><span style="font-size:small">mesg</span><span style="font-size:small">);</span><span style="font-size:small">
+</span><span style="font-size:small">};</span></div><p>You can output the implied IDL using</p><blockquote class="quote">
+<span style="font-family:monospace">omniidl -bami echo.idl</span>
+</blockquote><p>That outputs the following to standard out:</p><div class="lstlisting"><span style="font-size:small"><span style="font-style:italic"><span style="font-size:small">// ReplyHandler for interface Echo</span></span></span><span style="font-size:small">
+</span><span style="font-size:small"><span style="font-weight:bold">interface</span></span><span style="font-size:small"> </span><span style="font-size:small">AMI_EchoHandler</span><span style="font-size:small"> : </span><span style="font-size:small">Messaging</span><span style="font-size:small">::</span><span style="font-size:small">ReplyHandler</span><span style="font-size:small"> {</span><span style="font-size:small">
+</span><span style="font-size:small">  </span><span style="font-size:small"><span style="font-weight:bold">void</span></span><span style="font-size:small"> </span><span style="font-size:small">echoString</span><span style="font-size:small">(</span><span style="font-size:small"><span style="font-weight:bold">in</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">string</span></span><span style="font-size:small"> </span><span style="font-size:small">ami_return_val</span><span style="font-size:small">);</span><span style="font-size:small">
+</span><span style="font-size:small">  </span><span style="font-size:small"><span style="font-weight:bold">void</span></span><span style="font-size:small"> </span><span style="font-size:small">echoString_excep</span><span style="font-size:small">(</span><span style="font-size:small"><span style="font-weight:bold">in</span></span><span style="font-size:small"> ::</span><span style="font-size:small">Messaging</span><span style="font-size:small">::</span><span style="font-size:small">ExceptionHolder</span><span style="font-size:small"> </span><span style="font-size:small">excep_holder</span><span style="font-size:small">);</span><span style="font-size:small">
+</span><span style="font-size:small">};</span><span style="font-size:small">
+</span><span style="font-size:small">
+</span><span style="font-size:small"><span style="font-style:italic"><span style="font-size:small">// Poller valuetype for interface Echo</span></span></span><span style="font-size:small">
+</span><span style="font-size:small"><span style="font-weight:bold">abstract</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">valuetype</span></span><span style="font-size:small"> </span><span style="font-size:small">AMI_EchoPoller</span><span style="font-size:small"> : </span><span style="font-size:small">Messaging</span><span style="font-size:small">::</span><span style="font-size:small">Poller</span><span style="font-size:small"> {</span><span style="font-size:small">
+</span><span style="font-size:small">  </span><span style="font-size:small"><span style="font-weight:bold">void</span></span><span style="font-size:small"> </span><span style="font-size:small">echoString</span><span style="font-size:small">(</span><span style="font-size:small"><span style="font-weight:bold">in</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">unsigned</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">long</span></span><span style="font-size:small"> </span><span style="font-size:small">ami_timeout</span><span style="font-size:small">, </span><span style="font-size:small"><span style="font-weight:bold">out</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">string</span></span><span style="font-size:small"> </span><span style="font-size:small">ami_return_val</span><span style="font-size:small">);</span><span style="font-size:small">
+</span><span style="font-size:small">};</span><span style="font-size:small">
+</span><span style="font-size:small">
+</span><span style="font-size:small"><span style="font-style:italic"><span style="font-size:small">// AMI implied operations for interface Echo</span></span></span><span style="font-size:small">
+</span><span style="font-size:small"><span style="font-weight:bold">interface</span></span><span style="font-size:small"> </span><span style="font-size:small">Echo</span><span style="font-size:small"> {</span><span style="font-size:small">
+</span><span style="font-size:small">  </span><span style="font-size:small"><span style="font-weight:bold">void</span></span><span style="font-size:small"> </span><span style="font-size:small">sendc_echoString</span><span style="font-size:small">(</span><span style="font-size:small"><span style="font-weight:bold">in</span></span><span style="font-size:small"> ::</span><span style="font-size:small">AMI_EchoHandler</span><span style="font-size:small"> </span><span style="font-size:small">ami_handler</span><span style="font-size:small">, </span><span style="font-size:small"><span style="font-weight:bold">in</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">string</span></span><span style="font-size:small"> </span><span style="font-size:small">mesg</span><span style="font-size:small">);</span><span style="font-size:small">
+</span><span style="font-size:small">  ::</span><span style="font-size:small">AMI_EchoPoller</span><span style="font-size:small"> </span><span style="font-size:small">sendp_echoString</span><span style="font-size:small">(</span><span style="font-size:small"><span style="font-weight:bold">in</span></span><span style="font-size:small"> </span><span style="font-size:small"><span style="font-weight:bold">string</span></span><span style="font-size:small"> </span><span style="font-size:small">mesg</span><span style="font-size:small">);</span><span style="font-size:small">
+</span><span style="font-size:small">};</span></div><p>Alternatively, you can use the <span style="font-family:monospace">-Wbdump</span> option to
+output an interleaved version that shows the original IDL and the
+implied IDL together.</p><p>Note that the implied IDL output is for information only. You should
+not compile it, but rather instruct the omniidl Python back-end to
+generate the corresponding Python definitions.</p>
+<h2 id="sec129" class="section">11.2&#XA0;&#XA0;Generating AMI stubs</h2>
+<p>To generate stub code including AMI types and operations, give the
+<span style="font-family:monospace">-Wbami</span> command line option to omniidl&#X2019;s <span style="font-family:monospace">python</span>
+back-end:</p><blockquote class="quote">
+<span style="font-family:monospace">omniidl -bpython -Wbami echo.idl</span>
+</blockquote><p>That generates the normal Python stubs and skeletons, plus
+all the definitions in the implied IDL.</p>
+<h2 id="sec130" class="section">11.3&#XA0;&#XA0;AMI examples</h2>
+<p>Example AMI clients for the <span style="font-family:monospace">Example::Echo</span> server can be found in
+<span style="font-family:monospace">examples/ami</span>.</p>
+<hr>
+<a href="omniORBpy010.html"><img src="previous_motif.svg" alt="Previous"></a>
+<a href="index.html"><img src="contents_motif.svg" alt="Up"></a>
+<a href="omniORBpy012.html"><img src="next_motif.svg" alt="Next"></a>
+</body>
+</html>

@@ -3,7 +3,7 @@
 # tcInternal.py              Created on: 1999/06/24
 #                            Author    : Duncan Grisby (dpg1)
 #
-#    Copyright (C) 2002-2007 Apasphere Ltd
+#    Copyright (C) 2002-2014 Apasphere Ltd
 #    Copyright (C) 1999 AT&T Laboratories Cambridge
 #
 #    This file is part of the omniORBpy library
@@ -20,113 +20,30 @@
 #    GNU Lesser General Public License for more details.
 #
 #    You should have received a copy of the GNU Lesser General Public
-#    License along with this library; if not, write to the Free
-#    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-#    MA 02111-1307, USA
-#
+#    License along with this library. If not, see http://www.gnu.org/licenses/
 #
 # Description:
 #    TypeCode internal implementation
 
+import omniORB
 
-# $Id$
-# $Log$
-# Revision 1.13.2.11  2007/06/06 17:59:01  dgrisby
-# Allow enums to be used directly in CORBA.TypeCode().
-#
-# Revision 1.13.2.10  2007/04/26 08:33:38  dgrisby
-# Incorrect kind() return for object reference TypeCodes. Thanks
-# Andrew Edem.
-#
-# Revision 1.13.2.9  2006/07/11 13:53:09  dgrisby
-# Implement missing TypeCode creation functions.
-#
-# Revision 1.13.2.8  2006/02/16 22:55:45  dgrisby
-# Remove some tab characters that snuck in from a patch.
-#
-# Revision 1.13.2.7  2006/01/19 17:28:44  dgrisby
-# Merge from omnipy2_develop.
-#
-# Revision 1.13.2.6  2005/11/09 12:33:31  dgrisby
-# Support POA LocalObjects.
-#
-# Revision 1.13.2.5  2005/07/29 11:27:23  dgrisby
-# Static map of basic TypeCodes for speed.
-#
-# Revision 1.13.2.4  2005/01/07 00:22:35  dgrisby
-# Big merge from omnipy2_develop.
-#
-# Revision 1.13.2.3  2003/07/10 22:13:25  dgrisby
-# Abstract interface support.
-#
-# Revision 1.13.2.2  2003/05/20 17:10:26  dgrisby
-# Preliminary valuetype support.
-#
-# Revision 1.13.2.1  2003/03/23 21:51:43  dgrisby
-# New omnipy3_develop branch.
-#
-# Revision 1.10.2.8  2003/03/12 11:17:50  dgrisby
-# Any / TypeCode fixes.
-#
-# Revision 1.10.2.7  2003/03/07 11:56:04  dgrisby
-# Missing TypeCode creation functions.
-#
-# Revision 1.10.2.6  2002/06/11 20:21:31  dgrisby
-# Missed out wchar, wstring TypeCodes.
-#
-# Revision 1.10.2.5  2002/05/27 01:02:37  dgrisby
-# Fix bug with scope lookup in generated code. Fix TypeCode clean-up bug.
-#
-# Revision 1.10.2.4  2002/03/11 15:40:05  dpg1
-# _get_interface support, exception minor codes.
-#
-# Revision 1.10.2.3  2001/05/14 14:49:39  dpg1
-# Fix get_compact_typecode() and equivalent()
-#
-# Revision 1.10.2.2  2001/04/10 11:11:15  dpg1
-# TypeCode support and tests for Fixed point.
-#
-# Revision 1.10.2.1  2000/11/01 15:29:01  dpg1
-# Support for forward-declared structs and unions
-# RepoIds in indirections are now resolved at the time of use
-#
-# Revision 1.10  2000/08/21 10:20:19  dpg1
-# Merge from omnipy1_develop for 1.1 release
-#
-# Revision 1.9.2.1  2000/08/07 09:19:24  dpg1
-# Long long support
-#
-# Revision 1.9  2000/01/31 10:51:41  dpg1
-# Fix to exception throwing.
-#
-# Revision 1.8  1999/11/02 10:38:31  dpg1
-# Last bug wasn't quite fixed.
-#
-# Revision 1.7  1999/11/01 20:59:42  dpg1
-# Fixed bug in insertIndirections() if the same node is indirected to
-# more than once.
-#
-# Revision 1.6  1999/09/24 09:22:00  dpg1
-# Added copyright notices.
-#
-# Revision 1.5  1999/09/20 15:11:45  dpg1
-# Bug in insertIndirections() fixed.
-#
-# Revision 1.4  1999/09/13 14:52:27  dpg1
-# TypeCode equivalence.
-#
-# Revision 1.3  1999/07/29 14:17:18  dpg1
-# TypeCode creation interface.
-#
-# Revision 1.2  1999/07/19 15:48:40  dpg1
-# All sorts of fixes.
-#
-# Revision 1.1  1999/06/24 15:23:28  dpg1
-# Initial revision
-#
+# To avoid a circular dependency, we manually extract some definitions
+# from the partial CORBA module.
 
-import omniORB, CORBA
-import types
+c = omniORB._CORBA_dict
+g = globals()
+
+for k, v in c.iteritems():
+    if k.startswith("tk_") or k in ("BAD_PARAM",
+                                    "COMPLETED_NO",
+                                    "VM_TRUNCATABLE",
+                                    "INTERNAL",
+                                    "BAD_TYPECODE",
+                                    "TCKind",
+                                    "TypeCode"):
+        g[k] = v
+
+del c, g, k, v
 
 # The TypeCode implementation is based upon descriptors consisting of
 # Python tuples, as used by the marshalling code. Although the public
@@ -135,19 +52,6 @@ import types
 # tuple. A root TypeCode object has a reference to the top of the
 # descriptor tuple. Non-root TypeCode objects are only created when
 # requested.
-#
-# Recursive descriptors pose a problem for Python's garbage collector.
-# To ensure they are properly collected, all non-root TypeCode objects
-# keep a reference to the root TypeCode object. The root TypeCode is
-# therefore only deleted once all "views" of the TypeCode have gone.
-# When the root TypeCode object is deleted, it recursively descends
-# its descriptor, and removes any indirections it finds. All loops are
-# thus removed from the descriptor, making it a candidate for
-# collection.
-#
-# This approach means that the descriptor becomes invalid once the
-# root TypeCode object is deleted, even if there are other active
-# references to the descriptor. BEWARE!
 
 # Kinds as numbers:
 tv_null               = 0
@@ -195,7 +99,7 @@ def typeCodeFromClassOrRepoId(t):
     except AttributeError:
         pass
 
-    if type(t) is not types.StringType:
+    if not isinstance(t, str):
         raise TypeError("Argument must be CORBA class or repository id.")
 
     d = omniORB.findType(t)
@@ -226,7 +130,7 @@ def createUnionTC(id, name, discriminator_type, members):
     mmap    = {}
     for m in members:
         val = m.label.value()
-        if m.label.typecode().kind() == CORBA.tk_octet and val == 0:
+        if m.label.typecode().kind() == tk_octet and val == 0:
             val     = -1
             defused = count
 
@@ -287,8 +191,7 @@ def createWStringTC(bound):
 
 def createFixedTC(digits, scale):
     if digits < 1 or digits > 31 or scale > digits:
-        raise CORBA.BAD_PARAM(omniORB.BAD_PARAM_InvalidFixedPointLimits,
-                              CORBA.COMPLETED_NO)
+        raise BAD_PARAM(omniORB.BAD_PARAM_InvalidFixedPointLimits, COMPLETED_NO)
 
     d = (tv_fixed, digits, scale)
     return createTypeCode(d)
@@ -302,17 +205,16 @@ def createArrayTC(length, element_type):
     return createTypeCode(d)
 
 def createRecursiveTC(id):
-    class recursivePlaceHolder: pass
+    class recursivePlaceHolder(object): pass
     recursivePlaceHolder._d = (tv__indirect, [id])
     return recursivePlaceHolder()
 
 def createValueTC(id, name, modifier, base, members):
     base_desc = base._d
 
-    if modifier == CORBA.VM_TRUNCATABLE:
+    if modifier == VM_TRUNCATABLE:
         if base_desc == tv_null:
-            raise CORBA.BAD_PARAM(omniORB.BAD_PARAM_InvalidTypeCode,
-                                  CORBA.COMPLETED_NO)
+            raise BAD_PARAM(omniORB.BAD_PARAM_InvalidTypeCode, COMPLETED_NO)
         base_ids = base_desc[5]
         if base_ids is None:
             base_ids = (id, base_desc[2])
@@ -352,7 +254,7 @@ def createLocalInterfaceTC(id, name):
 
 typeCodeMapping = omniORB.typeCodeMapping
 
-def createTypeCode(d, parent=None):
+def createTypeCode(d):
     try:
         r = basicTypeCodes.get(d)
         if r is not None:
@@ -361,8 +263,8 @@ def createTypeCode(d, parent=None):
         # Happens if d contains a mutable object
         pass
 
-    if type(d) is not types.TupleType:
-        raise CORBA.INTERNAL()
+    if not isinstance (d, tuple):
+        raise INTERNAL()
 
     k = d[0]
 
@@ -379,13 +281,13 @@ def createTypeCode(d, parent=None):
     elif k == tv_struct:
         tc = typeCodeMapping.get(d[2])
         if tc is None:
-            tc = TypeCode_struct(d, parent)
+            tc = TypeCode_struct(d)
         return tc
     
     elif k == tv_union:
         tc = typeCodeMapping.get(d[2])
         if tc is None:
-            tc = TypeCode_union(d, parent)
+            tc = TypeCode_union(d)
         return tc
     
     elif k == tv_enum:
@@ -394,59 +296,58 @@ def createTypeCode(d, parent=None):
             tc = TypeCode_enum(d)
         return tc
 
-    elif k == tv_sequence:  return TypeCode_sequence(d, parent)
-    elif k == tv_array:     return TypeCode_array(d, parent)
+    elif k == tv_sequence:  return TypeCode_sequence(d)
+    elif k == tv_array:     return TypeCode_array(d)
 
     elif k == tv_alias:
         tc = typeCodeMapping.get(d[1])
         if tc is None:
-            tc = TypeCode_alias(d, parent)
+            tc = TypeCode_alias(d)
         return tc
     
     elif k == tv_except:
         tc = typeCodeMapping.get(d[2])
         if tc is None:
-            tc = TypeCode_except(d, parent)
+            tc = TypeCode_except(d)
         return tc
 
     elif k == tv_value:
         tc = typeCodeMapping.get(d[2])
         if tc is None:
-            tc = TypeCode_value(d, parent)
+            tc = TypeCode_value(d)
         return tc
 
     elif k == tv_value_box:
         tc = typeCodeMapping.get(d[2])
         if tc is None:
-            tc = TypeCode_value_box(d, parent)
+            tc = TypeCode_value_box(d)
         return tc
 
     elif k == tv__indirect:
-        if type(d[1][0]) == types.StringType:
+        if isinstance(d[1][0], str):
             nd = omniORB.findType(d[1][0])
             if nd is None:
-                raise CORBA.BAD_TYPECODE(omniORB.BAD_TYPECODE_InvalidIndirection,
-                                         CORBA.COMPLETED_NO)
+                raise BAD_TYPECODE(omniORB.BAD_TYPECODE_InvalidIndirection,
+                                   COMPLETED_NO)
             d[1][0] = nd
-        return createTypeCode(d[1][0], parent)
+        return createTypeCode(d[1][0])
 
-    raise CORBA.INTERNAL()
+    raise INTERNAL()
 
 
 # TypeCode base interface
 
-class TypeCode_base (CORBA.TypeCode):
+class TypeCode_base (TypeCode):
     def __init__(self):
         self._d = 0
-        self._k = CORBA.tk_null
+        self._k = tk_null
 
     def equal(self, tc):
         try:
-            if self._d == tc._d: return CORBA.TRUE
-            else:                return CORBA.FALSE
+            return self._d == tc._d
+        
         except AttributeError:
-            raise CORBA.BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType,
-                                  CORBA.COMPLETED_NO)
+            raise BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
 
     def equivalent(self, tc):
         return self.equal(tc)
@@ -458,24 +359,24 @@ class TypeCode_base (CORBA.TypeCode):
         return self._k
 
     # Operations which are only available for some kinds:
-    def id(self):                       raise CORBA.TypeCode.BadKind()
-    def name(self):                     raise CORBA.TypeCode.BadKind()
-    def member_count(self):             raise CORBA.TypeCode.BadKind()
-    def member_name(self, index):       raise CORBA.TypeCode.BadKind()
-    def member_type(self, index):       raise CORBA.TypeCode.BadKind()
-    def member_label(self, index):      raise CORBA.TypeCode.BadKind()
+    def id(self):                       raise TypeCode.BadKind()
+    def name(self):                     raise TypeCode.BadKind()
+    def member_count(self):             raise TypeCode.BadKind()
+    def member_name(self, index):       raise TypeCode.BadKind()
+    def member_type(self, index):       raise TypeCode.BadKind()
+    def member_label(self, index):      raise TypeCode.BadKind()
 
-    def discriminator_type(self):       raise CORBA.TypeCode.BadKind()
-    def default_index(self):            raise CORBA.TypeCode.BadKind()
-    def length(self):                   raise CORBA.TypeCode.BadKind()
-    def content_type(self):             raise CORBA.TypeCode.BadKind()
+    def discriminator_type(self):       raise TypeCode.BadKind()
+    def default_index(self):            raise TypeCode.BadKind()
+    def length(self):                   raise TypeCode.BadKind()
+    def content_type(self):             raise TypeCode.BadKind()
 
-    def fixed_digits(self):             raise CORBA.TypeCode.BadKind()
-    def fixed_scale(self):              raise CORBA.TypeCode.BadKind()
+    def fixed_digits(self):             raise TypeCode.BadKind()
+    def fixed_scale(self):              raise TypeCode.BadKind()
 
-    def member_visibility(self, index): raise CORBA.TypeCode.BadKind()
-    def type_modifier(self):            raise CORBA.TypeCode.BadKind()
-    def concrete_base_type(self):       raise CORBA.TypeCode.BadKind()
+    def member_visibility(self, index): raise TypeCode.BadKind()
+    def type_modifier(self):            raise TypeCode.BadKind()
+    def concrete_base_type(self):       raise TypeCode.BadKind()
 
 
 # Class for short, long, ushort, ulong, float, double, boolean, char,
@@ -483,15 +384,15 @@ class TypeCode_base (CORBA.TypeCode):
 
 class TypeCode_empty (TypeCode_base):
     def __init__(self, desc):
-        if type(desc) is not types.IntType: raise CORBA.INTERNAL()
-        if desc not in [ tv_null, tv_void, tv_short, tv_long, tv_ushort,
+        if not isinstance(desc, int): raise INTERNAL()
+        if desc not in ( tv_null, tv_void, tv_short, tv_long, tv_ushort,
                          tv_ulong, tv_float, tv_double, tv_boolean, tv_char,
                          tv_octet, tv_any, tv_TypeCode, tv_Principal,
-                         tv_longlong, tv_ulonglong, tv_longdouble, tv_wchar ]:
-            raise CORBA.INTERNAL()
+                         tv_longlong, tv_ulonglong, tv_longdouble, tv_wchar ):
+            raise INTERNAL()
 
         self._d = desc
-        self._k = CORBA.TCKind._item(desc)
+        self._k = TCKind._item(desc)
 
     def __repr__(self):
         return "CORBA.TC" + str(self._k)[8:]
@@ -499,11 +400,10 @@ class TypeCode_empty (TypeCode_base):
 # string:
 class TypeCode_string (TypeCode_base):
     def __init__(self, desc):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_string:
-            raise CORBA.INTERNAL()
+        if not isinstance(desc, tuple) or desc[0] != tv_string:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_string
+        self._k = tk_string
 
     def length(self):
         return self._d[1]
@@ -517,11 +417,10 @@ class TypeCode_string (TypeCode_base):
 # wstring:
 class TypeCode_wstring (TypeCode_base):
     def __init__(self, desc):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_wstring:
-            raise CORBA.INTERNAL()
+        if not isinstance(desc, tuple) or desc[0] != tv_wstring:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_wstring
+        self._k = tk_wstring
 
     def length(self):
         return self._d[1]
@@ -535,11 +434,10 @@ class TypeCode_wstring (TypeCode_base):
 # fixed:
 class TypeCode_fixed (TypeCode_base):
     def __init__(self, desc):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_fixed:
-            raise CORBA.INTERNAL()
+        if not isinstance(desc, tuple) or desc[0] != tv_fixed:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_fixed
+        self._k = tk_fixed
 
     def fixed_digits(self):
         return self._d[1]
@@ -554,13 +452,13 @@ class TypeCode_fixed (TypeCode_base):
 # objref:
 class TypeCode_objref (TypeCode_base):
     def __init__(self, desc):
-        if type(desc) is not types.TupleType or \
-           desc[0] not in [ tv_objref,
-                            tv_abstract_interface,
-                            tv_local_interface ]:
-            raise CORBA.INTERNAL()
+        if not isinstance(desc, tuple) or \
+               desc[0] not in [ tv_objref,
+                                tv_abstract_interface,
+                                tv_local_interface ]:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.TCKind._items[desc[0]]
+        self._k = TCKind._items[desc[0]]
 
     def id(self):
         if self._d[1] is not None:
@@ -576,17 +474,11 @@ class TypeCode_objref (TypeCode_base):
 
 # struct:
 class TypeCode_struct (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_struct:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_struct:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_struct
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_struct
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -599,16 +491,13 @@ class TypeCode_struct (TypeCode_base):
     def member_count(self):       return (len(self._d) - 4) / 2
     def member_name(self, index):
         off = index * 2 + 4
-        if index < 0 or off >= len(self._d): raise CORBA.TypeCode.Bounds()
+        if index < 0 or off >= len(self._d): raise TypeCode.Bounds()
         return self._d[off]
 
     def member_type(self, index):
         off = index * 2 + 5
-        if index < 0 or off >= len(self._d): raise CORBA.TypeCode.Bounds()
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[off], self)
-        else:
-            return createTypeCode(self._d[off], self._p)
+        if index < 0 or off >= len(self._d): raise TypeCode.Bounds()
+        return createTypeCode(self._d[off])
 
     def __repr__(self):
         return 'CORBA.TypeCode("%s")' % self.id()
@@ -616,17 +505,11 @@ class TypeCode_struct (TypeCode_base):
     
 # union:
 class TypeCode_union (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_union:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_union:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_union
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_union
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -639,19 +522,16 @@ class TypeCode_union (TypeCode_base):
     def member_count(self):        return len(self._d[6])
 
     def member_name(self, index):
-        if index < 0 or index >= len(self._d[6]): raise CORBA.TypeCode.Bounds()
+        if index < 0 or index >= len(self._d[6]): raise TypeCode.Bounds()
         return self._d[6][index][1]
     
     def member_type(self, index):
-        if index < 0 or index >= len(self._d[6]): raise CORBA.TypeCode.Bounds()
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[6][index][2], self)
-        else:
-            return createTypeCode(self._d[6][index][2], self._p)
+        if index < 0 or index >= len(self._d[6]): raise TypeCode.Bounds()
+        return createTypeCode(self._d[6][index][2])
 
     def member_label(self, index):
-        if index < 0 or index >= len(self._d[6]): raise CORBA.TypeCode.Bounds()
-        if index == self._d[5]: return CORBA.Any(CORBA._tc_octet, 0)
+        if index < 0 or index >= len(self._d[6]): raise TypeCode.Bounds()
+        if index == self._d[5]: return CORBA.Any(_tc_octet, 0)
         return CORBA.Any(createTypeCode(self._d[4]), self._d[6][index][0])
 
     def discriminator_type(self): return createTypeCode(self._d[4])
@@ -667,11 +547,10 @@ class TypeCode_union (TypeCode_base):
 # enum:
 class TypeCode_enum (TypeCode_base):
     def __init__(self, desc):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_enum:
-            raise CORBA.INTERNAL()
+        if not isinstance(desc, tuple) or desc[0] != tv_enum:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_enum
+        self._k = tk_enum
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -684,7 +563,7 @@ class TypeCode_enum (TypeCode_base):
     def member_count(self): return len(self._d[3])
 
     def member_name(self, index):
-        if index < 0 or index >= len(self._d[3]): raise CORBA.TypeCode.Bounds()
+        if index < 0 or index >= len(self._d[3]): raise TypeCode.Bounds()
         return self._d[3][index]._n
 
     def __repr__(self):
@@ -693,17 +572,11 @@ class TypeCode_enum (TypeCode_base):
 
 # sequence:
 class TypeCode_sequence (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_sequence:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_sequence:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_sequence
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_sequence
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -715,10 +588,7 @@ class TypeCode_sequence (TypeCode_base):
         return self._d[2]
 
     def content_type(self):
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[1], self)
-        else:
-            return createTypeCode(self._d[1], self._p)
+        return createTypeCode(self._d[1])
 
     def __repr__(self):
         return "orb.create_sequence_tc(bound=%d, element_type=%s)" % (
@@ -727,17 +597,11 @@ class TypeCode_sequence (TypeCode_base):
 
 # array:
 class TypeCode_array (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_array:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_array:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_array
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_array
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -749,10 +613,7 @@ class TypeCode_array (TypeCode_base):
         return self._d[2]
 
     def content_type(self):
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[1], self)
-        else:
-            return createTypeCode(self._d[1], self._p)
+        return createTypeCode(self._d[1])
 
     def __repr__(self):
         return "orb.create_array_tc(length=%d, element_type=%s)" % (
@@ -760,17 +621,11 @@ class TypeCode_array (TypeCode_base):
 
 # alias:
 class TypeCode_alias (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_alias:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_alias:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_alias
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_alias
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -782,27 +637,18 @@ class TypeCode_alias (TypeCode_base):
     def name(self):         return self._d[2]
 
     def content_type(self):
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[3], self)
-        else:
-            return createTypeCode(self._d[3], self._p)
+        return createTypeCode(self._d[3])
 
     def __repr__(self):
         return 'CORBA.TypeCode("%s")' % self.id()
 
 # except:
 class TypeCode_except (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_except:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_except:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_except
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_except
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -815,16 +661,13 @@ class TypeCode_except (TypeCode_base):
     def member_count(self):       return (len(self._d) - 4) / 2
     def member_name(self, index):
         off = index * 2 + 4
-        if index < 0 or off >= len(self._d): raise CORBA.TypeCode.Bounds()
+        if index < 0 or off >= len(self._d): raise TypeCode.Bounds()
         return self._d[off]
 
     def member_type(self, index):
         off = index * 2 + 5
-        if index < 0 or off >= len(self._d): raise CORBA.TypeCode.Bounds()
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[off], self)
-        else:
-            return createTypeCode(self._d[off], self._p)
+        if index < 0 or off >= len(self._d): raise TypeCode.Bounds()
+        return createTypeCode(self._d[off])
 
     def __repr__(self):
         return 'CORBA.TypeCode("%s")' % self.id()
@@ -832,17 +675,11 @@ class TypeCode_except (TypeCode_base):
 
 # value:
 class TypeCode_value (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_value:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_value:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_value
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_value
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -855,20 +692,17 @@ class TypeCode_value (TypeCode_base):
     def member_count(self):       return (len(self._d) - 7) / 3
     def member_name(self, index):
         off = index * 3 + 7
-        if index < 0 or off >= len(self._d): raise CORBA.TypeCode.Bounds()
+        if index < 0 or off >= len(self._d): raise TypeCode.Bounds()
         return self._d[off]
 
     def member_type(self, index):
         off = index * 3 + 8
-        if index < 0 or off >= len(self._d): raise CORBA.TypeCode.Bounds()
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[off], self)
-        else:
-            return createTypeCode(self._d[off], self._p)
+        if index < 0 or off >= len(self._d): raise TypeCode.Bounds()
+        return createTypeCode(self._d[off])
 
     def member_visibility(self, index):
         off = index * 3 + 9
-        if index < 0 or off >= len(self._d): raise CORBA.TypeCode.Bounds()
+        if index < 0 or off >= len(self._d): raise TypeCode.Bounds()
         return self._d[off]
 
     def type_modifier(self):
@@ -878,7 +712,7 @@ class TypeCode_value (TypeCode_base):
         if self._d[6] == tv_null:
             return None
         else:
-            return createTypeCode(self._d[6], self._p)
+            return createTypeCode(self._d[6])
 
     def __repr__(self):
         return 'CORBA.TypeCode("%s")' % self.id()
@@ -886,17 +720,11 @@ class TypeCode_value (TypeCode_base):
 
 # valuebox:
 class TypeCode_value_box (TypeCode_base):
-    def __init__(self, desc, parent):
-        if type(desc) is not types.TupleType or \
-           desc[0] != tv_value_box:
-            raise CORBA.INTERNAL()
+    def __init__(self, desc):
+        if not isinstance(desc, tuple) or desc[0] != tv_value_box:
+            raise INTERNAL()
         self._d = desc
-        self._k = CORBA.tk_value_box
-        self._p = parent
-
-    def __del__(self):
-        if self._p is None and removeIndirections is not None:
-            removeIndirections(self._d)
+        self._k = tk_value_box
 
     def equivalent(self, tc):
         return equivalentDescriptors(self._d, tc._d)
@@ -908,10 +736,7 @@ class TypeCode_value_box (TypeCode_base):
     def name(self):         return self._d[3]
 
     def content_type(self):
-        if self._p is None and removeIndirections is not None:
-            return createTypeCode(self._d[4], self)
-        else:
-            return createTypeCode(self._d[4], self._p)
+        return createTypeCode(self._d[4])
 
     def __repr__(self):
         return 'CORBA.TypeCode("%s")' % self.id()
@@ -955,30 +780,30 @@ def equivalentDescriptors(a, b, seen=None, a_ids=None, b_ids=None):
         if a == b: return 1
 
         # If they don't trivially match, they must be tuples:
-        if type(a) is not types.TupleType or type(b) is not types.TupleType:
+        if not (isinstance(a, tuple) and isinstance(b, tuple)):
             return 0
 
         # Follow aliases and indirections
-        while (type(a) is types.TupleType and
+        while (isinstance(a, tuple) and
                (a[0] == tv_alias or a[0] == tv__indirect)):
 
             if a[0] == tv_alias:
                 if a[1] != "": a_ids[a[1]] = a
                 a = a[3]
             else:
-                if type(a[1][0]) is types.StringType:
+                if isinstance(a[1][0], str):
                     a = a_ids[a[1][0]]
                 else:
                     a = a[1][0]
 
-        while (type(b) is types.TupleType and
+        while (isinstance(b, tuple) and
                (b[0] == tv_alias or b[0] == tv__indirect)):
             
             if b[0] == tv_alias:
                 if b[1] != "": b_ids[b[1]] = b
                 b = b[3]
             else:
-                if type(b[1][0]) is types.StringType:
+                if isinstance(b[1][0], str):
                     b = b_ids[b[1][0]]
                 else:
                     b = b[1][0]
@@ -986,14 +811,15 @@ def equivalentDescriptors(a, b, seen=None, a_ids=None, b_ids=None):
         # Re-do the trivial checks on the underlying types.
         if a == b: return 1
 
-        if type(a) is not types.TupleType or type(b) is not types.TupleType:
+        if not (isinstance(a, tuple) and isinstance(b, tuple)):
             return 0
 
         # Handle cycles
-        if seen.has_key((id(a),id(b))):
+        idt = id(a), id(b)
+        if idt in seen:
             return 1
 
-        seen[id(a),id(b)] = None
+        seen[idt] = None
 
         # Must be same kind
         if a[0] != b[0]:
@@ -1157,30 +983,29 @@ def equivalentDescriptors(a, b, seen=None, a_ids=None, b_ids=None):
         return 0
 
     except AttributeError:
-        raise CORBA.BAD_PARAM(BAD_PARAM_WrongPythonType, CORBA.COMPLETED_NO)
+        raise BAD_PARAM(BAD_PARAM_WrongPythonType, COMPLETED_NO)
 
 
 # Functions to compact descriptors:
 def getCompactDescriptor(d):
     seen = {}
     ind  = []
-    r = r_getCompactDescriptor(d, seen, ind)
+    r    = r_getCompactDescriptor(d, seen, ind)
 
     # Fix up indirections:
     for i in ind:
         try:
-            if (type(i[0]) is types.StringType):
+            if isinstance(i[0], str):
                 i[0] = seen[i[0]]
             else:
                 i[0] = seen[id(i[0])]
         except KeyError:
-            raise CORBA.BAD_TYPECODE(BAD_TYPECODE_InvalidIndirection,
-                                     CORBA.COMPLETED_NO)
+            raise BAD_TYPECODE(BAD_TYPECODE_InvalidIndirection, COMPLETED_NO)
 
     return r
 
 def r_getCompactDescriptor(d, seen, ind):
-    if type(d) is types.TupleType:
+    if isinstance(d, tuple):
         k = d[0]
     else:
         k = d
@@ -1286,47 +1111,6 @@ def r_getCompactDescriptor(d, seen, ind):
         ind.append(l)
         r = (k, l)
 
-    else: raise CORBA.INTERNAL()
+    else: raise INTERNAL()
 
     return r
-
-
-# Function to remove indirections from a descriptor, so it can be
-# collected by Python's reference counting garbage collector. Not
-# strictly necessary now Python has a cycle collector, but it does no
-# harm.
-
-def removeIndirections(desc):
-    if type(desc) is not types.TupleType: return
-
-    k = desc[0]
-
-    if k == tv_struct:
-        for i in range(5, len(desc), 2):
-            removeIndirections(desc[i])
-
-    elif k == tv_union:
-        for t in desc[6]:
-            removeIndirections(t[2])
-        if desc[7] is not None:
-            removeIndirections(desc[7][2])
-
-    elif k == tv_sequence:
-        removeIndirections(desc[1])
-
-    elif k == tv_array:
-        removeIndirections(desc[1])
-
-    elif k == tv_alias:
-        removeIndirections(desc[3])
-
-    elif k == tv_except:
-        for i in range(5, len(desc), 2):
-            removeIndirections(desc[i])
-
-    elif k == tv_value:
-        for i in range(8, len(desc), 3):
-            removeIndirections(desc[i])
-
-    elif k == tv__indirect:
-        desc[1][0] = None

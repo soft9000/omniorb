@@ -3,6 +3,7 @@
 # URI.py                     Created on: 2000/06/26
 #                            Author    : Duncan Grisby (dpg1)
 #
+#    Copyright (C) 2002-2014 Apasphere Ltd
 #    Copyright (C) 2000 AT&T Laboratories Cambridge
 #
 #    This file is part of the omniORBpy library
@@ -19,23 +20,11 @@
 #    GNU Lesser General Public License for more details.
 #
 #    You should have received a copy of the GNU Lesser General Public
-#    License along with this library; if not, write to the Free
-#    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-#    MA 02111-1307, USA
+#    License along with this library. If not, see http://www.gnu.org/licenses/
 #
 #
 # Description:
 #    URI handling functions
-
-# $Id$
-
-# $Log$
-# Revision 1.1.4.1  2002/03/11 15:40:05  dpg1
-# _get_interface support, exception minor codes.
-#
-# Revision 1.1  2000/06/27 16:15:46  dpg1
-# New omniORB.URI module
-#
 
 import types, string, re
 import CosNaming
@@ -58,9 +47,7 @@ Convert a stringified name to a CosNaming.Name"""
     # building a list of NameComponents, based on the meanings of the
     # special characters.
 
-    global __regex
-
-    if type(sname) is not types.StringType:
+    if not isinstance(sname, str):
         raise CORBA.BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
 
     if sname == "":
@@ -117,11 +104,9 @@ def nameToString(name):
 
 Convert the CosNaming.Name into its stringified form."""
 
-    global __regex
     parts = []
 
-    if type(name) is not types.ListType and \
-       type(name) is not types.TupleType:
+    if not isinstance(name, (list, tuple)):
         raise CORBA.BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
 
     if len(name) == 0:
@@ -134,12 +119,12 @@ Convert the CosNaming.Name into its stringified form."""
             elif nc.kind == "":
                 parts.append(__regex.sub(r"\\\1", nc.id))
             else:
-                parts.append(__regex.sub(r"\\\1", nc.id) + "." + \
+                parts.append(__regex.sub(r"\\\1", nc.id) + "." +
                              __regex.sub(r"\\\1", nc.kind))
     except AttributeError:
         raise CORBA.BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
 
-    return string.join(parts, "/")
+    return "/".join(parts)
 
 
 def addrAndNameToURI(addr, sname):
@@ -153,8 +138,7 @@ Create a valid corbaname URI from an address string and a stringified name"""
 
     import urllib
 
-    if type(addr) is not types.StringType or \
-       type(sname) is not types.StringType:
+    if not (isinstance(addr, str) and isinstance(sname, str)):
         raise CORBA.BAD_PARAM(omniORB.BAD_PARAM_WrongPythonType, COMPLETED_NO)
 
     if addr == "":

@@ -1,5 +1,5 @@
 dnl -*- M4 -*-
-AC_INIT(omniORBpy, 3.7, bugs@omniorb-support.com)
+AC_INIT(omniORBpy, 4.2.6, bugs@omniorb-support.com)
 
 AC_PREREQ(2.52)
 AC_CONFIG_SRCDIR(python/omniORB/CORBA.py)
@@ -21,11 +21,14 @@ AC_PROG_MAKE_SET
 AM_PATH_PYTHON
 AC_LANG(C++)
 
+AC_SUBST(EXTRA_GCC_CXXFLAGS)
+
 
 dnl ** Libraries
 
 OMNI_OMNIORB_ROOT
 OMNI_OPENSSL_ROOT
+OMNI_ENABLE_ZIOP
 
 
 dnl ** More programs
@@ -81,6 +84,7 @@ os_v="0"
 
 case "$host" in
   *-*-linux-*)   plat_name="Linux";    plat_def="__linux__";    os_v="2";;
+  *-*-uclinux-*) plat_name="Linux";    plat_def="__linux__";    os_v="2";;
   *-*-cygwin*)   plat_name="Cygwin";   plat_def="__cygwin__";   os_v="1";;
   *-*-solaris*)  plat_name="SunOS";    plat_def="__sunos__";    os_v="5";;
   *-*-osf3*)     plat_name="OSF1";     plat_def="__osf1__";     os_v="3";;
@@ -123,6 +127,7 @@ case "$host" in
   alpha*)   proc_name="AlphaProcessor";   proc_def="__alpha__";;
   m68k-*)   proc_name="m68kProcessor";    proc_def="__m68k__";;
   mips*)    proc_name="IndigoProcessor";  proc_def="__mips__";;
+  arm64-*)  proc_name="Arm64Processor";   proc_def="__arm64__";;
   arm-*)    proc_name="ArmProcessor";     proc_def="__arm__";;
   s390-*)   proc_name="s390Processor";    proc_def="__s390__";;
   ia64-*)   proc_name="ia64Processor";    proc_def="__ia64__";;
@@ -144,10 +149,15 @@ AC_CONFIG_FILES(
                 modules/codesets/GNUmakefile
                 modules/sslTP/GNUmakefile
                 modules/connections/GNUmakefile
-                omniidl_be/GNUmakefile
+                modules/ziop/GNUmakefile
                 python/GNUmakefile
+                python/omniidl_be/GNUmakefile
                 python/COS/GNUmakefile
                 python/omniORB/GNUmakefile
+                python3/GNUmakefile
+                python3/omniidl_be/GNUmakefile
+                python3/COS/GNUmakefile
+                python3/omniORB/GNUmakefile
 		include/GNUmakefile
                )
 

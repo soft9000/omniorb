@@ -3,7 +3,7 @@
 # sslTP.py                   Created on: 2002/09/06
 #                            Author    : Duncan Grisby (dgrisby)
 #
-#    Copyright (C) 2002 Apasphere Ltd.
+#    Copyright (C) 2002-2013 Apasphere Ltd.
 #
 #    This file is part of the omniORBpy library
 #
@@ -19,19 +19,11 @@
 #    GNU Lesser General Public License for more details.
 #
 #    You should have received a copy of the GNU Lesser General Public
-#    License along with this library; if not, write to the Free
-#    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-#    MA 02111-1307, USA
+#    License along with this library. If not, see http://www.gnu.org/licenses/
 #
 #
 # Description:
 #    Import this to enable the SSL transport.
-
-# $Id$
-# $Log$
-# Revision 1.1.2.1  2002/09/06 21:34:26  dgrisby
-# Add codesets and sslTP modules.
-#
 
 """omniORB.sslTP
 

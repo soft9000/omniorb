@@ -3,7 +3,7 @@
 // pyValueType.cc             Created on: 2003/04/11
 //                            Author    : Duncan Grisby (dgrisby)
 //
-//    Copyright (C) 2003-2006 Apasphere Ltd.
+//    Copyright (C) 2003-2014 Apasphere Ltd.
 //
 //    This file is part of the omniORBpy library
 //
@@ -19,59 +19,11 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 //
 // Description:
 //    ValueType support
-
-// $Log$
-// Revision 1.1.2.14  2006/09/20 14:10:13  dgrisby
-// Indirections could be wrong in valuebox marshalling, because alignment
-// was not set before position calculation.
-//
-// Revision 1.1.2.13  2006/09/17 23:28:34  dgrisby
-// Invalid assertion with indirections in counting streams.
-//
-// Revision 1.1.2.12  2006/05/15 10:26:11  dgrisby
-// More relaxation of requirements for old-style classes, for Python 2.5.
-//
-// Revision 1.1.2.11  2006/02/28 12:42:00  dgrisby
-// New _NP_postUnmarshal hook on valuetypes.
-//
-// Revision 1.1.2.10  2005/06/29 17:31:42  dgrisby
-// Update valuetype examples; fix values in Anys.
-//
-// Revision 1.1.2.9  2005/06/24 17:36:00  dgrisby
-// Support for receiving valuetypes inside Anys; relax requirement for
-// old style classes in a lot of places.
-//
-// Revision 1.1.2.8  2005/01/17 15:19:11  dgrisby
-// Minor changes to compile on Windows.
-//
-// Revision 1.1.2.7  2005/01/06 23:22:27  dgrisby
-// Properly align output in valuetype marshalling.
-//
-// Revision 1.1.2.6  2004/03/24 22:28:50  dgrisby
-// TypeCodes / truncation for inherited state members were broken.
-//
-// Revision 1.1.2.5  2004/02/16 10:14:18  dgrisby
-// Use stream based copy for local calls.
-//
-// Revision 1.1.2.4  2003/11/06 12:00:36  dgrisby
-// ValueType TypeCode support; track ORB core changes.
-//
-// Revision 1.1.2.3  2003/09/26 15:57:07  dgrisby
-// Refactor repoId handling.
-//
-// Revision 1.1.2.2  2003/07/10 22:15:02  dgrisby
-// Fix locking issues (merge from omnipy2_develop).
-//
-// Revision 1.1.2.1  2003/05/20 17:10:24  dgrisby
-// Preliminary valuetype support.
-//
 
 #include <omnipy.h>
 #include <pyThreadCache.h>
@@ -107,7 +59,6 @@ public:
 
     omnipyThreadCache::lock _t;
     Py_DECREF(dict_);
-    magic_ = 0;
   }
 
   inline CORBA::Boolean valid()
@@ -124,13 +75,13 @@ public:
     PyObject* val = PyDict_GetItem(dict_, key);
 
     if (val) {
-      OMNIORB_ASSERT(PyInt_Check(val));
-      CORBA::Long pos = PyInt_AS_LONG(val);
+      OMNIORB_ASSERT(Int_Check(val));
+      CORBA::Long pos = Int_AS_LONG(val);
       Py_DECREF(key);
       return pos;
     }
     else {
-      PyObject* val = PyInt_FromLong(current);
+      PyObject* val = Int_FromLong(current);
       PyDict_SetItem(dict_, key, val);
       Py_DECREF(val);
       Py_DECREF(key);
@@ -145,12 +96,12 @@ public:
     PyObject* val = PyDict_GetItem(dict_, obj);
 
     if (val) {
-      OMNIORB_ASSERT(PyInt_Check(val));
-      CORBA::Long pos = PyInt_AS_LONG(val);
+      OMNIORB_ASSERT(Int_Check(val));
+      CORBA::Long pos = Int_AS_LONG(val);
       return pos;
     }
     else {
-      val = PyInt_FromLong(current);
+      val = Int_FromLong(current);
       PyDict_SetItem(dict_, obj, val);
       Py_DECREF(val);
       return -1;
@@ -196,7 +147,6 @@ public:
 
     omnipyThreadCache::lock _t;
     Py_DECREF(dict_);
-    magic_ = 0;
   }
 
   inline CORBA::Boolean valid()
@@ -207,7 +157,7 @@ public:
   void add(PyObject* obj, CORBA::Long pos)
   {
     // Add record of an unmarshalled value.
-    PyObject* key = PyInt_FromLong(pos);
+    PyObject* key = Int_FromLong(pos);
     PyDict_SetItem(dict_, key, obj);
     Py_DECREF(key);
   }
@@ -218,7 +168,7 @@ public:
     // If the value has been previously unmarshalled, return a
     // duplicated reference to it. Otherwise, throw a MARSHAL
     // exception.
-    PyObject* key = PyInt_FromLong(pos);
+    PyObject* key = Int_FromLong(pos);
     PyObject* ret = PyDict_GetItem(dict_, key);
     Py_DECREF(key);
 
@@ -286,31 +236,53 @@ validateTypeValue(PyObject* d_o, PyObject* a_o,
 
     if (!actualRepoId) {
       PyErr_Clear();
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Expecting valuetype, got %r",
+					      "O", a_o->ob_type));
     }
 
-    Py_DECREF(actualRepoId); // Safe because obj still holds a ref
+    omniPy::PyRefHolder actualRepoId_holder(actualRepoId);
   
-    if (!omni::ptrStrMatch(PyString_AS_STRING(idlRepoId),
-			   PyString_AS_STRING(actualRepoId))) {
+    if (!omni::ptrStrMatch(String_AS_STRING(idlRepoId),
+			   String_AS_STRING(actualRepoId))) {
       // Object doesn't match the value expected from the IDL. Check it
       // is derived from it.
       PyObject* cls = PyTuple_GET_ITEM(d_o, 1);
 
-      if (!omniPy::isInstance(a_o, cls))
-	OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
-
+      if (!PyObject_IsInstance(a_o, cls)) {
+	THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			   omniPy::formatString("Valuetype %r is not "
+						"a subclass of %r",
+						"OO",
+						a_o->ob_type,
+						PyTuple_GET_ITEM(d_o, 3)));
+      }
       d_o = PyDict_GetItem(omniPy::pyomniORBtypeMap, actualRepoId);
+      if (!d_o) {
+	THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			   omniPy::formatString("Unknown valuetype repository "
+						"id %r",
+						"O", actualRepoId));
+      }
+      if (!PyTuple_Check(d_o) ||
+	  Int_AS_LONG(PyTuple_GetItem(d_o, 0)) != CORBA::tk_value) {
+
+	THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			   omniPy::formatString("Repository id %r is not a "
+						"valuetype",
+						"O", actualRepoId));
+      }
     }
 
     // Check value modifier
-    PyObject* pymod = PyTuple_GET_ITEM(d_o, 4);
-    CORBA::ValueModifier mod = PyInt_AS_LONG(pymod);
+    PyObject*            pymod = PyTuple_GET_ITEM(d_o, 4);
+    CORBA::ValueModifier mod   = Int_AS_LONG(pymod);
 
-    if (mod == CORBA::VM_ABSTRACT)
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_AttemptToMarshalAbstractValue,
-		    compstatus);
-
+    if (mod == CORBA::VM_ABSTRACT) {
+      THROW_PY_BAD_PARAM(BAD_PARAM_AttemptToMarshalAbstractValue, compstatus,
+			   omniPy::formatString("Valuetype %r is abstract",
+						"O", a_o->ob_type));
+    }
     if (mod == CORBA::VM_CUSTOM)
       OMNIORB_THROW(NO_IMPLEMENT, NO_IMPLEMENT_Unsupported, compstatus);
 
@@ -333,7 +305,7 @@ static void validateMembers(PyObject* d_o, PyObject* a_o,
 			    PyObject* track)
 {
   PyObject* t_o = PyTuple_GET_ITEM(d_o, 0);
-  OMNIORB_ASSERT(PyInt_Check(t_o) && PyInt_AS_LONG(t_o) == CORBA::tk_value);
+  OMNIORB_ASSERT(Int_Check(t_o) && Int_AS_LONG(t_o) == CORBA::tk_value);
 
   // Check base
   t_o = PyTuple_GET_ITEM(d_o, 6);
@@ -349,17 +321,28 @@ static void validateMembers(PyObject* d_o, PyObject* a_o,
   int i, j;
 
   for (i=0,j=7; i < members; i++, j+=3) {
-    name    = PyTuple_GET_ITEM(d_o, j);
-    OMNIORB_ASSERT(PyString_Check(name));
+    name    = PyTuple_GET_ITEM(d_o, j); OMNIORB_ASSERT(String_Check(name));
     value   = PyObject_GetAttr(a_o, name);
     if (!value) {
       PyErr_Clear();
-      OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
+      THROW_PY_BAD_PARAM(BAD_PARAM_WrongPythonType, compstatus,
+			 omniPy::formatString("Valuetype %r instance %r "
+					      "has no %r member",
+					      "OOO",
+					      PyTuple_GET_ITEM(d_o, 3),
+					      a_o->ob_type,
+					      name));
     }
-
-    Py_DECREF(value); // Safe to DECREF now because object still holds a ref
-    omniPy::validateType(PyTuple_GET_ITEM(d_o, j+1), value,
-			 compstatus, track);
+    omniPy::PyRefHolder h(value);
+    try {
+      omniPy::validateType(PyTuple_GET_ITEM(d_o, j+1), value,
+			   compstatus, track);
+    }
+    catch (Py_BAD_PARAM& bp) {
+      bp.add(omniPy::formatString("Valuetype %r member %r", "OO",
+				  PyTuple_GET_ITEM(d_o, 3), name));
+      throw;
+    }
   }
 }
 
@@ -374,7 +357,14 @@ validateTypeValueBox(PyObject* d_o, PyObject* a_o,
   if (a_o == Py_None) // Nil value
     return;
 
-  omniPy::validateType(PyTuple_GET_ITEM(d_o, 4), a_o, compstatus, track);
+  try {
+    omniPy::validateType(PyTuple_GET_ITEM(d_o, 4), a_o, compstatus, track);
+  }
+  catch (Py_BAD_PARAM& bp) {
+    bp.add(omniPy::formatString("Value box %r", "O",
+				PyTuple_GET_ITEM(d_o, 3)));
+    throw;
+  }
 }
 
 
@@ -416,8 +406,8 @@ real_marshalPyObjectValue(cdrValueChunkStream& stream,
 
   // Find descriptor of actual value being marshalled
   CORBA::Boolean derived = 0;
-  if (!omni::ptrStrMatch(PyString_AS_STRING(idlRepoId),
-			 PyString_AS_STRING(actualRepoId))) {
+  if (!omni::ptrStrMatch(String_AS_STRING(idlRepoId),
+			 String_AS_STRING(actualRepoId))) {
 
     d_o = PyDict_GetItem(omniPy::pyomniORBtypeMap, actualRepoId);
     derived = 1;
@@ -453,7 +443,7 @@ real_marshalPyObjectValue(cdrValueChunkStream& stream,
     }
     else {
       // RMI: repository ids must always be sent
-      const char* id = PyString_AS_STRING(actualRepoId);
+      const char* id = String_AS_STRING(actualRepoId);
       if (id[0] == 'R' && id[1] == 'M' && id[2] == 'I' && id[3] == ':') {
 	tag |= REPOID_SINGLE;
       }
@@ -624,7 +614,7 @@ marshalPyObjectValueBox(cdrStream& stream, PyObject* d_o, PyObject* a_o)
     tag |= REPOID_SINGLE;
   }
   else {
-    const char* id = PyString_AS_STRING(repoId);
+    const char* id = String_AS_STRING(repoId);
     if (id[0] == 'R' && id[1] == 'M' && id[2] == 'I' && id[3] == ':') {
       tag |= REPOID_SINGLE;
     }
@@ -681,9 +671,7 @@ unmarshalValueRepoId(cdrStream& stream, pyInputValueTracker* tracker)
     OMNIORB_THROW(MARSHAL, MARSHAL_PassEndOfMessage,
 		  (CORBA::CompletionStatus)stream.completion());
 
-  PyObject* pystring = PyString_FromStringAndSize(0, len - 1);
-
-  stream.get_octet_array((_CORBA_Octet*)PyString_AS_STRING(pystring), len);
+  PyObject* pystring = omniPy::unmarshalRawPyString(stream, len);
 
   tracker->add(pystring, pos-4);
   return pystring;
@@ -723,7 +711,7 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
   PyObject* factory   = 0;
   PyObject* desc      = 0;
   PyObject* idlrepoId = PyTuple_GET_ITEM(d_o, 2);
-  PyObject* repoId;
+  PyObject* repoId    = 0;
 
   // Read any repoIds
 
@@ -768,8 +756,8 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
       factory = PyDict_GetItem(omniPy::pyomniORBvalueMap, repoId);
       if (factory) {
 	// Make sure we have a type descriptor
-	if (omni::ptrStrMatch(PyString_AS_STRING(repoId),
-			      PyString_AS_STRING(idlrepoId))) {
+	if (omni::ptrStrMatch(String_AS_STRING(repoId),
+			      String_AS_STRING(idlrepoId))) {
 	  // Most derived id is target
 	  desc = d_o;
 	  break;
@@ -781,8 +769,8 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
 	}
       }
       else {
-	if (omni::ptrStrMatch(PyString_AS_STRING(repoId),
-			      PyString_AS_STRING(idlrepoId))) {
+	if (omni::ptrStrMatch(String_AS_STRING(repoId),
+			      String_AS_STRING(idlrepoId))) {
 	  // RepoId matches the target, but we don't have a factory
 	  // for it. We can't truncate any further. Break out here,
 	  // and throw MARSHAL below.
@@ -802,8 +790,8 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
     repoId  = unmarshalValueRepoId(stream, tracker);
     factory = PyDict_GetItem(omniPy::pyomniORBvalueMap, repoId);
 
-    if (omni::ptrStrMatch(PyString_AS_STRING(repoId),
-			  PyString_AS_STRING(idlrepoId)))
+    if (omni::ptrStrMatch(String_AS_STRING(repoId),
+			  String_AS_STRING(idlrepoId)))
       desc = d_o;
     else
       desc = PyDict_GetItem(omniPy::pyomniORBtypeMap, repoId);
@@ -834,7 +822,7 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
     if (!factory || factory == Py_None) {
       if (desc) {
 	PyObject* vclass = PyTuple_GET_ITEM(desc, 1);
-	if (omniPy::isSubclass(vclass, omniPy::pyomniORBUnknownValueBase)) {
+	if (PyObject_IsSubclass(vclass, omniPy::pyomniORBUnknownValueBase)) {
 	  // Value is inside an Any, and has a TypeCode for which we
 	  // have no static knowledge. We create an instance of the
 	  // class created as the TypeCode was unmarshalled.
@@ -854,7 +842,7 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
 		    (CORBA::CompletionStatus)stream.completion());
 
     // Are we unmarshalling a valuetype or valuebox?
-    CORBA::ULong dtype = PyInt_AS_LONG(PyTuple_GET_ITEM(desc, 0));
+    CORBA::ULong dtype = Int_AS_LONG(PyTuple_GET_ITEM(desc, 0));
 
     if (dtype == CORBA::tk_value) {
       PyObject* target = PyTuple_GET_ITEM(d_o, 1);
@@ -865,7 +853,7 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
       if (!instance)
 	omniPy::handlePythonException();
 
-      if (!omniPy::isInstance(instance, target))
+      if (!PyObject_IsInstance(instance, target))
 	OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType,
 		      (CORBA::CompletionStatus)stream.completion());
 
@@ -911,7 +899,7 @@ real_unmarshalPyObjectValue(cdrStream& stream, cdrValueChunkStream* cstreamp,
       if (omniORB::trace(25)) {
 	omniORB::logger l;
 	l << "Truncating input value to "
-	  << PyString_AS_STRING(repoId) << "\n";
+	  << String_AS_STRING(repoId) << "\n";
       }
       cdrValueChunkStream* cstreamp = cdrValueChunkStream::downcast(&stream);
 

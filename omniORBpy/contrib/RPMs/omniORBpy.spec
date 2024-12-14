@@ -1,9 +1,8 @@
-%define version_major 3
-%define version_minor 7
-%define version_full %{version_major}.%{version_minor}
+%define version_major 4
+%define version_minor 2
+%define version_micro 6
+%define version_full %{version_major}.%{version_minor}.%{version_micro}
 %define version_brief %{version_major}.%{version_minor}
-
-%define omniORB_version 4.1.%{version_minor}
 
 %define lib_name %{?mklibname:%mklibname %{name} %{version_brief}}%{!?mklibname:lib%{name}%{version_brief}}
 
@@ -22,7 +21,7 @@ Prefix:    /usr
 URL:       http://omniorb.sourceforge.net/
 BuildRequires: gcc-c++
 BuildRequires: glibc-devel openssl-devel
-BuildRequires: omniORB-devel = %{omniORB_version}
+BuildRequires: omniORB-devel = %{version}
 BuildRequires: python python-devel
 Buildroot: %{_tmppath}/%{name}-%{version}-root
 
@@ -33,7 +32,7 @@ Object Request Broker (ORB).
 %package -n %{lib_name}
 Summary:   Python Language Mapping for omniORB
 Group:     System/Libraries
-Requires:  libomniORB = %{omniORB_version}
+Requires:  libomniORB = %{version}
 Provides:  lib%{name} = %{version}-%{release} %{name} = %{version}-%{release}
 Provides:  libomniorbpy = %{version}-%{release}
 Conflicts: libomniORBpy < %{version}-%{release}
@@ -61,7 +60,7 @@ PortableServer modules. This provides those standard modules for
 %package devel
 Summary:   Header files and libraries needed for %{name} development
 Group:     Development/Python
-Requires:  %{lib_name} = %{version}-%{release} omniORB-devel = %{omniORB_version}
+Requires:  %{lib_name} = %{version}-%{release} omniORB-devel = %{version}
 Provides:  libomniorbpy-devel = %{version}-%{release} omniorbpy-devel = %{version}-%{release}
 Conflicts: %{name}-devel < %{version}-%{release}
 Obsoletes: libomniORBpy-devel

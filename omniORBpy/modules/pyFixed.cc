@@ -3,7 +3,7 @@
 // pyFixed.cc                 Created on: 2001/03/30
 //                            Author    : Duncan Grisby (dpg1)
 //
-//    Copyright (C) 2003-2005 Apasphere Ltd
+//    Copyright (C) 2003-2014 Apasphere Ltd
 //    Copyright (C) 2001 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORBpy library
@@ -20,40 +20,10 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
-//
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //    Implementation of Fixed type for Python
-
-// $Id$
-// $Log$
-// Revision 1.1.4.2  2005/01/07 00:22:32  dgrisby
-// Big merge from omnipy2_develop.
-//
-// Revision 1.1.4.1  2003/03/23 21:51:57  dgrisby
-// New omnipy3_develop branch.
-//
-// Revision 1.1.2.6  2003/03/14 15:29:22  dgrisby
-// Remove const char* -> char* warnings.
-//
-// Revision 1.1.2.5  2003/03/02 19:12:56  dgrisby
-// Remove unnecessary #include.
-//
-// Revision 1.1.2.4  2001/09/24 10:48:26  dpg1
-// Meaningful minor codes.
-//
-// Revision 1.1.2.3  2001/05/14 12:47:21  dpg1
-// Fix memory leaks.
-//
-// Revision 1.1.2.2  2001/04/12 11:11:49  dpg1
-// Can now construct a fixed point object given another one.
-//
-// Revision 1.1.2.1  2001/04/09 15:22:15  dpg1
-// Fixed point support.
-//
 
 #include <omnipy.h>
 #include <pyFixed.h>
@@ -79,10 +49,10 @@ fixedValueAsPyLong(const CORBA::Fixed& f)
 PyObject*
 omniPy::newFixedObject(const CORBA::Fixed& f)
 {
-  omnipyFixedObject* pyf = PyMem_NEW(omnipyFixedObject, 1);
-  pyf->ob_type  = &omnipyFixed_Type;
+  omnipyFixedObject* pyf = PyObject_New(omnipyFixedObject, &omnipyFixed_Type);
+  OMNIORB_ASSERT(Py_TYPE(pyf)->tp_free);
+
   pyf->ob_fixed = new CORBA::Fixed(f);
-  _Py_NewReference((PyObject*)pyf);
   return (PyObject*)pyf;
 }
 
@@ -94,20 +64,22 @@ omniPy::newFixedObject(PyObject* self, PyObject* args)
     if (size == 1) {
       PyObject* pyv = PyTuple_GetItem(args, 0);
 
-      if (PyString_Check(pyv)) {
-	CORBA::Fixed f(PyString_AsString(pyv));
+      if (String_Check(pyv)) {
+	CORBA::Fixed f(String_AsString(pyv));
 	return omniPy::newFixedObject(f);
       }
+#if (PY_VERSION_HEX <= 0x03000000)
       else if (PyInt_Check(pyv)) {
 	long l = PyInt_AsLong(pyv);
 	CORBA::Fixed f(l);
 	return omniPy::newFixedObject(f);
       }
+#endif
       else if (PyLong_Check(pyv)) {
 	PyObject* pystr = PyObject_Str(pyv);
 	omniPy::PyRefHolder pystr_holder(pystr);
 	CORBA::Fixed f;
-	f.NP_fromString(PyString_AsString(pystr), 1);
+	f.NP_fromString(String_AsString(pystr), 1);
 	return omniPy::newFixedObject(f);
       }
       else if (omnipyFixed_Check(pyv)) {
@@ -118,9 +90,10 @@ omniPy::newFixedObject(PyObject* self, PyObject* args)
       PyObject* pyd = PyTuple_GetItem(args, 0);
       PyObject* pys = PyTuple_GetItem(args, 1);
       PyObject* pyv = PyTuple_GetItem(args, 2);
-      if (PyInt_Check(pyd) && PyInt_Check(pys)) {
-	long digits = PyInt_AsLong(pyd);
-	long scale  = PyInt_AsLong(pys);
+
+      if (Int_Check(pyd) && Int_Check(pys)) {
+	long digits = Int_AS_LONG(pyd);
+	long scale  = Int_AS_LONG(pys);
 
 	if (digits < 0 || digits > 31)
 	  OMNIORB_THROW(DATA_CONVERSION,
@@ -137,6 +110,7 @@ omniPy::newFixedObject(PyObject* self, PyObject* args)
 	// 10**scale. We first convert the int/long into a Fixed with
 	// an integer value, then hack the scale to be correct.
 
+#if (PY_VERSION_HEX <= 0x03000000)
 	if (PyInt_Check(pyv)) {
 	  long l = PyInt_AsLong(pyv);
 	  CORBA::Fixed f(l);
@@ -144,17 +118,19 @@ omniPy::newFixedObject(PyObject* self, PyObject* args)
 	  f.PR_setLimits(digits, scale);
 	  return omniPy::newFixedObject(f);
 	}
-	else if (PyLong_Check(pyv)) {
+	else
+#endif
+        if (PyLong_Check(pyv)) {
 	  PyObject* pystr = PyObject_Str(pyv);
 	  omniPy::PyRefHolder pystr_holder(pystr);
 	  CORBA::Fixed f;
-	  f.NP_fromString(PyString_AsString(pystr), 1);
+	  f.NP_fromString(String_AsString(pystr), 1);
 	  f.PR_changeScale(scale);
 	  f.PR_setLimits(digits, scale);
 	  return omniPy::newFixedObject(f);
 	}
-	else if (PyString_Check(pyv)) {
-	  CORBA::Fixed f(PyString_AsString(pyv));
+	else if (String_Check(pyv)) {
+	  CORBA::Fixed f(String_AsString(pyv));
 	  f.PR_setLimits(digits, scale);
 	  return omniPy::newFixedObject(f);
 	}
@@ -177,10 +153,10 @@ omniPy::newFixedObject(PyObject* self, PyObject* args)
 extern "C" {
 
   static void
-  fixed_dealloc(omnipyFixedObject* f)
+  fixed_dealloc(omnipyFixedObject* self)
   {
-    delete f->ob_fixed;
-    PyMem_DEL(f);
+    delete self->ob_fixed;
+    Py_TYPE(self)->tp_free((PyObject*)self);
   }
 
   static int
@@ -194,22 +170,19 @@ extern "C" {
   static PyObject*
   fixed_value(omnipyFixedObject* self, PyObject* args)
   {
-    if (!PyArg_NoArgs(args)) return 0;
     return fixedValueAsPyLong(*(self->ob_fixed));
   }
 
   static PyObject*
   fixed_precision(omnipyFixedObject* self, PyObject* args)
   {
-    if (!PyArg_NoArgs(args)) return 0;
-    return PyInt_FromLong(self->ob_fixed->fixed_digits());
+    return Int_FromLong(self->ob_fixed->fixed_digits());
   }
 
   static PyObject*
   fixed_decimals(omnipyFixedObject* self, PyObject* args)
   {
-    if (!PyArg_NoArgs(args)) return 0;
-    return PyInt_FromLong(self->ob_fixed->fixed_scale());
+    return Int_FromLong(self->ob_fixed->fixed_scale());
   }
 
   static PyObject*
@@ -239,25 +212,47 @@ extern "C" {
   }
 
   static PyMethodDef fixed_methods[] = {
-    {(char*)"value",     (PyCFunction)fixed_value},
-    {(char*)"precision", (PyCFunction)fixed_precision},
-    {(char*)"decimals",  (PyCFunction)fixed_decimals},
-    {(char*)"round",     (PyCFunction)fixed_round,    METH_VARARGS},
-    {(char*)"truncate",  (PyCFunction)fixed_truncate, METH_VARARGS},
+    {(char*)"value",     (PyCFunction)fixed_value,     METH_NOARGS},
+    {(char*)"precision", (PyCFunction)fixed_precision, METH_NOARGS},
+    {(char*)"decimals",  (PyCFunction)fixed_decimals,  METH_NOARGS},
+    {(char*)"round",     (PyCFunction)fixed_round,     METH_VARARGS},
+    {(char*)"truncate",  (PyCFunction)fixed_truncate,  METH_VARARGS},
     {0,0}
   };
 
-  static PyObject*
-  fixed_getattr(omnipyFixedObject* f, char* name)
-  {
-    return Py_FindMethod(fixed_methods, (PyObject*) f, name);
-  }
+#if (PY_VERSION_HEX < 0x03000000)
 
   static int
   fixed_compare(omnipyFixedObject* a, omnipyFixedObject* b)
   {
     return CORBA::Fixed::NP_cmp(*(a->ob_fixed), *(b->ob_fixed));
   }
+
+#else
+
+  static PyObject*
+  fixed_rcompare(omnipyFixedObject* a, omnipyFixedObject* b, int op)
+  {
+    int cmp = CORBA::Fixed::NP_cmp(*(a->ob_fixed), (*b->ob_fixed));
+
+    CORBA::Boolean r;
+
+    switch (op) {
+    case Py_LT: r = cmp <  0; break;
+    case Py_LE: r = cmp <= 0; break;
+    case Py_EQ: r = cmp == 0; break;
+    case Py_NE: r = cmp != 0; break;
+    case Py_GT: r = cmp >  0; break;
+    case Py_GE: r = cmp >= 0; break;
+    default:    r = 0;
+    };
+    
+    PyObject* r_o = r ? Py_True : Py_False;
+    Py_INCREF(r_o);
+    return r_o;
+  }
+
+#endif
 
   static PyObject*
   fixed_repr(omnipyFixedObject* f)
@@ -266,7 +261,7 @@ extern "C" {
     CORBA::String_var repr = CORBA::string_alloc(strlen(str) + 10);
     sprintf((char*)repr, "fixed(\"%s\")", (const char*)str);
 
-    return PyString_FromString((const char*)repr);
+    return String_FromString((const char*)repr);
   }
 
   static long
@@ -286,7 +281,7 @@ extern "C" {
     unsigned long u = h;
     int shift = f->ob_fixed->fixed_scale();
 
-    h = u << shift + u >> (32 - shift);
+    h = (u << shift) + (u >> (32 - shift));
 
     if (h == -1)
       h = -2;
@@ -297,7 +292,7 @@ extern "C" {
   fixed_str(omnipyFixedObject* f)
   {
     CORBA::String_var str = f->ob_fixed->NP_asString();
-    return PyString_FromString((const char*)str);
+    return String_FromString((const char*)str);
   }
 
   static PyObject*
@@ -364,6 +359,9 @@ extern "C" {
     return *f->ob_fixed != CORBA::Fixed(0);
   }
 
+
+#if (PY_VERSION_HEX <= 0x03000000)
+
   static int
   fixed_coerce(PyObject** pv, PyObject** pw)
   {
@@ -378,7 +376,7 @@ extern "C" {
       PyObject* pystr = PyObject_Str(*pw);
       try {
 	CORBA::Fixed f;
-	f.NP_fromString(PyString_AsString(pystr), 1);
+	f.NP_fromString(String_AsString(pystr), 1);
 	*pw = omniPy::newFixedObject(f);
 	Py_DECREF(pystr);
       }
@@ -391,7 +389,9 @@ extern "C" {
     }
     return 1; // Can't coerce
   }
+#endif
 
+#if (PY_VERSION_HEX <= 0x03000000)
   static PyObject *
   fixed_int(PyObject* v)
   {
@@ -412,6 +412,7 @@ extern "C" {
     }
     OMNIPY_CATCH_AND_HANDLE_SYSTEM_EXCEPTIONS
   }
+#endif
 
   static PyObject*
   fixed_long(PyObject* v)
@@ -420,6 +421,7 @@ extern "C" {
     return fixedValueAsPyLong(f);
   }
 
+#if (PY_VERSION_HEX <= 0x03000000)
 
   static PyNumberMethods fixed_as_number = {
     (binaryfunc) fixed_add,        /*nb_add*/
@@ -447,6 +449,50 @@ extern "C" {
     0,                             /*nb_hex*/
   };
 
+#else
+
+  static PyNumberMethods fixed_as_number = {
+    (binaryfunc) fixed_add,        /*nb_add*/
+    (binaryfunc) fixed_sub,        /*nb_subtract*/
+    (binaryfunc) fixed_mul,        /*nb_multiply*/
+    0,                             /*nb_remainder*/
+    0,                             /*nb_divmod*/
+    0,                             /*nb_power*/
+    (unaryfunc)	 fixed_neg,        /*nb_negative*/
+    (unaryfunc)	 fixed_pos,        /*nb_positive*/
+    (unaryfunc)  fixed_abs,        /*nb_absolute*/
+    (inquiry)    fixed_nonzero,    /*nb_bool*/
+    0,                             /*nb_invert*/
+    0,                             /*nb_lshift*/
+    0,                             /*nb_rshift*/
+    0,                             /*nb_and*/
+    0,                             /*nb_xor*/
+    0,                             /*nb_or*/
+    (unaryfunc)	 fixed_long,       /*nb_int*/
+    0,                             /*nb_reserved*/
+    0,                             /*nb_float*/
+
+    0,                             /*nb_inplace_add*/
+    0,                             /*nb_inplace_subtract*/
+    0,                             /*nb_inplace_multiply*/
+    0,                             /*nb_inplace_remainder*/
+    0,                             /*nb_inplace_power*/
+    0,                             /*nb_inplace_lshift*/
+    0,                             /*nb_inplace_rshift*/
+    0,                             /*nb_inplace_and*/
+    0,                             /*nb_inplace_xor*/
+    0,                             /*nb_inplace_or*/
+
+    0,                             /*nb_floor_divide*/
+    (binaryfunc) fixed_div,        /*nb_true_divide*/
+    0,                             /*nb_inplace_floor_divide*/
+    0,                             /*nb_inplace_true_divide*/
+
+    0,                             /*nb_index*/
+  };
+
+#endif
+
   static char fixed_type_doc [] =
   "CORBA fixed point type.\n"
   "\n"
@@ -464,16 +510,19 @@ extern "C" {
   "  f.truncate(scale) -> Value truncated to scale decimal places\n";
 
   PyTypeObject omnipyFixed_Type = {
-    PyObject_HEAD_INIT(&PyType_Type)
-    0,
+    PyVarObject_HEAD_INIT(0,0)
     "omnipyFixed",
     sizeof(omnipyFixedObject),
     0,
     (destructor) fixed_dealloc,    /*tp_dealloc*/
     (printfunc)  fixed_print,      /*tp_print*/
-    (getattrfunc)fixed_getattr,	   /*tp_getattr*/
+    0,                             /*tp_getattr*/
     0,				   /*tp_setattr*/
+#if (PY_VERSION_HEX <= 0x03000000)
     (cmpfunc)    fixed_compare,    /*tp_compare*/
+#else
+    0,                             /*tp_reserved*/
+#endif
     (reprfunc)   fixed_repr,       /*tp_repr*/
                 &fixed_as_number,  /*tp_as_number*/
     0,				   /*tp_as_sequence*/
@@ -484,7 +533,25 @@ extern "C" {
     0,				   /*tp_getattro*/
     0,				   /*tp_setattro*/
     0,                             /*tp_as_buffer*/
-    0,				   /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
     fixed_type_doc,                /*tp_doc*/
+    0,                             /*tp_traverse*/
+    0,                             /*tp_clear*/
+#if (PY_VERSION_HEX < 0x03000000)
+    0,                             /*tp_richcompare*/
+#else
+    (richcmpfunc)fixed_rcompare,   /*tp_richcompare*/
+#endif
+    0,                             /*tp_weaklistoffset*/
+    0,                             /*tp_iter*/
+    0,                             /*tp_iternext*/
+    fixed_methods,                 /*tp_methods*/
   };
+}
+
+void
+omniPy::initFixed(PyObject* mod)
+{
+  int r = PyType_Ready(&omnipyFixed_Type);
+  OMNIORB_ASSERT(r == 0);
 }

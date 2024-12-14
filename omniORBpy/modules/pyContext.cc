@@ -3,7 +3,7 @@
 // pyContext.cc               Created on: 2002/01/17
 //                            Author    : Duncan Grisby (dpg1)
 //
-//    Copyright (C) 2003-2005 Apasphere Ltd
+//    Copyright (C) 2003-2014 Apasphere Ltd
 //    Copyright (C) 2002 AT&T Laboratories Cambridge
 //
 //    This file is part of the omniORBpy library
@@ -20,32 +20,10 @@
 //    GNU Lesser General Public License for more details.
 //
 //    You should have received a copy of the GNU Lesser General Public
-//    License along with this library; if not, write to the Free
-//    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-//    MA 02111-1307, USA
-//
+//    License along with this library. If not, see http://www.gnu.org/licenses/
 //
 // Description:
 //    Context support
-
-// $Id$
-// $Log$
-// Revision 1.1.4.3  2005/06/24 17:36:08  dgrisby
-// Support for receiving valuetypes inside Anys; relax requirement for
-// old style classes in a lot of places.
-//
-// Revision 1.1.4.2  2003/05/20 17:10:23  dgrisby
-// Preliminary valuetype support.
-//
-// Revision 1.1.4.1  2003/03/23 21:51:57  dgrisby
-// New omnipy3_develop branch.
-//
-// Revision 1.1.2.2  2003/03/14 15:29:22  dgrisby
-// Remove const char* -> char* warnings.
-//
-// Revision 1.1.2.1  2002/01/18 15:49:44  dpg1
-// Context support. New system exception construction. Fix None call problem.
-//
 
 #include <omnipy.h>
 
@@ -55,7 +33,7 @@ OMNI_USING_NAMESPACE(omni)
 void
 omniPy::validateContext(PyObject* c_o, CORBA::CompletionStatus compstatus)
 {
-  if (!isInstance(c_o, pyCORBAContextClass))
+  if (!PyObject_IsInstance(c_o, pyCORBAContextClass))
     OMNIORB_THROW(BAD_PARAM, BAD_PARAM_WrongPythonType, compstatus);
 }
 
@@ -65,7 +43,7 @@ omniPy::marshalContext(cdrStream& stream, PyObject* p_o, PyObject* c_o)
   PyObject* values = PyObject_CallMethod(c_o, (char*)"_get_values",
 					 (char*)"O", p_o);
   if (values) {
-    PyObject* items = PyDict_Items(values);
+    PyObject*    items = PyDict_Items(values);
     CORBA::ULong count = PyList_GET_SIZE(items);
     CORBA::ULong mlen  = count * 2;
     mlen >>= stream;

@@ -30,3 +30,6 @@ message = "Hello from Python"
 result  = eo.echoString(message)
 
 print "I said '%s'. The object said '%s'." % (message,result)
+
+# Destroy the ORB to clean up
+orb.destroy()

@@ -3,7 +3,7 @@
 # __init__.py                Created on: 1999/07/19
 #                            Author    : Duncan Grisby (dpg1)
 #
-#    Copyright (C) 2002-2008 Apasphere Ltd
+#    Copyright (C) 2002-2019 Apasphere Ltd
 #    Copyright (C) 1999 AT&T Laboratories Cambridge
 #
 #    This file is part of the omniORBpy library
@@ -20,235 +20,25 @@
 #    GNU Lesser General Public License for more details.
 #
 #    You should have received a copy of the GNU Lesser General Public
-#    License along with this library; if not, write to the Free
-#    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-#    MA 02111-1307, USA
+#    License along with this library. If not, see http://www.gnu.org/licenses/
 #
 #
 # Description:
 #    omniORB module -- omniORB specific things
 
-
-# $Id$
-# $Log$
-# Revision 1.30.2.23  2009/05/06 16:50:23  dgrisby
-# Updated copyright.
-#
-# Revision 1.30.2.22  2008/08/21 10:53:55  dgrisby
-# Hook Thread.__stop instead of __delete. Thanks Luke Deller.
-#
-# Revision 1.30.2.21  2008/02/01 16:29:16  dgrisby
-# Error with implementation of operations with names clashing with
-# Python keywords.
-#
-# Revision 1.30.2.20  2007/10/07 15:30:58  dgrisby
-# Problems with modules inside packages. Thanks Fabian Knittel.
-#
-# Revision 1.30.2.19  2007/05/11 09:37:23  dgrisby
-# Ensure hash value of unpickled enum items is the same as that of the
-# original item.
-#
-# Revision 1.30.2.18  2006/09/07 15:29:57  dgrisby
-# Use boxes.idl to build standard value boxes.
-#
-# Revision 1.30.2.17  2006/07/11 13:53:09  dgrisby
-# Implement missing TypeCode creation functions.
-#
-# Revision 1.30.2.16  2006/02/22 13:05:15  dgrisby
-# __repr__ and _narrow methods for valuetypes.
-#
-# Revision 1.30.2.15  2006/01/19 17:28:44  dgrisby
-# Merge from omnipy2_develop.
-#
-# Revision 1.30.2.14  2006/01/17 17:38:20  dgrisby
-# Expose omniORB.setClientConnectTimeout function.
-#
-# Revision 1.30.2.13  2005/11/09 12:33:31  dgrisby
-# Support POA LocalObjects.
-#
-# Revision 1.30.2.12  2005/09/01 15:14:41  dgrisby
-# Merge from omnipy3_develop.
-#
-# Revision 1.30.2.11  2005/07/29 11:21:35  dgrisby
-# Fix long-standing problem with module re-opening by #included files.
-#
-# Revision 1.30.2.10  2005/06/24 17:36:00  dgrisby
-# Support for receiving valuetypes inside Anys; relax requirement for
-# old style classes in a lot of places.
-#
-# Revision 1.30.2.9  2005/04/25 18:28:29  dgrisby
-# Minor code for TRANSIENT_FailedOnForwarded.
-#
-# Revision 1.30.2.8  2005/04/14 13:50:45  dgrisby
-# New traceTime, traceInvocationReturns functions; removal of omniORB::logf.
-#
-# Revision 1.30.2.7  2005/03/02 13:39:16  dgrisby
-# Another merge from omnipy2_develop.
-#
-# Revision 1.30.2.6  2005/01/25 11:45:48  dgrisby
-# Merge from omnipy2_develop; set RPM version.
-#
-# Revision 1.30.2.5  2005/01/07 00:22:35  dgrisby
-# Big merge from omnipy2_develop.
-#
-# Revision 1.30.2.4  2003/09/04 14:08:41  dgrisby
-# Correct register_value_factory semantics.
-#
-# Revision 1.30.2.3  2003/07/10 22:13:25  dgrisby
-# Abstract interface support.
-#
-# Revision 1.30.2.2  2003/05/20 17:10:25  dgrisby
-# Preliminary valuetype support.
-#
-# Revision 1.30.2.1  2003/03/23 21:51:43  dgrisby
-# New omnipy3_develop branch.
-#
-# Revision 1.26.2.15  2003/03/12 11:17:49  dgrisby
-# Any / TypeCode fixes.
-#
-# Revision 1.26.2.14  2002/11/27 00:18:25  dgrisby
-# Per thread / per objref timeouts.
-#
-# Revision 1.26.2.13  2002/09/21 23:27:11  dgrisby
-# New omniORB.any helper module.
-#
-# Revision 1.26.2.12  2002/08/16 19:27:36  dgrisby
-# Documentation update. Minor ORB updates to match docs.
-#
-# Revision 1.26.2.11  2002/05/27 01:02:37  dgrisby
-# Fix bug with scope lookup in generated code. Fix TypeCode clean-up bug.
-#
-# Revision 1.26.2.10  2002/03/11 15:40:05  dpg1
-# _get_interface support, exception minor codes.
-#
-# Revision 1.26.2.9  2002/02/25 15:34:26  dpg1
-# Get list of keywords from keyword module.
-#
-# Revision 1.26.2.8  2002/01/18 15:49:45  dpg1
-# Context support. New system exception construction. Fix None call problem.
-#
-# Revision 1.26.2.7  2001/09/20 14:51:26  dpg1
-# Allow ORB reinitialisation after destroy(). Clean up use of omni namespace.
-#
-# Revision 1.26.2.6  2001/08/01 10:12:37  dpg1
-# Main thread policy.
-#
-# Revision 1.26.2.5  2001/06/15 10:59:27  dpg1
-# Apply fixes from omnipy1_develop.
-#
-# Revision 1.26.2.4  2001/05/14 15:22:00  dpg1
-# cdrMarshal() / cdrUnmarshal() are back.
-#
-# Revision 1.26.2.3  2001/04/10 16:35:33  dpg1
-# Minor bugs in Any coercion.
-#
-# Revision 1.26.2.2  2001/04/09 15:22:17  dpg1
-# Fixed point support.
-#
-# Revision 1.26.2.1  2000/10/13 13:55:31  dpg1
-# Initial support for omniORB 4.
-#
-# Revision 1.26  2000/10/02 17:34:58  dpg1
-# Merge for 1.2 release
-#
-# Revision 1.24.2.2  2000/08/23 09:22:07  dpg1
-# Fix loading of IfR stubs with "import CORBA"
-#
-# Revision 1.24.2.1  2000/08/17 08:46:06  dpg1
-# Support for omniORB.LOCATION_FORWARD exception
-#
-# Revision 1.24  2000/07/12 14:33:10  dpg1
-# Support for Interface Repository stubs
-#
-# Revision 1.23  2000/06/28 10:49:07  dpg1
-# Incorrect comment removed.
-#
-# Revision 1.22  2000/06/27 15:09:41  dpg1
-# Expanded comment.
-#
-# Revision 1.21  2000/06/12 15:36:09  dpg1
-# Support for exception handler functions. Under omniORB 3, local
-# operation dispatch modified so exceptions handlers are run.
-#
-# Revision 1.20  2000/06/02 14:25:51  dpg1
-# orb.run() now properly exits when the ORB is shut down
-#
-# Revision 1.19  2000/06/01 11:10:30  dme
-# add omniORB.WorkerThread create/delete hooks (e.g. for profiling)
-#
-# Revision 1.18  2000/04/06 09:31:43  dpg1
-# newModule() spots if we're trying to re-open the CORBA module, and if
-# so uses omniORB.CORBA.
-#
-# Revision 1.17  2000/03/03 17:41:27  dpg1
-# Major reorganisation to support omniORB 3.0 as well as 2.8.
-#
-# Revision 1.16  2000/01/31 10:51:41  dpg1
-# Fix to exception throwing.
-#
-# Revision 1.15  2000/01/04 16:14:27  dpg1
-# Clear out byte-compiled files created by importIDL()
-#
-# Revision 1.14  2000/01/04 15:29:40  dpg1
-# Fixes to modules generated within a package.
-#
-# Revision 1.13  1999/11/12 17:15:50  dpg1
-# Can now specify arguments for omniidl.
-#
-# Revision 1.12  1999/11/12 16:49:18  dpg1
-# Stupid bug introduced with last change.
-#
-# Revision 1.11  1999/11/12 15:53:48  dpg1
-# New functions omniORB.importIDL() and omniORB.importIDLString().
-#
-# Revision 1.10  1999/10/18 08:25:57  dpg1
-# _is_a() now works properly for local objects.
-#
-# Revision 1.9  1999/09/29 15:46:50  dpg1
-# lockWithNewThreadState now creates a dummy threading.Thread object so
-# threading doesn't get upset that it's not there. Very dependent on the
-# implementation of threading.py.
-#
-# Revision 1.8  1999/09/27 09:06:37  dpg1
-# Friendly error message if there is no thread support.
-#
-# Revision 1.7  1999/09/24 09:22:01  dpg1
-# Added copyright notices.
-#
-# Revision 1.6  1999/09/23 16:28:16  dpg1
-# __doc__ strings now created for existing modules without them.
-#
-# Revision 1.5  1999/09/22 15:46:11  dpg1
-# Fake POA implemented.
-#
-# Revision 1.4  1999/09/13 15:13:09  dpg1
-# Module handling.
-# Any coercion (*** not fully tested).
-#
-# Revision 1.3  1999/08/03 09:03:46  dpg1
-# Unions with no default member fixed.
-#
-# Revision 1.2  1999/07/29 14:16:03  dpg1
-# Server side support.
-#
-# Revision 1.1  1999/07/19 15:53:26  dpg1
-# Initial revision
-#
-
 """
 omniORB module -- omniORB specific features
-
 """
 
-import sys, types, string, imp, os, os.path, tempfile, exceptions
+import sys, types, imp, os, os.path, tempfile
 
 try:
     import threading
 except ImportError:
-    print """
+    sys.stderr.write("""
 Error: your Python executable was not built with thread support.
        omniORBpy requires threads. Sorry.
-"""
+""")
     raise ImportError("Python executable has no thread support")
 
 import _omnipy
@@ -264,7 +54,7 @@ reinit = 0
 for k, v in _omnipy.__dict__.items():
     if k[-5:] == "_func" and isinstance(v, types.ModuleType):
         sub = "_omnipy." + k
-        if not sys.modules.has_key(sub):
+        if sub not in sys.modules:
             reinit = 1
             sys.modules[sub] = v
         del sub
@@ -303,11 +93,11 @@ e.g. omniidlArguments(["-I/my/include", "-DMY_DEFINE"])"""
 
     global _omniidl_args
 
-    if type(args) is not types.ListType:
+    if not isinstance(args, list):
         raise TypeError("argument must be a list of strings")
 
     for arg in args:
-        if type(arg) is not types.StringType:
+        if not isinstance(arg, str):
             raise TypeError("argument must be a list of strings")
 
     _omniidl_args = args
@@ -331,19 +121,26 @@ Returns a tuple of Python module names corresponding to the IDL module
 names declared in the file. The modules can be accessed through
 sys.modules."""
 
+    import subprocess
+
     if not os.path.isfile(idlname):
         raise ImportError("File " + idlname + " does not exist")
 
-    if args is None: args = _omniidl_args
-    if inline:
-        inline_str = "-Wbinline "
-    else:
-        inline_str = ""
+    if args is None:
+        args = _omniidl_args
 
-    argstr  = string.join(args, " ")
-    modname = string.replace(os.path.basename(idlname), ".", "_")
-    pipe    = os.popen("omniidl -q -bpython -Wbstdout " + inline_str + \
-                       argstr + " " + idlname)
+    modname = os.path.basename(idlname).replace(".", "_")
+
+    cmd = ["omniidl", "-bpython", "-Wbstdout"]
+
+    if inline:
+        cmd.append("-Wbinline")
+
+    cmd.extend(args)
+    cmd.append(idlname)
+
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
     try:
         tempname  = tempfile.mktemp()
         tempnamec = tempname + "c"
@@ -351,25 +148,29 @@ sys.modules."""
             tempname  = tempfile.mktemp()
             tempnamec = tempname + "c"
 
-        m = imp.load_module(modname, pipe, tempname,
-                            (".idl", "r", imp.PY_SOURCE))
+        mod    = imp.load_source(modname, tempname, proc.stdout)
+        errors = proc.stderr.read()
+        status = proc.wait()
+
     finally:
         # Get rid of byte-compiled file
         if os.path.isfile(tempnamec):
             os.remove(tempnamec)
 
-        # Close the pipe
-        if pipe.close() is not None:
-            del sys.modules[modname]
-            raise ImportError("Error spawning omniidl")
+    if status:
+        if not isinstance(errors, str):
+            errors = errors.decode("utf-8")
+
+        raise ImportError(errors)
+
     try:
-        m.__file__ = idlname
-        mods = m._exported_modules
+        mod.__file__ = idlname
+        mods = mod._exported_modules
 
         for mod in mods:
             for m in (mod, skeletonModuleName(mod)):
-                if _partialModules.has_key(m):
-                    if sys.modules.has_key(m):
+                if m in _partialModules:
+                    if m in sys.modules:
                         sys.modules[m].__dict__.update(
                             _partialModules[m].__dict__)
                     else:
@@ -379,8 +180,9 @@ sys.modules."""
         return mods
 
     except (AttributeError, KeyError):
-        del sys.modules[modname]
+        sys.modules.pop(modname, None)
         raise ImportError("Invalid output from omniidl")
+
 
 def importIDLString(str, args=None, inline=1):
     """importIDLString(string [, args ] [, inline ]) -> tuple
@@ -435,6 +237,7 @@ CORBA.BAD_INV_ORDER if the ORB has not been initialised."""
 
     return _omnipy.cdrMarshal(tc._d, data, endian)
 
+
 def cdrUnmarshal(tc, encap, endian=-1):
     """cdrUnmarshal(TypeCode, string [,endian]) -> data
 
@@ -460,6 +263,7 @@ or CORBA.BAD_INV_ORDER if the ORB has not been initialised."""
         raise TypeError("Argument 1 must be a TypeCode")
 
     return _omnipy.cdrUnmarshal(tc._d, encap, endian)
+
 
 
 WTHREAD_CREATED = 0
@@ -489,6 +293,7 @@ Make stubs for the Interface Repository appear in the CORBA module"""
 # Import omniORB API functions. This provides:
 #
 #   installTransientExceptionHandler()
+#   installTimeoutExceptionHandler()
 #   installCommFailureExceptionHandler()
 #   installSystemExceptionHandler()
 #   traceLevel
@@ -515,10 +320,9 @@ from _omnipy.omni_func import *
 # Private things
 
 # ORB:
-orb      = None
-rootPOA  = None
-poaCache = {}
-lock     = threading.Lock()
+orb     = None
+rootPOA = None
+lock    = threading.Lock()
 
 # Maps for object reference classes and IDL-defined types:
 objrefMapping       = {}
@@ -526,6 +330,9 @@ skeletonMapping     = {}
 typeMapping         = {}
 typeCodeMapping     = {}
 valueFactoryMapping = {}
+
+# List of policy creation functions
+policyMakers = []
 
 
 def registerObjref(repoId, objref):
@@ -565,15 +372,15 @@ def openModule(mname, fname=None):
     if mname == "CORBA":
         mod = sys.modules["omniORB.CORBA"]
 
-    elif sys.modules.has_key(mname):
+    elif mname in sys.modules:
         mod = sys.modules[mname]
 
-        if _partialModules.has_key(mname):
+        if mname in _partialModules:
             pmod = _partialModules[mname]
             mod.__dict__.update(pmod.__dict__)
             del _partialModules[mname]
             
-    elif _partialModules.has_key(mname):
+    elif mname in _partialModules:
         mod = _partialModules[mname]
 
     else:
@@ -591,17 +398,17 @@ def openModule(mname, fname=None):
 # Function to create a new module, and any parent modules which do not
 # already exist
 def newModule(mname):
-    mlist   = string.split(mname, ".")
+    mlist   = mname.split(".")
     current = ""
     mod     = None
 
     for name in mlist:
         current = current + name
 
-        if sys.modules.has_key(current):
+        if current in sys.modules:
             mod = sys.modules[current]
 
-        elif _partialModules.has_key(current):
+        elif current in _partialModules:
             mod = _partialModules[current]
 
         else:
@@ -612,32 +419,55 @@ def newModule(mname):
 
     return mod
 
-# Function to update a module with the partial module store in the
-# partial module map
 def updateModule(mname):
-    if _partialModules.has_key(mname):
+    """
+    updateModule(mname) -- update a module with a partial module
+    stored in the partial module map.
+    """
+    if mname in _partialModules:
         pmod = _partialModules[mname]
         mod  = sys.modules[mname]
         mod.__dict__.update(pmod.__dict__)
         del _partialModules[mname]
 
 
+def promotePartialModule(mname):
+    """
+    promotePartialModule(mname) -- convert partial module to full
+    module in sys.modules.
+    """
+    sys.modules[mname] = _partialModules[mname]
+    del _partialModules[mname]
+
+
 def skeletonModuleName(mname):
-    l = string.split(mname, ".")
+    l = mname.split(".")
     l[0] = l[0] + "__POA"
-    return string.join(l, ".")
+    return ".".join(l)
 
 
 
 # Function to create a new empty class as a scope place-holder
 def newEmptyClass():
-    class __dummy: pass
+    class __dummy(object): pass
     return __dummy
 
- 
+
+# Docstring setting
+def setDocString(obj, doc):
+    try:
+        if isinstance(obj, types.UnboundMethodType):
+            obj = obj.im_func
+        obj.__doc__ = doc
+
+    except AttributeError:
+        # Python 2 does not permit __doc__ assignment to a new-style class
+        pass
+
+
 # Classes to support IDL type mapping
 
-class EnumItem:
+class EnumItem(object):
     def __init__(self, name, value):
         self._n = name
         self._v = value
@@ -673,7 +503,7 @@ class AnonymousEnumItem (EnumItem):
         return "anonymous enum item"
 
 
-class Enum:
+class Enum(object):
     def __init__(self, repoId, items):
         self._NP_RepositoryId = repoId
         self._items = items
@@ -684,7 +514,7 @@ class Enum:
         return self._items[n]
 
 
-class StructBase:
+class StructBase(object):
     _NP_RepositoryId = None
     _NP_ClassName = None
     
@@ -706,7 +536,7 @@ class StructBase:
             except AttributeError:
                 vals.append("%s=<not set>" % attr)
 
-        return "%s(%s)" % (cname, string.join(vals, ", "))
+        return "%s(%s)" % (cname, ", ".join(vals))
 
     def _tuple(self):
         desc = findType(self._NP_RepositoryId)
@@ -721,7 +551,7 @@ class StructBase:
         return tuple(vals)
 
 
-class Union:
+class Union(object):
     _NP_ClassName = None
     _def_m = None
 
@@ -737,12 +567,15 @@ class Union:
             self.__setattr__(k, kw[k])
 
     def __getattr__(self, mem):
+        if mem[0] == "_":
+            raise AttributeError(mem)
+
         try:
             cmem = self._d_to_m[self._d]
             if mem == cmem:
                 return self._v
             else:
-                if mem == self._def_m or self._m_to_d.has_key(mem):
+                if mem == self._def_m or mem in self._m_to_d:
                     raise CORBA.BAD_PARAM(BAD_PARAM_WrongUnionMemberSelected,
                                           CORBA.COMPLETED_NO)
                 else:
@@ -751,7 +584,7 @@ class Union:
             if mem == self._def_m:
                 return self._v
             else:
-                if self._m_to_d.has_key(mem):
+                if mem in self._m_to_d:
                     raise CORBA.BAD_PARAM(BAD_PARAM_WrongUnionMemberSelected,
                                           CORBA.COMPLETED_NO)
                 else:
@@ -785,7 +618,8 @@ class Union:
 
 
 # Import sub-modules
-import CORBA, tcInternal
+import CORBA, tcInternal, omniPolicy
+tcInternal.CORBA = CORBA
 
 def createUnknownStruct(repoId, members):
 
@@ -813,7 +647,7 @@ def createUnknownStruct(repoId, members):
                     vals.append(repr(val))
 
             return "UnknownStruct<%s>(%s)" % (self._NP_RepositoryId,
-                                              string.join(vals, ", "))
+                                              ", ".join(vals))
         def _tuple(self):
             return tuple(self._values)
 
@@ -867,7 +701,7 @@ def createUnknownUserException(repoId, members):
                     vals.append(repr(val))
 
             return "UnknownUserException<%s>(%s)" % (self._NP_RepositoryId,
-                                                     string.join(vals, ", "))
+                                                     ", ".join(vals))
 
     UnknownUserException._NP_RepositoryId = repoId
     UnknownUserException._members         = members
@@ -907,8 +741,7 @@ def coerceAny(v, fd, td):
     if not tcInternal.equivalentDescriptors(fd, td):
         return None
 
-    if type(fd) is not types.TupleType or \
-       type(td) is not types.TupleType:
+    if not (isinstance(fd, tuple) and isinstance(td, tuple)):
         return None
 
     while fd[0] == tcInternal.tv_alias:
@@ -931,7 +764,7 @@ def coerceAny(v, fd, td):
             for i in range(len(l)):
                 l[i] = coerceAny(l[i], fd[i*2 + 5], td[i*2 + 5])
             
-            return apply(td[1], l)
+            return td[1](*l)
 
         elif fd[0] == tcInternal.tv_union:
             return td[1](v._d, coerceAny(v._v, fd[6][v._d], td[6][v._d]))
@@ -958,7 +791,7 @@ def coerceAny(v, fd, td):
             for i in range(len(l)):
                 l[i] = coerceAny(l[i], fd[i*2 + 5], td[i*2 + 5])
             
-            return apply(td[1], l)
+            return td[1](*l)
 
         elif fd[0] == tcInternal.tv__indirect:
             return coerceAny(v, fd[1][0], td[1][0])
@@ -971,15 +804,23 @@ def coerceAny(v, fd, td):
 
 # Support for _is_a()
 def static_is_a(cls, repoId):
-    if cls._NP_RepositoryId == repoId: return 1
+    try:
+        if cls._NP_RepositoryId == repoId:
+            return 1
+
+    except AttributeError:
+        return 0
+    
     for b in cls.__bases__:
-        if static_is_a(b, repoId): return 1
+        if static_is_a(b, repoId):
+            return 1
+
     return 0
 
 
 # Fixed point type
 
-class fixedConstructor:
+class fixedConstructor(object):
     def __init__(self, repoId, digits, scale):
         self._NP_RepositoryId = repoId
         self.digits           = digits
@@ -1000,10 +841,17 @@ class fixedConstructor:
 # *** Depends on threading module internals ***
 
 _thr_init = threading.Thread.__init__
-_thr_id   = threading._get_ident
+
+try:
+    _thr_id = threading._get_ident
+except AttributeError:
+    _thr_id = threading.get_ident
+
 _thr_act  = threading._active
 _thr_acq  = threading._active_limbo_lock.acquire
 _thr_rel  = threading._active_limbo_lock.release
+
+def_id = id
 
 class WorkerThread(threading.Thread):
 
@@ -1012,17 +860,23 @@ class WorkerThread(threading.Thread):
     def __init__(self):
         id = _thr_id()
         _thr_init(self, name="omniORB-%d" % id)
-        if hasattr(self._Thread__started, 'set'):
+
+        if hasattr(self, "_started"):
+            self._started.set()
+        elif hasattr(self._Thread__started, 'set'):
             self._Thread__started.set()
         else:
             self._Thread__started = 1
+
         self.id = id
         _thr_acq()
-        if _thr_act.has_key(id):
+
+        if id in _thr_act:
             self.add = 0
         else:
             self.add = 1
             _thr_act[id] = self
+
         _thr_rel()
         if self.add:
             for hook in self.hooks:
@@ -1040,21 +894,30 @@ class WorkerThread(threading.Thread):
 
     def _set_daemon(self): return 1
     def join(self):        assert 0, "cannot join an omniORB WorkerThread"
-    
+
 
 # omniThreadHook is used to release a dummy omni_thread C++ object
 # associated with a threading.Thread object when the thread stops.
 
-class omniThreadHook:
+class omniThreadHook(object):
     def __init__(self, target):
         self.target            = target
-        self.target_stop       = target._Thread__stop
-        target._Thread__stop   = self.omni_thread_stop
+
+        try:
+            self.target_stop       = target._Thread__stop
+            target._Thread__stop   = self.omni_thread_stop
+
+        except AttributeError:
+            self.target_stop = target._stop
+            target._stop     = self.omni_thread_stop
 
     def omni_thread_stop(self):
         try:
             delattr(self.target, "__omni_thread")
-            del self.target._Thread__stop
+            try:
+                del self.target._Thread__stop
+            except AttributeError:
+                del self.target._stop
         except AttributeError:
             pass
         self.target_stop()
@@ -1099,7 +962,7 @@ from omniORB.minorCodes import *
 # More public things, which depend on the CORBA module
 
 # LOCATION_FORWARD exception
-class LOCATION_FORWARD (exceptions.Exception):
+class LOCATION_FORWARD (Exception):
     """LOCATION_FORWARD(objref, permanent=0)
 
 This exception may be thrown inside any operation implementation. It
@@ -1125,12 +988,8 @@ is set to 1, a permanent location forward is requested."""
 # unloaded.
 
 _emptyTuple      = ()
-_ORB_TWIN        = "__omni_orb"
-_OBJREF_TWIN     = "__omni_obj"
-_SERVANT_TWIN    = "__omni_svt"
-_POA_TWIN        = "__omni_poa"
-_POAMANAGER_TWIN = "__omni_mgr"
-_POACURRENT_TWIN = "__omni_pct"
+_servantAttr     = "__omni_svt"
+_objAttr         = "_obj"
 _NP_RepositoryId = "_NP_RepositoryId"
 
 
@@ -1139,14 +998,24 @@ import omniORB, omniORB.PortableServer
 _omnipy.registerPyObjects(omniORB)
 
 # Import CORBA module stubs
-import corbaidl_idl
-import boxes_idl
+from omniORB import corbaidl_idl
+sys.modules["corbaidl_idl"]  = corbaidl_idl
 
-sys.modules["corbaidl_idl"] = corbaidl_idl
-sys.modules["boxes_idl"]    = boxes_idl
+from omniORB import boxes_idl
+sys.modules["boxes_idl"]     = boxes_idl
+
+from omniORB import pollable_idl
+sys.modules["pollable_idl"]  = pollable_idl
+
+from omniORB import messaging_idl
+sys.modules["messaging_idl"] = messaging_idl
 
 # Import the Interface Repository stubs if necessary
-if os.environ.has_key("OMNIORBPY_IMPORT_IR_STUBS"):
+if "OMNIORBPY_IMPORT_IR_STUBS" in os.environ:
     importIRStubs()
+
+promotePartialModule("CORBA__POA")
+promotePartialModule("Messaging")
+promotePartialModule("Messaging__POA")
 
 del omniORB

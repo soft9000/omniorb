@@ -1,131 +1,103 @@
 RELEASE NOTES
 =============
 
-This is omniORBpy 3.7.
+This is omniORBpy 4.2.6.
 
 See README.txt for building instructions.
 See the documentation in the doc directory for more information.
 
 
-Changes since omniORBpy 3.6
+Changes since omniORB 4.2.5
 ---------------------------
 
- - Minor fixes.
- - Track ORB core 4.1.7 release.
+omniORB 4.2.6 is primarily a bug fix release. See update.log for full
+details of changes. Highlights include:
+
+ - Fixed two cases of crashes due to invalid GIOP sent by buggy or
+   malicious clients.
+
+ - Other minor bug fixes.
 
 
-Changes since omniORBpy 3.5
+Changes since omniORB 4.2.4
 ---------------------------
 
- - Build fixes.
- - Track ORB core 4.1.6 release.
+omniORB 4.2.5 is primarily a bug fix release. See update.log for full
+details of changes.
+
+Most importantly, it includes support for Python 3.10 on all supported
+platforms.
 
 
-Changes since omniORBpy 3.4
+Changes since omniORB 4.2.3
 ---------------------------
 
- - Bug fixes. See bugfixes-34.xml.
- - Allow passing of peer address and identity to interceptors.
- - Exceptions can be pickled.
+omniORB 4.2.4 is primarily a bug fix release. See update.log for full
+details of changes. It mainly contains fixes for issues with Python 3.
 
 
-Changes since omniORBpy 3.3
+Changes since omniORB 4.2.2
 ---------------------------
 
- - Bug fixes. See bugfixes-33.xml.
+omniORB 4.2.3 is primarily a bug fix release. See update.log for full
+details of changes. The main omniORBpy highlight is support for Python
+3.7. For other new features, see the omniORB release notes.
 
 
-Changes since omniORBpy 3.2
+Changes since omniORB 4.2.1
 ---------------------------
 
- - Bug fixes. See bugfixes-32.xml.
+omniORB 4.2.2 is primarily a bug fix release. See update.log for full
+details of changes. The main omniORBpy highlight is better support for
+Python 3. For other new features, see the omniORB release notes.
 
 
-Changes since omniORBpy 3.1
+Changes since omniORB 4.2.0
 ---------------------------
 
- - Bug fixes. See bugfixes-31.xml.
+The big highlight of this release is full Python 3 support. Versions
+from 3.2 onwards are supported.
+
+Other changes are minor bug fixes. See update.log for full details.
 
 
-Changes since omniORBpy 3.0
----------------------------
+Changes since omniORB 4.1.x / omniORBpy 3.x
+-------------------------------------------
 
- - Bug fixes. See bugfixes-30.xml.
+omniORBpy 4.2 has a number of new features and changes compared to
+omniORB 4.1.x / omniORBpy 3.x. Here are the highlights:
 
- - Minor documentation updates.
+ - The omniORBpy version number now matches the core omniORB version
+   number.
 
- - New configuration parameters: socketSendBuffer, resetTimeOutOnRetries.
+ - Full Asynchronous Method Invocation (AMI) support.
 
+ - Support for ZIOP, which compresses large messages.
 
-Changes since omniORBpy 3.0 release candidate 2
------------------------------------------------
+ - Call timeouts are indicated with the CORBA.TIMEOUT exception,
+   rather than CORBA.TRANSIENT (unless suppressed with the
+   throwTransientOnTimeout configuration parameter).
 
- - Minor bug fixes.
+ - Servers can be limited to a range of ports to listen on.
 
+ - When CORBA.BAD_PARAM is raised due to parameter types that do not
+   match the IDL definitions, detailed information about the cause is
+   now reported.
 
-Changes since omniORBpy 3.0 release candidate 1
------------------------------------------------
+ - IDL attributes can now be accessed as properties of object
+   references. i.e. IDL attribute 'example' can be accessed as
+   obj.example as well as with obj._get_example() and
+   obj._set_example().
 
- - Minor bug fixes.
-
-
-Changes since omniORBpy 3.0 beta 2
-----------------------------------
-
- - Minor bug fixes.
- - Support for the experimental omniConnectionMgmt extension.
- - New C++ api functions.
-
-
-Changes since omniORBpy 3.0 beta 1
-----------------------------------
-
- - IPv6 support.
-
-     See section 7.6.1 of the omniORBpy manual for details.
-
- - New endPointPublish parameter.
-
-     Used for configuring what to publish in IORs. See section 7.6.2
-     of the omniORBpy manual.
-
- - Minor bug fixes.
+ - Ancient Python versions are no longer supported. omniidl and
+   omniORBpy now only work with Python 2.5 or later.
 
 
-Changes since omniORBpy 2.x
----------------------------
 
- - Objects by value support.
+Known limitations
+-----------------
 
-     omniORB now supports the full objects by value specification,
-     with the exception of custom valuetypes. See chapter 10 of the
-     omniORBpy manual for information about valuetype in omniORBpy.
-
- - Abstract interfaces support.
-
- - New socket collection implementation.
-
-     Uses poll() on platforms where it is available to avoid limiting
-     the number of connections to FD_SETSIZE. Windows specific version
-     that better manages the unusual Windows fd_set.
-
- - New tracing options traceTime and traceInvocationReturns.
-
-     See section 4.2 of the omniORB manual.
-
- - New-style Python classes can now be used for servants.
-
- - Partial support for local interfaces.
-
-     In particular, ServantManagers and AdapterActivators no longer
-     need to be activated in a POA, but can be simple Python objects.
-     See the examples in examples/poa.
-
-
-Known issues
-------------
-
-This release has the following known issues and omissions:
+This release has the following known limitations:
 
  - There is no support for DII and DSI. Since you can write IDL and
    Python code on-the-fly, this is not a significant limitation.
